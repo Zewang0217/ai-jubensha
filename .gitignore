@@ -137,3 +137,6 @@ datasets/
 # Temporary upload files
 uploads/
 tmp/
+
+.idea
+AGENTS.md
