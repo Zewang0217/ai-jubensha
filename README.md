@@ -1,1 +1,1 @@
-"# ai-jubensha" 
+# AI-ScriptKill
