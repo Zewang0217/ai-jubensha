@@ -1,0 +1,70 @@
+package org.jubensha.aijubenshabackend.service.character;
+
+import org.jubensha.aijubenshabackend.domain.model.Character;
+import org.jubensha.aijubenshabackend.domain.model.Script;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface CharacterService {
+    
+    /**
+     * 创建新角色
+     */
+    Character createCharacter(Character character);
+    
+    /**
+     * 根据ID获取角色
+     */
+    Optional<Character> getCharacterById(Long id);
+    
+    /**
+     * 获取所有角色
+     */
+    List<Character> getAllCharacters();
+    
+    /**
+     * 获取剧本的所有角色
+     */
+    List<Character> getCharactersByScript(Script script);
+    
+    /**
+     * 根据剧本ID获取角色
+     */
+    List<Character> getCharactersByScriptId(Long scriptId);
+    
+    /**
+     * 更新角色
+     */
+    Character updateCharacter(Long id, Character character);
+    
+    /**
+     * 删除角色
+     */
+    void deleteCharacter(Long id);
+    
+    /**
+     * 获取AI角色
+     */
+    List<Character> getAICharacters();
+    
+    /**
+     * 获取剧本的AI角色
+     */
+    List<Character> getAICharactersByScript(Script script);
+    
+    /**
+     * 根据状态获取角色
+     */
+    List<Character> getCharactersByStatus(String status);
+    
+    /**
+     * 根据性别获取角色
+     */
+    List<Character> getCharactersByGender(String gender);
+    
+    /**
+     * 根据剧本ID和状态获取角色
+     */
+    List<Character> getCharactersByScriptIdAndStatus(Long scriptId, String status);
+}
