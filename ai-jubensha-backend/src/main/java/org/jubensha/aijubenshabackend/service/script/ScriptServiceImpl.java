@@ -1,13 +1,13 @@
 package org.jubensha.aijubenshabackend.service.script;
 
-import org.jubensha.aijubenshabackend.domain.model.Script;
+import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 import org.jubensha.aijubenshabackend.repository.script.ScriptRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,7 +25,7 @@ public class ScriptServiceImpl implements ScriptService {
     
     @Override
     public Script createScript(Script script) {
-        logger.info("Creating new script: {}", script.getTitle());
+        logger.info("Creating new script: {}", script.getName());
         return scriptRepository.save(script);
     }
     
@@ -47,13 +47,13 @@ public class ScriptServiceImpl implements ScriptService {
         Optional<Script> existingScript = scriptRepository.findById(id);
         if (existingScript.isPresent()) {
             Script updatedScript = existingScript.get();
-            updatedScript.setTitle(script.getTitle());
+            updatedScript.setName(script.getName());
             updatedScript.setDescription(script.getDescription());
             updatedScript.setAuthor(script.getAuthor());
             updatedScript.setDifficulty(script.getDifficulty());
             updatedScript.setDuration(script.getDuration());
             updatedScript.setPlayerCount(script.getPlayerCount());
-            updatedScript.setCoverUrl(script.getCoverUrl());
+            updatedScript.setCoverImage(script.getCoverImage());
             return scriptRepository.save(updatedScript);
         } else {
             throw new IllegalArgumentException("Script not found with id: " + id);
@@ -69,18 +69,13 @@ public class ScriptServiceImpl implements ScriptService {
     @Override
     public List<Script> searchScriptsByName(String name) {
         logger.info("Searching scripts by name: {}", name);
-        return scriptRepository.findByTitleContaining(name);
+        return scriptRepository.findByNameContaining(name);
     }
     
     @Override
-    public List<Script> getScriptsByDifficulty(String difficulty) {
+    public List<Script> getScriptsByDifficulty(DifficultyLevel difficulty) {
         logger.info("Getting scripts by difficulty: {}", difficulty);
-        try {
-            Integer difficultyInt = Integer.parseInt(difficulty);
-            return scriptRepository.findByDifficulty(difficultyInt);
-        } catch (NumberFormatException e) {
-            return new ArrayList<>();
-        }
+        return scriptRepository.findByDifficulty(difficulty);
     }
     
     @Override
@@ -93,23 +88,5 @@ public class ScriptServiceImpl implements ScriptService {
     public List<Script> getScriptsByDuration(Integer maxDuration) {
         logger.info("Getting scripts by duration: {}", maxDuration);
         return scriptRepository.findByDurationLessThanEqual(maxDuration);
-    }
-    
-    @Override
-    public List<Script> getScriptsByStatus(String status) {
-        logger.info("Getting scripts by status: {}", status);
-        return scriptRepository.findByStatus(status);
-    }
-    
-    @Override
-    public List<Script> getScriptsByGenre(String genre) {
-        logger.info("Getting scripts by genre: {}", genre);
-        return scriptRepository.findByGenre(genre);
-    }
-    
-    @Override
-    public List<Script> getScriptsByTitleContaining(String title) {
-        logger.info("Getting scripts by title containing: {}", title);
-        return scriptRepository.findByTitleContaining(title);
     }
 }

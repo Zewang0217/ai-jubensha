@@ -1,6 +1,6 @@
-package org.jubensha.aijubenshabackend.api.controller;
+package org.jubensha.aijubenshabackend.controller;
 
-import org.jubensha.aijubenshabackend.domain.model.Player;
+import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,8 +1,8 @@
 package org.jubensha.aijubenshabackend.service.game;
 
-import org.jubensha.aijubenshabackend.domain.model.Game;
-import org.jubensha.aijubenshabackend.core.constant.GameStatus;
-import org.jubensha.aijubenshabackend.core.constant.GamePhase;
+import org.jubensha.aijubenshabackend.models.entity.Game;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,12 +28,10 @@ public interface GameService {
      * 获取所有游戏
      */
     List<Game> getAllGames();
-    
     /**
-     * 根据状态获取游戏
+     * 根据status获取游戏
      */
     List<Game> getGamesByStatus(GameStatus status);
-    
     /**
      * 根据阶段获取游戏
      */

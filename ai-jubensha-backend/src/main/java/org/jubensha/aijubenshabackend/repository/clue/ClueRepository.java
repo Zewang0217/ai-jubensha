@@ -1,7 +1,9 @@
 package org.jubensha.aijubenshabackend.repository.clue;
 
-import org.jubensha.aijubenshabackend.domain.model.Clue;
-import org.jubensha.aijubenshabackend.domain.model.Script;
+import org.jubensha.aijubenshabackend.models.entity.Clue;
+import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.enums.ClueType;
+import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,9 +16,11 @@ public interface ClueRepository extends JpaRepository<Clue, Long> {
     
     List<Clue> findByScriptId(Long scriptId);
     
-    List<Clue> findByType(String type);
+    List<Clue> findByType(ClueType type);
     
-    List<Clue> findByStatus(String status);
+    List<Clue> findByVisibility(ClueVisibility visibility);
     
     List<Clue> findByImportanceGreaterThanEqual(Integer importance);
+    
+    List<Clue> findByScene(String scene);
 }
