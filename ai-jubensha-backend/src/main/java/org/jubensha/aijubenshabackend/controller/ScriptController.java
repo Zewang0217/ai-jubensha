@@ -1,13 +1,16 @@
 package org.jubensha.aijubenshabackend.controller;
 
+import org.jubensha.aijubenshabackend.controller.request.GenerateScriptRequest;
 import org.jubensha.aijubenshabackend.models.entity.Script;
 import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 import org.jubensha.aijubenshabackend.service.script.ScriptService;
+import org.jubensha.aijubenshabackend.service.task.TaskService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -18,9 +21,11 @@ import java.util.Optional;
 public class ScriptController {
     
     private final ScriptService scriptService;
+    private final TaskService taskService;
     
-    public ScriptController(ScriptService scriptService) {
+    public ScriptController(ScriptService scriptService, TaskService taskService) {
         this.scriptService = scriptService;
+        this.taskService = taskService;
     }
     
     /**
@@ -126,5 +131,53 @@ public class ScriptController {
     public ResponseEntity<List<Script>> getScriptsByDuration(@PathVariable Integer maxDuration) {
         List<Script> scripts = scriptService.getScriptsByDuration(maxDuration);
         return new ResponseEntity<>(scripts, HttpStatus.OK);
+    }
+    
+    /**
+     * 生成剧本（异步）
+     * @param request 剧本生成请求
+     * @return 任务ID
+     */
+    @PostMapping("/generate")
+    public ResponseEntity<Map<String, String>> generateScript(@RequestBody GenerateScriptRequest request) {
+        try {
+            String taskId = taskService.submitScriptGenerationTask(
+                request.getScriptName(),
+                request.getDescription(),
+                request.getPlayerCount(),
+                request.getDifficulty().name(),
+                request.getExtraRequirements()
+            );
+            return ResponseEntity.ok(Map.of("taskId", taskId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to submit script generation task"));
+        }
+    }
+
+    /**
+     * 查询任务状态
+     * @param taskId 任务ID
+     * @return 任务状态信息
+     */
+    @GetMapping("/task/{taskId}")
+    public ResponseEntity<?> getTaskStatus(@PathVariable String taskId) {
+        try {
+            return taskService.getTaskStatus(taskId)
+                    .map(taskInfo -> {
+                        Map<String, Object> response = Map.of(
+                                "taskId", taskId,
+                                "status", taskInfo.getStatus(),
+                                "result", taskInfo.getResult(),
+                                "errorMessage", taskInfo.getErrorMessage()
+                        );
+                        return ResponseEntity.ok(response);
+                    })
+                    .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("error", "Task not found")));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to get task status"));
+        }
     }
 }

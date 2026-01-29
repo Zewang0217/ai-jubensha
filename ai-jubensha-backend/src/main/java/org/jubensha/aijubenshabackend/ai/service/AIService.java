@@ -7,6 +7,7 @@ import org.jubensha.aijubenshabackend.ai.agent.DMAgent;
 import org.jubensha.aijubenshabackend.ai.agent.PlayerAgent;
 import org.jubensha.aijubenshabackend.ai.agent.JudgeAgent;
 import org.jubensha.aijubenshabackend.ai.agent.SummaryAgent;
+import org.jubensha.aijubenshabackend.ai.agent.ScriptGeneratorAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,16 +25,18 @@ public class AIService {
     private final PlayerAgent playerAgent;
     private final JudgeAgent judgeAgent;
     private final SummaryAgent summaryAgent;
+    private final ScriptGeneratorAgent scriptGeneratorAgent;
     
     // 存储游戏中的AI玩家实例
     private final Map<Long, Map<String, Agent>> gameAgents = new ConcurrentHashMap<>();
     
     @Autowired
-    public AIService(DMAgent dmAgent, PlayerAgent playerAgent, JudgeAgent judgeAgent, SummaryAgent summaryAgent) {
+    public AIService(DMAgent dmAgent, PlayerAgent playerAgent, JudgeAgent judgeAgent, SummaryAgent summaryAgent, ScriptGeneratorAgent scriptGeneratorAgent) {
         this.dmAgent = dmAgent;
         this.playerAgent = playerAgent;
         this.judgeAgent = judgeAgent;
         this.summaryAgent = summaryAgent;
+        this.scriptGeneratorAgent = scriptGeneratorAgent;
     }
     
     /**
@@ -41,6 +44,13 @@ public class AIService {
      */
     public Agent getDMAgent() {
         return dmAgent;
+    }
+
+    /**
+     * 获取剧本生成Agent
+     */
+    public Agent getScriptGeneratorAgent() {
+        return scriptGeneratorAgent;
     }
 
     /**
@@ -94,6 +104,8 @@ public class AIService {
                 -> judgeAgent.process(input);
             case SUMMARY
                 -> summaryAgent.process(input);
+            case SCRIPT_GENERATOR
+                -> scriptGeneratorAgent.process(input);
             default
                 -> {
                 logger.warn("Unknown agent type: {}", agentType);
