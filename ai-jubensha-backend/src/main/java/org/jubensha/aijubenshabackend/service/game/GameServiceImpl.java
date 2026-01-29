@@ -1,9 +1,9 @@
 package org.jubensha.aijubenshabackend.service.game;
 
-import org.jubensha.aijubenshabackend.domain.model.Game;
+import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.repository.game.GameRepository;
-import org.jubensha.aijubenshabackend.core.constant.GameStatus;
-import org.jubensha.aijubenshabackend.core.constant.GamePhase;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,17 +47,18 @@ public class GameServiceImpl implements GameService {
         logger.info("Getting all games");
         return gameRepository.findAll();
     }
-    
+
     @Override
     public List<Game> getGamesByStatus(GameStatus status) {
         logger.info("Getting games by status: {}", status);
-        return gameRepository.findByStatus(status.toString());
+        return gameRepository.findByStatus(status);
     }
-    
+
+
     @Override
     public List<Game> getGamesByCurrentPhase(GamePhase currentPhase) {
         logger.info("Getting games by current phase: {}", currentPhase);
-        return gameRepository.findByCurrentPhase(currentPhase.toString());
+        return gameRepository.findByCurrentPhase(currentPhase);
     }
     
     @Override
@@ -84,7 +85,7 @@ public class GameServiceImpl implements GameService {
         Optional<Game> existingGame = gameRepository.findById(id);
         if (existingGame.isPresent()) {
             Game updatedGame = existingGame.get();
-            updatedGame.setStatus(status.toString());
+            updatedGame.setStatus(status);
             return gameRepository.save(updatedGame);
         } else {
             throw new IllegalArgumentException("Game not found with id: " + id);
@@ -97,7 +98,7 @@ public class GameServiceImpl implements GameService {
         Optional<Game> existingGame = gameRepository.findById(id);
         if (existingGame.isPresent()) {
             Game updatedGame = existingGame.get();
-            updatedGame.setCurrentPhase(phase.toString());
+            updatedGame.setCurrentPhase(phase);
             return gameRepository.save(updatedGame);
         } else {
             throw new IllegalArgumentException("Game not found with id: " + id);
@@ -119,7 +120,7 @@ public class GameServiceImpl implements GameService {
     @Override
     public List<Game> getGamesByStatusAndScriptId(GameStatus status, Long scriptId) {
         logger.info("Getting games by status: {} and script id: {}", status, scriptId);
-        return gameRepository.findByStatusAndScriptId(status.toString(), scriptId);
+        return gameRepository.findByStatusAndScriptId(status, scriptId);
     }
     
     @Override
@@ -128,8 +129,8 @@ public class GameServiceImpl implements GameService {
         Optional<Game> existingGame = gameRepository.findById(id);
         if (existingGame.isPresent()) {
             Game updatedGame = existingGame.get();
-            updatedGame.setStatus("active");
-            updatedGame.setCurrentPhase("initialization");
+            updatedGame.setStatus(GameStatus.STARTED);
+            updatedGame.setCurrentPhase(GamePhase.INTRODUCTION);
             updatedGame.setStartTime(java.time.LocalDateTime.now());
             return gameRepository.save(updatedGame);
         } else {
@@ -143,7 +144,7 @@ public class GameServiceImpl implements GameService {
         Optional<Game> existingGame = gameRepository.findById(id);
         if (existingGame.isPresent()) {
             Game updatedGame = existingGame.get();
-            updatedGame.setStatus("completed");
+            updatedGame.setStatus(GameStatus.ENDED);
             updatedGame.setEndTime(java.time.LocalDateTime.now());
             return gameRepository.save(updatedGame);
         } else {
@@ -157,7 +158,7 @@ public class GameServiceImpl implements GameService {
         Optional<Game> existingGame = gameRepository.findById(id);
         if (existingGame.isPresent()) {
             Game updatedGame = existingGame.get();
-            updatedGame.setStatus("canceled");
+            updatedGame.setStatus(GameStatus.CANCELED);
             updatedGame.setEndTime(java.time.LocalDateTime.now());
             return gameRepository.save(updatedGame);
         } else {

@@ -1,7 +1,9 @@
 package org.jubensha.aijubenshabackend.service.clue;
 
-import org.jubensha.aijubenshabackend.domain.model.Clue;
-import org.jubensha.aijubenshabackend.domain.model.Script;
+import org.jubensha.aijubenshabackend.models.entity.Clue;
+import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.enums.ClueType;
+import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
 
 import java.util.List;
 import java.util.Optional;
@@ -36,12 +38,17 @@ public interface ClueService {
     /**
      * 根据类型获取线索
      */
-    List<Clue> getCluesByType(String type);
+    List<Clue> getCluesByType(ClueType type);
     
     /**
-     * 根据状态获取线索
+     * 根据可见性获取线索
      */
-    List<Clue> getCluesByStatus(String status);
+    List<Clue> getCluesByVisibility(ClueVisibility visibility);
+    
+    /**
+     * 根据场景获取线索
+     */
+    List<Clue> getCluesByScene(String scene);
     
     /**
      * 获取重要线索

@@ -1,6 +1,7 @@
-package org.jubensha.aijubenshabackend.api.controller;
+package org.jubensha.aijubenshabackend.controller;
 
-import org.jubensha.aijubenshabackend.domain.model.Script;
+import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 import org.jubensha.aijubenshabackend.service.script.ScriptService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -79,36 +80,19 @@ public class ScriptController {
     }
     
     /**
-     * 根据状态查询剧本
-     * @param status 状态
-     * @return 剧本列表
-     */
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<Script>> getScriptsByStatus(@PathVariable String status) {
-        List<Script> scripts = scriptService.getScriptsByStatus(status);
-        return new ResponseEntity<>(scripts, HttpStatus.OK);
-    }
-    
-    /**
-     * 根据类型查询剧本
-     * @param genre 类型
-     * @return 剧本列表
-     */
-    @GetMapping("/genre/{genre}")
-    public ResponseEntity<List<Script>> getScriptsByGenre(@PathVariable String genre) {
-        List<Script> scripts = scriptService.getScriptsByGenre(genre);
-        return new ResponseEntity<>(scripts, HttpStatus.OK);
-    }
-    
-    /**
      * 根据难度查询剧本
      * @param difficulty 难度
      * @return 剧本列表
      */
     @GetMapping("/difficulty/{difficulty}")
     public ResponseEntity<List<Script>> getScriptsByDifficulty(@PathVariable String difficulty) {
-        List<Script> scripts = scriptService.getScriptsByDifficulty(difficulty);
-        return new ResponseEntity<>(scripts, HttpStatus.OK);
+        try {
+            DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(difficulty.toUpperCase());
+            List<Script> scripts = scriptService.getScriptsByDifficulty(difficultyLevel);
+            return new ResponseEntity<>(scripts, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
     
     /**
@@ -123,13 +107,24 @@ public class ScriptController {
     }
     
     /**
-     * 根据标题模糊查询剧本
-     * @param title 标题
+     * 根据名称搜索剧本
+     * @param name 名称
      * @return 剧本列表
      */
-    @GetMapping("/search/{title}")
-    public ResponseEntity<List<Script>> getScriptsByTitleContaining(@PathVariable String title) {
-        List<Script> scripts = scriptService.getScriptsByTitleContaining(title);
+    @GetMapping("/search/{name}")
+    public ResponseEntity<List<Script>> searchScriptsByName(@PathVariable String name) {
+        List<Script> scripts = scriptService.searchScriptsByName(name);
+        return new ResponseEntity<>(scripts, HttpStatus.OK);
+    }
+    
+    /**
+     * 根据时长查询剧本
+     * @param maxDuration 最大时长
+     * @return 剧本列表
+     */
+    @GetMapping("/duration/{maxDuration}")
+    public ResponseEntity<List<Script>> getScriptsByDuration(@PathVariable Integer maxDuration) {
+        List<Script> scripts = scriptService.getScriptsByDuration(maxDuration);
         return new ResponseEntity<>(scripts, HttpStatus.OK);
     }
 }

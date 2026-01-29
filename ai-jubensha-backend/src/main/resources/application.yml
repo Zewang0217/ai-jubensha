@@ -5,26 +5,29 @@ spring:
   
   # 数据库配置
   datasource:
-    url: jdbc:mysql://localhost:3306/ai_jubensha?useUnicode=true&characterEncoding=utf8mb4&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/ai_jubensha?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.zaxxer.hikari.HikariDataSource
   
   # JPA配置
   jpa:
     hibernate:
       ddl-auto: validate
     show-sql: false
+    database-platform: org.hibernate.dialect.MySQLDialect
     properties:
       hibernate:
         format_sql: false
   
   # Redis配置
-  redis:
-    host: localhost
-    port: 6379
-    password: ""
-    database: 0
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+      database: 0
   
   # RabbitMQ配置
   rabbitmq:
@@ -78,9 +81,10 @@ system:
 
 # AI配置
 ai:
-  model: deepseek
-  api-key: "sk-4956ebf53d9448bfb4dfcdc900459a35"
-  base-url: "https://api.deepseek.com/v1"
+  model: deepseek-chat  # Updated to use the correct model name for DeepSeek
+  api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
+  base-url: "https://api.siliconflow.cn/v1"
+  embedding-model: "BAAI/bge-large-zh-v1.5"  # Using SiliconFlow embedding model
 
 # 游戏配置
 game:

@@ -1,5 +1,6 @@
 package org.jubensha.aijubenshabackend.ai.service;
 
+import lombok.Getter;
 import org.jubensha.aijubenshabackend.ai.agent.Agent;
 import org.jubensha.aijubenshabackend.ai.agent.AgentType;
 import org.jubensha.aijubenshabackend.ai.agent.DMAgent;
@@ -41,21 +42,7 @@ public class AIService {
     public Agent getDMAgent() {
         return dmAgent;
     }
-    
-    /**
-     * 获取Judge Agent
-     */
-    public JudgeAgent getJudgeAgent() {
-        return judgeAgent;
-    }
-    
-    /**
-     * 获取Summary Agent
-     */
-    public SummaryAgent getSummaryAgent() {
-        return summaryAgent;
-    }
-    
+
     /**
      * 为游戏创建AI玩家
      */
@@ -99,18 +86,21 @@ public class AIService {
      */
     public String processAIRequest(AgentType agentType, String input) {
         switch (agentType) {
-            case DM:
-                return dmAgent.process(input);
-            case PLAYER:
-                return playerAgent.process(input);
-            case JUDGE:
-                return judgeAgent.process(input);
-            case SUMMARY:
-                return summaryAgent.process(input);
-            default:
+            case DM
+                -> dmAgent.process(input);
+            case PLAYER ->
+                playerAgent.process(input);
+            case JUDGE
+                -> judgeAgent.process(input);
+            case SUMMARY
+                -> summaryAgent.process(input);
+            default
+                -> {
                 logger.warn("Unknown agent type: {}", agentType);
                 return "未知的Agent类型。";
+            }
         }
+        return "请求处理完成。";
     }
     
     /**

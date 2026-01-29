@@ -1,7 +1,7 @@
 package org.jubensha.aijubenshabackend.service.character;
 
-import org.jubensha.aijubenshabackend.domain.model.Character;
-import org.jubensha.aijubenshabackend.domain.model.Script;
+import org.jubensha.aijubenshabackend.models.entity.Character;
+import org.jubensha.aijubenshabackend.models.entity.Script;
 import org.jubensha.aijubenshabackend.repository.character.CharacterRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,20 +44,22 @@ public class CharacterServiceImpl implements CharacterService {
     
     @Override
     public List<Character> getCharactersByScript(Script script) {
-        logger.info("Getting characters by script: {}", script.getTitle());
+        logger.info("Getting characters by script: {}", script.getName());
         return characterRepository.findByScript(script);
     }
     
     @Override
-    public List<Character> getAICharactersByScript(Script script) {
-        logger.info("Getting AI characters by script: {}", script.getTitle());
-        return new ArrayList<>();
+    public List<Character> getAICharactersByScript(Long scriptId) {
+        logger.info("Getting AI characters by script: {}", scriptId);
+        List<Character> aiCharacters = new ArrayList<>();
+        aiCharacters = characterRepository.findByScriptIdAndIsAi(scriptId, true);
+        return aiCharacters;
     }
     
     @Override
     public List<Character> getAICharacters() {
         logger.info("Getting AI characters");
-        return new ArrayList<>();
+        return characterRepository.findByIsAi(true);
     }
     
     @Override
@@ -74,9 +76,9 @@ public class CharacterServiceImpl implements CharacterService {
             Character updatedCharacter = existingCharacter.get();
             updatedCharacter.setName(character.getName());
             updatedCharacter.setDescription(character.getDescription());
-            updatedCharacter.setBackground(character.getBackground());
+            updatedCharacter.setBackgroundStory(character.getBackgroundStory());
             updatedCharacter.setSecret(character.getSecret());
-            updatedCharacter.setAvatarUrl(character.getAvatarUrl());
+            updatedCharacter.setAvatar(character.getAvatar());
             return characterRepository.save(updatedCharacter);
         } else {
             throw new IllegalArgumentException("Character not found with id: " + id);
@@ -87,23 +89,5 @@ public class CharacterServiceImpl implements CharacterService {
     public void deleteCharacter(Long id) {
         logger.info("Deleting character: {}", id);
         characterRepository.deleteById(id);
-    }
-    
-    @Override
-    public List<Character> getCharactersByStatus(String status) {
-        logger.info("Getting characters by status: {}", status);
-        return characterRepository.findByStatus(status);
-    }
-    
-    @Override
-    public List<Character> getCharactersByGender(String gender) {
-        logger.info("Getting characters by gender: {}", gender);
-        return characterRepository.findByGender(gender);
-    }
-    
-    @Override
-    public List<Character> getCharactersByScriptIdAndStatus(Long scriptId, String status) {
-        logger.info("Getting characters by script id: {} and status: {}", scriptId, status);
-        return characterRepository.findByScriptIdAndStatus(scriptId, status);
     }
 }

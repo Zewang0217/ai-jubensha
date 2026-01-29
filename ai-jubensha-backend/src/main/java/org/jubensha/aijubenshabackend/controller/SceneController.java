@@ -1,6 +1,6 @@
-package org.jubensha.aijubenshabackend.api.controller;
+package org.jubensha.aijubenshabackend.controller;
 
-import org.jubensha.aijubenshabackend.domain.model.Scene;
+import org.jubensha.aijubenshabackend.models.entity.Scene;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -88,38 +88,5 @@ public class SceneController {
         List<Scene> scenes = sceneService.getScenesByScriptId(scriptId);
         return new ResponseEntity<>(scenes, HttpStatus.OK);
     }
-    
-    /**
-     * 根据状态查询场景
-     * @param status 状态
-     * @return 场景列表
-     */
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<Scene>> getScenesByStatus(@PathVariable String status) {
-        List<Scene> scenes = sceneService.getScenesByStatus(status);
-        return new ResponseEntity<>(scenes, HttpStatus.OK);
-    }
-    
-    /**
-     * 根据剧本ID和状态查询场景
-     * @param scriptId 剧本ID
-     * @param status 状态
-     * @return 场景列表
-     */
-    @GetMapping("/script/{scriptId}/status/{status}")
-    public ResponseEntity<List<Scene>> getScenesByScriptIdAndStatus(@PathVariable Long scriptId, @PathVariable String status) {
-        List<Scene> scenes = sceneService.getScenesByScriptIdAndStatus(scriptId, status);
-        return new ResponseEntity<>(scenes, HttpStatus.OK);
-    }
-    
-    /**
-     * 根据剧本ID和顺序查询场景
-     * @param scriptId 剧本ID
-     * @return 场景列表（按顺序排序）
-     */
-    @GetMapping("/script/{scriptId}/order")
-    public ResponseEntity<List<Scene>> getScenesByScriptIdOrderByOrderIndexAsc(@PathVariable Long scriptId) {
-        List<Scene> scenes = sceneService.getScenesByScriptIdOrderByOrderIndexAsc(scriptId);
-        return new ResponseEntity<>(scenes, HttpStatus.OK);
-    }
+
 }
