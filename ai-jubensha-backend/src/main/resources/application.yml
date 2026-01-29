@@ -1,5 +1,9 @@
 # 应用配置
 spring:
+  jackson:
+    deserialization:
+      read-enums-using-to-string: true
+  # 配置枚举反序列化时忽略大小写
   application:
     name: ai-jubensha-backend
   
@@ -82,9 +86,12 @@ system:
 # AI配置
 ai:
   model: deepseek-chat  # Updated to use the correct model name for DeepSeek
-  api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
-  base-url: "https://api.siliconflow.cn/v1"
+  api-key: "sk-1dd83a7f2bf54a68b98d3d8f3d4ddff9"
+  base-url: "https://api.deepseek.com"
+  embedding-base-url: "https://api.siliconflow.cn/v1"
   embedding-model: "BAAI/bge-large-zh-v1.5"  # Using SiliconFlow embedding model
+  embedding-api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
+
 
 # 游戏配置
 game:
