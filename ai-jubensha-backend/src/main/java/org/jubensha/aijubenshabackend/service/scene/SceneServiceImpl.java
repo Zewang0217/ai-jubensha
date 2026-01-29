@@ -1,7 +1,7 @@
 package org.jubensha.aijubenshabackend.service.scene;
 
-import org.jubensha.aijubenshabackend.domain.model.Scene;
-import org.jubensha.aijubenshabackend.domain.model.Script;
+import org.jubensha.aijubenshabackend.models.entity.Scene;
+import org.jubensha.aijubenshabackend.models.entity.Script;
 import org.jubensha.aijubenshabackend.repository.scene.SceneRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +43,7 @@ public class SceneServiceImpl implements SceneService {
     
     @Override
     public List<Scene> getScenesByScript(Script script) {
-        logger.info("Getting scenes by script: {}", script.getTitle());
+        logger.info("Getting scenes by script: {}", script.getName());
         return sceneRepository.findByScript(script);
     }
     
@@ -61,7 +61,7 @@ public class SceneServiceImpl implements SceneService {
             Scene updatedScene = existingScene.get();
             updatedScene.setName(scene.getName());
             updatedScene.setDescription(scene.getDescription());
-            updatedScene.setImageUrl(scene.getImageUrl());
+            updatedScene.setImage(scene.getImage());
             return sceneRepository.save(updatedScene);
         } else {
             throw new IllegalArgumentException("Scene not found with id: " + id);
@@ -78,23 +78,5 @@ public class SceneServiceImpl implements SceneService {
     public List<Scene> searchScenesByName(String name) {
         logger.info("Searching scenes by name: {}", name);
         return sceneRepository.findByNameContaining(name);
-    }
-    
-    @Override
-    public List<Scene> getScenesByStatus(String status) {
-        logger.info("Getting scenes by status: {}", status);
-        return sceneRepository.findByStatus(status);
-    }
-    
-    @Override
-    public List<Scene> getScenesByScriptIdAndStatus(Long scriptId, String status) {
-        logger.info("Getting scenes by script id: {} and status: {}", scriptId, status);
-        return sceneRepository.findByScriptIdAndStatus(scriptId, status);
-    }
-    
-    @Override
-    public List<Scene> getScenesByScriptIdOrderByOrderIndexAsc(Long scriptId) {
-        logger.info("Getting scenes by script id: {} ordered by order index asc", scriptId);
-        return sceneRepository.findByScriptIdOrderByOrderIndexAsc(scriptId);
     }
 }

@@ -1,7 +1,9 @@
 package org.jubensha.aijubenshabackend.repository.game;
 
-import org.jubensha.aijubenshabackend.domain.model.Game;
-import org.jubensha.aijubenshabackend.domain.model.Script;
+import org.jubensha.aijubenshabackend.models.entity.Game;
+import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,14 +14,14 @@ import java.util.Optional;
 public interface GameRepository extends JpaRepository<Game, Long> {
     
     Optional<Game> findByGameCode(String gameCode);
-    
-    List<Game> findByStatus(String status);
-    
+
     List<Game> findByScript(Script script);
     
     List<Game> findByScriptId(Long scriptId);
+
+    List<Game> findByStatus(GameStatus status);
     
-    List<Game> findByCurrentPhase(String currentPhase);
+    List<Game> findByCurrentPhase(GamePhase currentPhase);
     
-    List<Game> findByStatusAndScriptId(String status, Long scriptId);
+    List<Game> findByStatusAndScriptId(GameStatus status, Long scriptId);
 }

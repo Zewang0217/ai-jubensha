@@ -1,9 +1,9 @@
-package org.jubensha.aijubenshabackend.api.controller;
+package org.jubensha.aijubenshabackend.controller;
 
-import org.jubensha.aijubenshabackend.domain.model.Game;
+import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.service.game.GameService;
-import org.jubensha.aijubenshabackend.core.constant.GameStatus;
-import org.jubensha.aijubenshabackend.core.constant.GamePhase;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

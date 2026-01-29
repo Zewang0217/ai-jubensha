@@ -1,6 +1,7 @@
 package org.jubensha.aijubenshabackend.service.script;
 
-import org.jubensha.aijubenshabackend.domain.model.Script;
+import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 
 import java.util.List;
 import java.util.Optional;
@@ -40,7 +41,7 @@ public interface ScriptService {
     /**
      * 根据难度级别筛选剧本
      */
-    List<Script> getScriptsByDifficulty(String difficulty);
+    List<Script> getScriptsByDifficulty(DifficultyLevel difficulty);
     
     /**
      * 根据玩家数量筛选剧本
@@ -51,19 +52,4 @@ public interface ScriptService {
      * 根据时长筛选剧本
      */
     List<Script> getScriptsByDuration(Integer maxDuration);
-    
-    /**
-     * 根据状态获取剧本
-     */
-    List<Script> getScriptsByStatus(String status);
-    
-    /**
-     * 根据类型获取剧本
-     */
-    List<Script> getScriptsByGenre(String genre);
-    
-    /**
-     * 根据标题包含的内容搜索剧本
-     */
-    List<Script> getScriptsByTitleContaining(String title);
 }

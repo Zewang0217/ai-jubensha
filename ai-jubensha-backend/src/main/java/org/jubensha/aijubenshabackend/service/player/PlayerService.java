@@ -1,7 +1,7 @@
 package org.jubensha.aijubenshabackend.service.player;
 
-import org.jubensha.aijubenshabackend.domain.model.Player;
-import org.jubensha.aijubenshabackend.core.constant.PlayerStatus;
+import org.jubensha.aijubenshabackend.models.entity.Player;
+import org.jubensha.aijubenshabackend.models.enums.PlayerStatus;
 
 import java.util.List;
 import java.util.Optional;

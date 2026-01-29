@@ -1,7 +1,9 @@
 package org.jubensha.aijubenshabackend.service.clue;
 
-import org.jubensha.aijubenshabackend.domain.model.Clue;
-import org.jubensha.aijubenshabackend.domain.model.Script;
+import org.jubensha.aijubenshabackend.models.entity.Clue;
+import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.enums.ClueType;
+import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
 import org.jubensha.aijubenshabackend.repository.clue.ClueRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +27,7 @@ public class ClueServiceImpl implements ClueService {
     
     @Override
     public Clue createClue(Clue clue) {
-        logger.info("Creating new clue: {}", clue.getTitle());
+        logger.info("Creating new clue: {}", clue.getName());
         return clueRepository.save(clue);
     }
     
@@ -43,7 +45,7 @@ public class ClueServiceImpl implements ClueService {
     
     @Override
     public List<Clue> getCluesByScript(Script script) {
-        logger.info("Getting clues by script: {}", script.getTitle());
+        logger.info("Getting clues by script: {}", script.getName());
         return clueRepository.findByScript(script);
     }
     
@@ -54,15 +56,21 @@ public class ClueServiceImpl implements ClueService {
     }
     
     @Override
-    public List<Clue> getCluesByType(String type) {
+    public List<Clue> getCluesByType(ClueType type) {
         logger.info("Getting clues by type: {}", type);
         return clueRepository.findByType(type);
     }
     
     @Override
-    public List<Clue> getCluesByStatus(String status) {
-        logger.info("Getting clues by status: {}", status);
-        return clueRepository.findByStatus(status);
+    public List<Clue> getCluesByVisibility(ClueVisibility visibility) {
+        logger.info("Getting clues by visibility: {}", visibility);
+        return clueRepository.findByVisibility(visibility);
+    }
+    
+    @Override
+    public List<Clue> getCluesByScene(String scene) {
+        logger.info("Getting clues by scene: {}", scene);
+        return clueRepository.findByScene(scene);
     }
     
     @Override
@@ -77,10 +85,11 @@ public class ClueServiceImpl implements ClueService {
         Optional<Clue> existingClue = clueRepository.findById(id);
         if (existingClue.isPresent()) {
             Clue updatedClue = existingClue.get();
-            updatedClue.setTitle(clue.getTitle());
+            updatedClue.setName(clue.getName());
             updatedClue.setDescription(clue.getDescription());
             updatedClue.setType(clue.getType());
-            updatedClue.setStatus(clue.getStatus());
+            updatedClue.setVisibility(clue.getVisibility());
+            updatedClue.setScene(clue.getScene());
             updatedClue.setImportance(clue.getImportance());
             return clueRepository.save(updatedClue);
         } else {

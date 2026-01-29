@@ -1,6 +1,6 @@
-package org.jubensha.aijubenshabackend.api.controller;
+package org.jubensha.aijubenshabackend.controller;
 
-import org.jubensha.aijubenshabackend.domain.model.Character;
+import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -88,38 +88,11 @@ public class CharacterController {
         List<Character> characters = characterService.getCharactersByScriptId(scriptId);
         return new ResponseEntity<>(characters, HttpStatus.OK);
     }
-    
-    /**
-     * 根据状态查询角色
-     * @param status 状态
-     * @return 角色列表
-     */
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<Character>> getCharactersByStatus(@PathVariable String status) {
-        List<Character> characters = characterService.getCharactersByStatus(status);
-        return new ResponseEntity<>(characters, HttpStatus.OK);
-    }
-    
-    /**
-     * 根据性别查询角色
-     * @param gender 性别
-     * @return 角色列表
-     */
-    @GetMapping("/gender/{gender}")
-    public ResponseEntity<List<Character>> getCharactersByGender(@PathVariable String gender) {
-        List<Character> characters = characterService.getCharactersByGender(gender);
-        return new ResponseEntity<>(characters, HttpStatus.OK);
-    }
-    
-    /**
-     * 根据剧本ID和状态查询角色
-     * @param scriptId 剧本ID
-     * @param status 状态
-     * @return 角色列表
-     */
-    @GetMapping("/script/{scriptId}/status/{status}")
-    public ResponseEntity<List<Character>> getCharactersByScriptIdAndStatus(@PathVariable Long scriptId, @PathVariable String status) {
-        List<Character> characters = characterService.getCharactersByScriptIdAndStatus(scriptId, status);
+
+
+    @GetMapping("/script/{scriptId}/is_ai")
+    public ResponseEntity<List<Character>> getCharactersByScriptIdAndIsAI(@PathVariable Long scriptId) {
+        List<Character> characters = characterService.getAICharactersByScript(scriptId);
         return new ResponseEntity<>(characters, HttpStatus.OK);
     }
 }

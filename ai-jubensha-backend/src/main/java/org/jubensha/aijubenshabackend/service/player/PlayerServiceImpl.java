@@ -1,7 +1,7 @@
 package org.jubensha.aijubenshabackend.service.player;
 
-import org.jubensha.aijubenshabackend.domain.model.Player;
-import org.jubensha.aijubenshabackend.core.constant.PlayerStatus;
+import org.jubensha.aijubenshabackend.models.entity.Player;
+import org.jubensha.aijubenshabackend.models.enums.PlayerStatus;
 import org.jubensha.aijubenshabackend.repository.player.PlayerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +69,7 @@ public class PlayerServiceImpl implements PlayerService {
             updatedPlayer.setNickname(player.getNickname());
             updatedPlayer.setPassword(player.getPassword());
             updatedPlayer.setEmail(player.getEmail());
-            updatedPlayer.setAvatarUrl(player.getAvatarUrl());
+            updatedPlayer.setAvatar(player.getAvatar());
             updatedPlayer.setRole(player.getRole());
             updatedPlayer.setStatus(player.getStatus());
             return playerRepository.save(updatedPlayer);
@@ -84,7 +84,7 @@ public class PlayerServiceImpl implements PlayerService {
         Optional<Player> existingPlayer = playerRepository.findById(id);
         if (existingPlayer.isPresent()) {
             Player updatedPlayer = existingPlayer.get();
-            updatedPlayer.setStatus(status.toString());
+            updatedPlayer.setStatus(status);
             return playerRepository.save(updatedPlayer);
         } else {
             throw new IllegalArgumentException("Player not found with id: " + id);
@@ -137,11 +137,12 @@ public class PlayerServiceImpl implements PlayerService {
     @Override
     public void updateLastLoginTime(Long id) {
         logger.info("Updating last login time for player: {}", id);
-        Optional<Player> existingPlayer = playerRepository.findById(id);
-        if (existingPlayer.isPresent()) {
-            Player updatedPlayer = existingPlayer.get();
-            updatedPlayer.setLastLoginAt(java.time.LocalDateTime.now());
-            playerRepository.save(updatedPlayer);
-        }
+        // TODO: 实现更新玩家最后登录时间，暂时还没有该字段
+//        Optional<Player> existingPlayer = playerRepository.findById(id);
+//        if (existingPlayer.isPresent()) {
+//            Player updatedPlayer = existingPlayer.get();
+//            updatedPlayer.setLastLoginAt(java.time.LocalDateTime.now());
+//            playerRepository.save(updatedPlayer);
+//        }
     }
 }
