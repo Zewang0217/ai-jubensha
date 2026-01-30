@@ -22,6 +22,6 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     List<Game> findByStatus(GameStatus status);
     
     List<Game> findByCurrentPhase(GamePhase currentPhase);
-    
-    List<Game> findByStatusAndScriptId(GameStatus status, Long scriptId);
+
+    List<Game> findByScriptIdAndStatus(Long scriptId, GameStatus status);
 }
