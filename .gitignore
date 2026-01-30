@@ -131,7 +131,6 @@ rabbitmq-data/
 *.h5
 *.onnx
 *.safetensors
-models/
 datasets/
 
 # Temporary upload files
