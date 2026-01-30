@@ -59,7 +59,6 @@ public class CharacterServiceImpl implements CharacterService {
         return characterRepository.findByName(name);
     }
 
-    // TODO("更改为@Builder更安全")
     @Override
     public Character updateCharacter(Long id, Character character) {
         logger.info("Updating character: {}", id);
@@ -70,7 +69,7 @@ public class CharacterServiceImpl implements CharacterService {
             updatedCharacter.setDescription(character.getDescription());
             updatedCharacter.setBackgroundStory(character.getBackgroundStory());
             updatedCharacter.setSecret(character.getSecret());
-            updatedCharacter.setAvatarBase64(character.getAvatarBase64());
+            updatedCharacter.setAvatarUrl(character.getAvatarUrl());
             return characterRepository.save(updatedCharacter);
         } else {
             throw new IllegalArgumentException("Character not found with id: " + id);
