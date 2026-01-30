@@ -4,5 +4,6 @@ public enum AgentType {
     DM,
     PLAYER,
     JUDGE,
-    SUMMARY
+    SUMMARY,
+    SCRIPT_GENERATOR
 }
