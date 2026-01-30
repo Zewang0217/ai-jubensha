@@ -1,9 +1,9 @@
 package org.jubensha.aijubenshabackend.controller;
 
 import org.jubensha.aijubenshabackend.models.entity.Game;
-import org.jubensha.aijubenshabackend.service.game.GameService;
-import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
+import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -131,9 +131,9 @@ public class GameController {
      * @param scriptId 剧本ID
      * @return 游戏列表
      */
-    @GetMapping("/status/{status}/script/{scriptId}")
-    public ResponseEntity<List<Game>> getGamesByStatusAndScriptId(@PathVariable String status, @PathVariable Long scriptId) {
-        List<Game> games = gameService.getGamesByStatusAndScriptId(GameStatus.valueOf(status), scriptId);
+    @GetMapping("/script/{scriptId}/status/{status}")
+    public ResponseEntity<List<Game>> getGamesByStatusAndScriptId(@PathVariable Long scriptId, @PathVariable String status) {
+        List<Game> games = gameService.getGamesByScriptIdAndStatus(scriptId, GameStatus.valueOf(status));
         return new ResponseEntity<>(games, HttpStatus.OK);
     }
     
