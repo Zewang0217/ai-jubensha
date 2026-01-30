@@ -1,9 +1,9 @@
 package org.jubensha.aijubenshabackend.service.game;
 
 import org.jubensha.aijubenshabackend.models.entity.Game;
-import org.jubensha.aijubenshabackend.repository.game.GameRepository;
-import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
+import org.jubensha.aijubenshabackend.repository.game.GameRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -118,9 +118,9 @@ public class GameServiceImpl implements GameService {
     }
     
     @Override
-    public List<Game> getGamesByStatusAndScriptId(GameStatus status, Long scriptId) {
+    public List<Game> getGamesByScriptIdAndStatus(Long scriptId, GameStatus status) {
         logger.info("Getting games by status: {} and script id: {}", status, scriptId);
-        return gameRepository.findByStatusAndScriptId(status, scriptId);
+        return gameRepository.findByScriptIdAndStatus(scriptId, status);
     }
     
     @Override

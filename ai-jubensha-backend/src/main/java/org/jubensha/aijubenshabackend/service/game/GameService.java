@@ -1,8 +1,8 @@
 package org.jubensha.aijubenshabackend.service.game;
 
 import org.jubensha.aijubenshabackend.models.entity.Game;
-import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,10 +28,12 @@ public interface GameService {
      * 获取所有游戏
      */
     List<Game> getAllGames();
+
     /**
      * 根据status获取游戏
      */
     List<Game> getGamesByStatus(GameStatus status);
+
     /**
      * 根据阶段获取游戏
      */
@@ -65,7 +67,7 @@ public interface GameService {
     /**
      * 根据状态和剧本ID获取游戏
      */
-    List<Game> getGamesByStatusAndScriptId(GameStatus status, Long scriptId);
+    List<Game> getGamesByScriptIdAndStatus(Long scriptId, GameStatus status);
     
     /**
      * 开始游戏
