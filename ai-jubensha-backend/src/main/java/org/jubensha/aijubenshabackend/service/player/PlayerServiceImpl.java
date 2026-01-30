@@ -1,12 +1,15 @@
 package org.jubensha.aijubenshabackend.service.player;
 
 import org.jubensha.aijubenshabackend.models.entity.Player;
+import org.jubensha.aijubenshabackend.models.enums.PlayerRole;
 import org.jubensha.aijubenshabackend.models.enums.PlayerStatus;
 import org.jubensha.aijubenshabackend.repository.player.PlayerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.LocalDateTime;
+
 
 import java.util.List;
 import java.util.Optional;
@@ -56,7 +59,7 @@ public class PlayerServiceImpl implements PlayerService {
     @Override
     public List<Player> getOnlinePlayers() {
         logger.info("Getting online players");
-        return playerRepository.findByStatus("online");
+        return playerRepository.findByStatus(PlayerStatus.ONLINE);
     }
     
     @Override
@@ -117,19 +120,19 @@ public class PlayerServiceImpl implements PlayerService {
     }
     
     @Override
-    public List<Player> getPlayersByStatus(String status) {
+    public List<Player> getPlayersByStatus(PlayerStatus status) {
         logger.info("Getting players by status: {}", status);
         return playerRepository.findByStatus(status);
     }
     
     @Override
-    public List<Player> getPlayersByRole(String role) {
+    public List<Player> getPlayersByRole(PlayerRole role) {
         logger.info("Getting players by role: {}", role);
         return playerRepository.findByRole(role);
     }
     
     @Override
-    public List<Player> getPlayersByStatusAndRole(String status, String role) {
+    public List<Player> getPlayersByStatusAndRole(PlayerStatus status, PlayerRole role) {
         logger.info("Getting players by status: {} and role: {}", status, role);
         return playerRepository.findByStatusAndRole(status, role);
     }
@@ -137,12 +140,15 @@ public class PlayerServiceImpl implements PlayerService {
     @Override
     public void updateLastLoginTime(Long id) {
         logger.info("Updating last login time for player: {}", id);
-        // TODO: 实现更新玩家最后登录时间，暂时还没有该字段
-//        Optional<Player> existingPlayer = playerRepository.findById(id);
-//        if (existingPlayer.isPresent()) {
-//            Player updatedPlayer = existingPlayer.get();
-//            updatedPlayer.setLastLoginAt(java.time.LocalDateTime.now());
-//            playerRepository.save(updatedPlayer);
-//        }
+        Optional<Player> existingPlayer = playerRepository.findById(id);
+        if (existingPlayer.isPresent()) {
+            Player updatedPlayer = existingPlayer.get();
+            updatedPlayer.setLastLoginAt(LocalDateTime.now());
+            playerRepository.save(updatedPlayer);
+            logger.info("Successfully updated last login time for player: {}", id);
+        } else {
+            logger.warn("Player not found with id: {}", id);
+            throw new IllegalArgumentException("Player not found with id: " + id);
+        }
     }
 }
