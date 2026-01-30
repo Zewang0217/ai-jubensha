@@ -52,4 +52,9 @@ public interface ScriptService {
      * 根据时长筛选剧本
      */
     List<Script> getScriptsByDuration(Integer maxDuration);
+    
+    /**
+     * 生成剧本
+     */
+    Script generateScript(String scriptName, String description, Integer playerCount, DifficultyLevel difficulty, String extraRequirements);
 }
