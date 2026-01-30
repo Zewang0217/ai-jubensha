@@ -2,6 +2,7 @@ package org.jubensha.aijubenshabackend.models.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.validator.constraints.URL;
 
 import java.time.LocalDateTime;
 
@@ -29,6 +30,7 @@ public class Character {
     @Column(columnDefinition = "TEXT")
     private String secret;
 
+    @URL(message = "Invalid URL")
     private String avatarUrl;
     
     private LocalDateTime createTime;
