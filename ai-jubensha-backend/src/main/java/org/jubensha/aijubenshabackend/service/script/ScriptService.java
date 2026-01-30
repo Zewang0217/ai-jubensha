@@ -56,5 +56,12 @@ public interface ScriptService {
     /**
      * 生成剧本
      */
-    Script generateScript(String scriptName, String description, Integer playerCount, DifficultyLevel difficulty, String extraRequirements);
+//    Script generateScript(String scriptName, String description, Integer playerCount, DifficultyLevel difficulty, String extraRequirements);
+
+    //
+    /**
+     * 生成并保存剧本
+     */
+    public Script generateAndSaveScript(String prompt, String scriptContent);
+
 }

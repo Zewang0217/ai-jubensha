@@ -46,6 +46,11 @@ public class WorkflowContext implements Serializable {
     private String modelOutput;
 
     /**
+     * 剧本id
+     */
+    private Long scriptId;
+
+    /**
      * 错误信息
      */
     private String errorMessage;
