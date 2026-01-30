@@ -1,6 +1,8 @@
 package org.jubensha.aijubenshabackend.controller;
 
 import org.jubensha.aijubenshabackend.models.entity.Player;
+import org.jubensha.aijubenshabackend.models.enums.PlayerRole;
+import org.jubensha.aijubenshabackend.models.enums.PlayerStatus;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -108,7 +110,7 @@ public class PlayerController {
      * @return 玩家列表
      */
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<Player>> getPlayersByStatus(@PathVariable String status) {
+    public ResponseEntity<List<Player>> getPlayersByStatus(@PathVariable PlayerStatus status) {
         List<Player> players = playerService.getPlayersByStatus(status);
         return new ResponseEntity<>(players, HttpStatus.OK);
     }
@@ -119,7 +121,7 @@ public class PlayerController {
      * @return 玩家列表
      */
     @GetMapping("/role/{role}")
-    public ResponseEntity<List<Player>> getPlayersByRole(@PathVariable String role) {
+    public ResponseEntity<List<Player>> getPlayersByRole(@PathVariable PlayerRole role) {
         List<Player> players = playerService.getPlayersByRole(role);
         return new ResponseEntity<>(players, HttpStatus.OK);
     }
@@ -131,7 +133,7 @@ public class PlayerController {
      * @return 玩家列表
      */
     @GetMapping("/status/{status}/role/{role}")
-    public ResponseEntity<List<Player>> getPlayersByStatusAndRole(@PathVariable String status, @PathVariable String role) {
+    public ResponseEntity<List<Player>> getPlayersByStatusAndRole(@PathVariable PlayerStatus status, @PathVariable PlayerRole role) {
         List<Player> players = playerService.getPlayersByStatusAndRole(status, role);
         return new ResponseEntity<>(players, HttpStatus.OK);
     }

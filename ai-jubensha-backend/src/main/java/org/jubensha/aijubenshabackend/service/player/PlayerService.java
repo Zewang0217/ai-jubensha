@@ -1,6 +1,7 @@
 package org.jubensha.aijubenshabackend.service.player;
 
 import org.jubensha.aijubenshabackend.models.entity.Player;
+import org.jubensha.aijubenshabackend.models.enums.PlayerRole;
 import org.jubensha.aijubenshabackend.models.enums.PlayerStatus;
 
 import java.util.List;
@@ -71,17 +72,17 @@ public interface PlayerService {
     /**
      * 根据状态获取玩家
      */
-    List<Player> getPlayersByStatus(String status);
+    List<Player> getPlayersByStatus(PlayerStatus status);
     
     /**
      * 根据角色获取玩家
      */
-    List<Player> getPlayersByRole(String role);
+    List<Player> getPlayersByRole(PlayerRole role);
     
     /**
      * 根据状态和角色获取玩家
      */
-    List<Player> getPlayersByStatusAndRole(String status, String role);
+    List<Player> getPlayersByStatusAndRole(PlayerStatus status, PlayerRole role);
     
     /**
      * 更新玩家最后登录时间
