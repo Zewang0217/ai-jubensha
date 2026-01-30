@@ -61,6 +61,11 @@ spring:
   security:
     enabled: false
 
+  # 排除RedisEmbeddingStoreAutoConfiguration
+  autoconfigure:
+    exclude: dev.langchain4j.community.store.embedding.redis.spring.RedisEmbeddingStoreAutoConfiguration
+
+
 # 服务器配置
 server:
   port: 8080
@@ -91,6 +96,8 @@ ai:
   embedding-base-url: "https://api.siliconflow.cn/v1"
   embedding-model: "BAAI/bge-large-zh-v1.5"  # Using SiliconFlow embedding model
   embedding-api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
+
+
 
 
 # 游戏配置
