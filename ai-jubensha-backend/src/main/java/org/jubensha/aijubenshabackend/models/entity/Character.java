@@ -29,9 +29,7 @@ public class Character {
     @Column(columnDefinition = "TEXT")
     private String secret;
 
-    // avatar: 头像?
-    @Column(columnDefinition = "TEXT")
-    private String avatarBase64;
+    private String avatarUrl;
     
     private LocalDateTime createTime;
 
