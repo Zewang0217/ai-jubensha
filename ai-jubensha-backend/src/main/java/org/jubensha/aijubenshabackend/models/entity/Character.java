@@ -28,13 +28,13 @@ public class Character {
     
     @Column(columnDefinition = "TEXT")
     private String secret;
-    
-    private String avatar;
-    
-    private Boolean isAi;
+
+    // avatar: 头像?
+    @Column(columnDefinition = "TEXT")
+    private String avatarBase64;
     
     private LocalDateTime createTime;
-    
+
     @PrePersist
     protected void onCreate() {
         createTime = LocalDateTime.now();
