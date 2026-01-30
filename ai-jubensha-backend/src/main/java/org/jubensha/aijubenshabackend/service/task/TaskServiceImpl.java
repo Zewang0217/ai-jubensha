@@ -45,41 +45,41 @@ public class TaskServiceImpl implements TaskService {
         this.taskMap = new ConcurrentHashMap<>();
     }
 
-    @Override
-    public <T> String submitScriptGenerationTask(String scriptName, String description, Integer playerCount, String difficulty, String extraRequirements) {
-        String taskId = UUID.randomUUID().toString();
-        TaskInfo taskInfo = new TaskInfo(taskId, TaskStatus.PENDING);
-        taskMap.put(taskId, taskInfo);
-
-        executorService.submit(() -> {
-            try {
-                taskInfo.setStatus(TaskStatus.PROCESSING);
-                logger.info("Starting script generation task: {}", taskId);
-
-                // 解析难度级别
-                DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(difficulty.toUpperCase());
-
-                // 调用剧本生成服务
-                Script script = scriptService.generateScript(
-                        scriptName,
-                        description,
-                        playerCount,
-                        difficultyLevel,
-                        extraRequirements
-                );
-
-                taskInfo.setStatus(TaskStatus.COMPLETED);
-                taskInfo.setResult(script);
-                logger.info("Script generation task completed: {}", taskId);
-            } catch (Exception e) {
-                taskInfo.setStatus(TaskStatus.FAILED);
-                taskInfo.setErrorMessage(e.getMessage());
-                logger.error("Script generation task failed: {}", taskId, e);
-            }
-        });
-
-        return taskId;
-    }
+//    @Override
+//    public <T> String submitScriptGenerationTask(String scriptName, String description, Integer playerCount, String difficulty, String extraRequirements) {
+//        String taskId = UUID.randomUUID().toString();
+//        TaskInfo taskInfo = new TaskInfo(taskId, TaskStatus.PENDING);
+//        taskMap.put(taskId, taskInfo);
+//
+//        executorService.submit(() -> {
+//            try {
+//                taskInfo.setStatus(TaskStatus.PROCESSING);
+//                logger.info("Starting script generation task: {}", taskId);
+//
+//                // 解析难度级别
+//                DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(difficulty.toUpperCase());
+//
+//                // 调用剧本生成服务
+//                Script script = scriptService.generateScript(
+//                        scriptName,
+//                        description,
+//                        playerCount,
+//                        difficultyLevel,
+//                        extraRequirements
+//                );
+//
+//                taskInfo.setStatus(TaskStatus.COMPLETED);
+//                taskInfo.setResult(script);
+//                logger.info("Script generation task completed: {}", taskId);
+//            } catch (Exception e) {
+//                taskInfo.setStatus(TaskStatus.FAILED);
+//                taskInfo.setErrorMessage(e.getMessage());
+//                logger.error("Script generation task failed: {}", taskId, e);
+//            }
+//        });
+//
+//        return taskId;
+//    }
 
     @Override
     public Optional<TaskInfo> getTaskStatus(String taskId) {
