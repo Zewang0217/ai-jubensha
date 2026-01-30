@@ -52,6 +52,7 @@ public interface ClueService {
     
     /**
      * 获取重要线索
+     * @param importanceThreshold 重要度阈值
      */
     List<Clue> getImportantClues(Integer importanceThreshold);
     
