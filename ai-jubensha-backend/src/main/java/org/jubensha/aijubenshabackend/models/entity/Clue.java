@@ -1,6 +1,8 @@
 package org.jubensha.aijubenshabackend.models.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 import org.jubensha.aijubenshabackend.models.enums.ClueType;
 import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
@@ -32,7 +34,10 @@ public class Clue {
     private ClueVisibility visibility;
     
     private String scene;
-    
+
+    @Min(1)
+    @Max(100)
+    // 面向DM用于控场
     private Integer importance;
     
     private LocalDateTime createTime;
