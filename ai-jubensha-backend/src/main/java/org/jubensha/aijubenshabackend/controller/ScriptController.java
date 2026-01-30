@@ -133,27 +133,27 @@ public class ScriptController {
         return new ResponseEntity<>(scripts, HttpStatus.OK);
     }
     
-    /**
-     * 生成剧本（异步）
-     * @param request 剧本生成请求
-     * @return 任务ID
-     */
-    @PostMapping("/generate")
-    public ResponseEntity<Map<String, String>> generateScript(@RequestBody GenerateScriptRequest request) {
-        try {
-            String taskId = taskService.submitScriptGenerationTask(
-                request.getScriptName(),
-                request.getDescription(),
-                request.getPlayerCount(),
-                request.getDifficulty().name(),
-                request.getExtraRequirements()
-            );
-            return ResponseEntity.ok(Map.of("taskId", taskId));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to submit script generation task"));
-        }
-    }
+//    /**
+//     * 生成剧本（异步）
+//     * @param request 剧本生成请求
+//     * @return 任务ID
+//     */
+//    @PostMapping("/generate")
+//    public ResponseEntity<Map<String, String>> generateScript(@RequestBody GenerateScriptRequest request) {
+//        try {
+//            String taskId = taskService.submitScriptGenerationTask(
+//                request.getScriptName(),
+//                request.getDescription(),
+//                request.getPlayerCount(),
+//                request.getDifficulty().name(),
+//                request.getExtraRequirements()
+//            );
+//            return ResponseEntity.ok(Map.of("taskId", taskId));
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("error", "Failed to submit script generation task"));
+//        }
+//    }
 
     /**
      * 查询任务状态
