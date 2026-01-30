@@ -8,66 +8,58 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 public class CharacterServiceImpl implements CharacterService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(CharacterServiceImpl.class);
-    
+
     private final CharacterRepository characterRepository;
-    
+
     @Autowired
     public CharacterServiceImpl(CharacterRepository characterRepository) {
         this.characterRepository = characterRepository;
     }
-    
+
     @Override
     public Character createCharacter(Character character) {
         logger.info("Creating new character: {}", character.getName());
         return characterRepository.save(character);
     }
-    
+
     @Override
     public Optional<Character> getCharacterById(Long id) {
         logger.info("Getting character by id: {}", id);
         return characterRepository.findById(id);
     }
-    
+
     @Override
     public List<Character> getAllCharacters() {
         logger.info("Getting all characters");
         return characterRepository.findAll();
     }
-    
+
     @Override
     public List<Character> getCharactersByScript(Script script) {
         logger.info("Getting characters by script: {}", script.getName());
         return characterRepository.findByScript(script);
     }
-    
-    @Override
-    public List<Character> getAICharactersByScript(Long scriptId) {
-        logger.info("Getting AI characters by script: {}", scriptId);
-        List<Character> aiCharacters = new ArrayList<>();
-        aiCharacters = characterRepository.findByScriptIdAndIsAi(scriptId, true);
-        return aiCharacters;
-    }
-    
-    @Override
-    public List<Character> getAICharacters() {
-        logger.info("Getting AI characters");
-        return characterRepository.findByIsAi(true);
-    }
-    
+
     @Override
     public List<Character> getCharactersByScriptId(Long scriptId) {
         logger.info("Getting characters by script id: {}", scriptId);
         return characterRepository.findByScriptId(scriptId);
     }
-    
+
+    @Override
+    public List<Character> getAiCharactersByName(String name) {
+        logger.info("Getting characters by name: {}", name);
+        return characterRepository.findByName(name);
+    }
+
+    // TODO("更改为@Builder更安全")
     @Override
     public Character updateCharacter(Long id, Character character) {
         logger.info("Updating character: {}", id);
@@ -78,13 +70,13 @@ public class CharacterServiceImpl implements CharacterService {
             updatedCharacter.setDescription(character.getDescription());
             updatedCharacter.setBackgroundStory(character.getBackgroundStory());
             updatedCharacter.setSecret(character.getSecret());
-            updatedCharacter.setAvatar(character.getAvatar());
+            updatedCharacter.setAvatarBase64(character.getAvatarBase64());
             return characterRepository.save(updatedCharacter);
         } else {
             throw new IllegalArgumentException("Character not found with id: " + id);
         }
     }
-    
+
     @Override
     public void deleteCharacter(Long id) {
         logger.info("Deleting character: {}", id);
