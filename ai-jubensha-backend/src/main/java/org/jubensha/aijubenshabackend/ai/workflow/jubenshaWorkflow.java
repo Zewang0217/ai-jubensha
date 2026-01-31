@@ -12,7 +12,6 @@ import org.bsc.langgraph4j.GraphRepresentation;
 import org.bsc.langgraph4j.GraphRepresentation.Type;
 import org.bsc.langgraph4j.GraphStateException;
 import org.bsc.langgraph4j.NodeOutput;
-import org.bsc.langgraph4j.RunnableConfig;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.bsc.langgraph4j.prebuilt.MessagesStateGraph;
 import org.jubensha.aijubenshabackend.ai.workflow.node.PlayerAllocatorNode;
@@ -20,7 +19,7 @@ import org.jubensha.aijubenshabackend.ai.workflow.node.ScriptGeneratorNode;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
-
+import org.springframework.stereotype.Component;
 
 /**
  * 剧本杀的工作流
@@ -32,6 +31,7 @@ import org.springframework.context.annotation.Bean;
  */
 
 @Slf4j
+@Component
 public class jubenshaWorkflow {
 
     /**
@@ -89,5 +89,4 @@ public class jubenshaWorkflow {
         log.info("并发工作流执行完成");
         return finalContext;
     }
-
 }
