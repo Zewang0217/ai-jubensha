@@ -89,10 +89,15 @@ public class CharacterController {
         return new ResponseEntity<>(characters, HttpStatus.OK);
     }
 
-
-    @GetMapping("/script/{scriptId}/is_ai")
-    public ResponseEntity<List<Character>> getCharactersByScriptIdAndIsAI(@PathVariable Long scriptId) {
-        List<Character> characters = characterService.getAICharactersByScript(scriptId);
+    /**
+     * 根据角色名查询角色
+     *
+     * @param name 角色名
+     * @return 角色列表
+     */
+    @GetMapping("/{name}")
+    public ResponseEntity<List<Character>> getCharactersByScriptId(@PathVariable String name) {
+        List<Character> characters = characterService.getAiCharactersByName(name);
         return new ResponseEntity<>(characters, HttpStatus.OK);
     }
 }

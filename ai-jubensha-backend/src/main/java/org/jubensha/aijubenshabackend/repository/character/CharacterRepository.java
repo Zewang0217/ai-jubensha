@@ -14,7 +14,5 @@ public interface CharacterRepository extends JpaRepository<Character, Long> {
     
     List<Character> findByScriptId(Long scriptId);
 
-    List<Character> findByScriptIdAndIsAi(Long scriptId, Boolean isAi);
-
-    List<Character> findByIsAi(Boolean isAi);
+    List<Character> findByName(String name);
 }
