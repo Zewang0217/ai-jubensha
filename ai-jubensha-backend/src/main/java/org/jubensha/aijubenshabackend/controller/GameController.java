@@ -1,5 +1,8 @@
 package org.jubensha.aijubenshabackend.controller;
 
+import lombok.extern.slf4j.Slf4j;
+import org.jubensha.aijubenshabackend.ai.workflow.jubenshaWorkflow;
+import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.models.enums.GameStatus;
@@ -9,19 +12,23 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
  * 游戏控制器
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/games")
 public class GameController {
     
     private final GameService gameService;
+    private final jubenshaWorkflow workflow;
     
-    public GameController(GameService gameService) {
+    public GameController(GameService gameService, jubenshaWorkflow workflow) {
         this.gameService = gameService;
+        this.workflow = workflow;
     }
     
     /**
@@ -180,5 +187,43 @@ public class GameController {
     public ResponseEntity<Game> updateGamePhase(@PathVariable Long id, @PathVariable String phase) {
         Game game = gameService.updateGamePhase(id, GamePhase.valueOf(phase));
         return new ResponseEntity<>(game, HttpStatus.OK);
+    }
+    
+    /**
+     * 启动工作流
+     * @param request 包含原始提示词的请求
+     * @return 工作流执行结果
+     */
+    @PostMapping("/start-workflow")
+    public ResponseEntity<?> startWorkflow(@RequestBody Map<String, String> request) {
+        try {
+            String originalPrompt = request.get("originalPrompt");
+            if (originalPrompt == null || originalPrompt.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "originalPrompt is required"));
+            }
+            
+            WorkflowContext result = workflow.executeWorkflow(originalPrompt);
+            
+            // 构建响应
+            Map<String, Object> response = Map.of(
+                "success", true,
+                "scriptId", result.getScriptId(),
+                "scriptName", result.getScriptName(),
+                "currentStep", result.getCurrentStep(),
+                "playerAssignments", result.getPlayerAssignments(),
+                "dmId", result.getDmId(),
+                "judgeId", result.getJudgeId(),
+                "realPlayerCount", result.getRealPlayerCount(),
+                "aiPlayerCount", result.getAiPlayerCount(),
+                "totalPlayerCount", result.getTotalPlayerCount()
+            );
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("启动工作流失败: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to start workflow", "message", e.getMessage()));
+        }
     }
 }
