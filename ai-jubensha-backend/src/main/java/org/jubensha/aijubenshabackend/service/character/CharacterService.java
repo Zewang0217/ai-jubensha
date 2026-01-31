@@ -32,7 +32,12 @@ public interface CharacterService {
      * 根据剧本ID获取角色
      */
     List<Character> getCharactersByScriptId(Long scriptId);
-    
+
+    /**
+     * 根据名字获取AI角色
+     */
+    List<Character> getAiCharactersByName(String name);
+
     /**
      * 更新角色
      */
@@ -42,14 +47,4 @@ public interface CharacterService {
      * 删除角色
      */
     void deleteCharacter(Long id);
-    
-    /**
-     * 获取AI角色
-     */
-    List<Character> getAICharacters();
-    
-    /**
-     * 获取剧本的AI角色
-     */
-    List<Character> getAICharactersByScript(Long scriptId);
 }
