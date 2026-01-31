@@ -1,5 +1,9 @@
 package org.jubensha.aijubenshabackend.controller;
 
+import jakarta.validation.Valid;
+import org.jubensha.aijubenshabackend.models.dto.GameCreateDTO;
+import org.jubensha.aijubenshabackend.models.dto.GameResponseDTO;
+import org.jubensha.aijubenshabackend.models.dto.GameUpdateDTO;
 import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.models.enums.GameStatus;
@@ -10,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 游戏控制器
@@ -26,25 +31,46 @@ public class GameController {
     
     /**
      * 创建游戏
-     * @param game 游戏实体
-     * @return 创建的游戏
+     * @param gameCreateDTO 游戏创建DTO
+     * @return 创建的游戏响应DTO
      */
     @PostMapping
-    public ResponseEntity<Game> createGame(@RequestBody Game game) {
+    public ResponseEntity<GameResponseDTO> createGame(@Valid @RequestBody GameCreateDTO gameCreateDTO) {
+        Game game = new Game();
+        game.setScriptId(gameCreateDTO.getScriptId());
+        game.setGameCode(gameCreateDTO.getGameCode());
+        game.setStatus(gameCreateDTO.getStatus());
+        game.setCurrentPhase(gameCreateDTO.getCurrentPhase());
+        game.setStartTime(gameCreateDTO.getStartTime());
+        game.setEndTime(gameCreateDTO.getEndTime());
+        
         Game createdGame = gameService.createGame(game);
-        return new ResponseEntity<>(createdGame, HttpStatus.CREATED);
+        GameResponseDTO responseDTO = GameResponseDTO.fromEntity(createdGame);
+        return new ResponseEntity<>(responseDTO, HttpStatus.CREATED);
     }
     
     /**
      * 更新游戏
      * @param id 游戏ID
-     * @param game 游戏实体
-     * @return 更新后的游戏
+     * @param gameUpdateDTO 游戏更新DTO
+     * @return 更新后的游戏响应DTO
      */
     @PutMapping("/{id}")
-    public ResponseEntity<Game> updateGame(@PathVariable Long id, @RequestBody Game game) {
-        Game updatedGame = gameService.updateGame(id, game);
-        return new ResponseEntity<>(updatedGame, HttpStatus.OK);
+    public ResponseEntity<GameResponseDTO> updateGame(@PathVariable Long id, @Valid @RequestBody GameUpdateDTO gameUpdateDTO) {
+        Game game = new Game();
+        game.setGameCode(gameUpdateDTO.getGameCode());
+        game.setStatus(gameUpdateDTO.getStatus());
+        game.setCurrentPhase(gameUpdateDTO.getCurrentPhase());
+        game.setStartTime(gameUpdateDTO.getStartTime());
+        game.setEndTime(gameUpdateDTO.getEndTime());
+
+        try {
+            Game updatedGame = gameService.updateGame(id, game);
+            GameResponseDTO responseDTO = GameResponseDTO.fromEntity(updatedGame);
+            return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
     }
     
     /**
@@ -61,124 +87,167 @@ public class GameController {
     /**
      * 根据ID查询游戏
      * @param id 游戏ID
-     * @return 游戏实体
+     * @return 游戏响应DTO
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Game> getGameById(@PathVariable Long id) {
+    public ResponseEntity<GameResponseDTO> getGameById(@PathVariable Long id) {
         Optional<Game> game = gameService.getGameById(id);
-        return game.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+        return game.map(value -> {
+            GameResponseDTO responseDTO = GameResponseDTO.fromEntity(value);
+            return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+        }).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
     
     /**
      * 根据游戏房间码查询游戏
      * @param gameCode 游戏房间码
-     * @return 游戏实体
+     * @return 游戏响应DTO
      */
     @GetMapping("/code/{gameCode}")
-    public ResponseEntity<Game> getGameByGameCode(@PathVariable String gameCode) {
+    public ResponseEntity<GameResponseDTO> getGameByGameCode(@PathVariable String gameCode) {
         Optional<Game> game = gameService.getGameByGameCode(gameCode);
-        return game.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+        return game.map(value -> {
+            GameResponseDTO responseDTO = GameResponseDTO.fromEntity(value);
+            return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+        }).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
     
     /**
      * 查询所有游戏
-     * @return 游戏列表
+     * @return 游戏响应DTO列表
      */
     @GetMapping
-    public ResponseEntity<List<Game>> getAllGames() {
+    public ResponseEntity<List<GameResponseDTO>> getAllGames() {
         List<Game> games = gameService.getAllGames();
-        return new ResponseEntity<>(games, HttpStatus.OK);
+        List<GameResponseDTO> responseDTOs = games.stream()
+                .map(GameResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
     }
     
     /**
      * 根据状态查询游戏
      * @param status 状态
-     * @return 游戏列表
+     * @return 游戏响应DTO列表
      */
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<Game>> getGamesByStatus(@PathVariable String status) {
-        List<Game> games = gameService.getGamesByStatus(GameStatus.valueOf(status));
-        return new ResponseEntity<>(games, HttpStatus.OK);
+    public ResponseEntity<List<GameResponseDTO>> getGamesByStatus(@PathVariable String status) {
+        try {
+            GameStatus gameStatus = GameStatus.valueOf(status.toUpperCase());
+            List<Game> games = gameService.getGamesByStatus(gameStatus);
+            List<GameResponseDTO> responseDTOs = games.stream()
+                    .map(GameResponseDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
     
     /**
      * 根据当前阶段查询游戏
      * @param currentPhase 当前阶段
-     * @return 游戏列表
+     * @return 游戏响应DTO列表
      */
     @GetMapping("/phase/{currentPhase}")
-    public ResponseEntity<List<Game>> getGamesByCurrentPhase(@PathVariable String currentPhase) {
-        List<Game> games = gameService.getGamesByCurrentPhase(GamePhase.valueOf(currentPhase));
-        return new ResponseEntity<>(games, HttpStatus.OK);
+    public ResponseEntity<List<GameResponseDTO>> getGamesByCurrentPhase(@PathVariable String currentPhase) {
+        try {
+            GamePhase gamePhase = GamePhase.valueOf(currentPhase.toUpperCase());
+            List<Game> games = gameService.getGamesByCurrentPhase(gamePhase);
+            List<GameResponseDTO> responseDTOs = games.stream()
+                    .map(GameResponseDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
     
     /**
      * 根据剧本ID查询游戏
      * @param scriptId 剧本ID
-     * @return 游戏列表
+     * @return 游戏响应DTO列表
      */
     @GetMapping("/script/{scriptId}")
-    public ResponseEntity<List<Game>> getGamesByScriptId(@PathVariable Long scriptId) {
+    public ResponseEntity<List<GameResponseDTO>> getGamesByScriptId(@PathVariable Long scriptId) {
         List<Game> games = gameService.getGamesByScriptId(scriptId);
-        return new ResponseEntity<>(games, HttpStatus.OK);
+        List<GameResponseDTO> responseDTOs = games.stream()
+                .map(GameResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
     }
     
     /**
      * 根据状态和剧本ID查询游戏
      * @param status 状态
      * @param scriptId 剧本ID
-     * @return 游戏列表
+     * @return 游戏响应DTO列表
      */
     @GetMapping("/script/{scriptId}/status/{status}")
-    public ResponseEntity<List<Game>> getGamesByStatusAndScriptId(@PathVariable Long scriptId, @PathVariable String status) {
-        List<Game> games = gameService.getGamesByScriptIdAndStatus(scriptId, GameStatus.valueOf(status));
-        return new ResponseEntity<>(games, HttpStatus.OK);
+    public ResponseEntity<List<GameResponseDTO>> getGamesByStatusAndScriptId(@PathVariable Long scriptId, @PathVariable String status) {
+        try {
+            GameStatus gameStatus = GameStatus.valueOf(status.toUpperCase());
+            List<Game> games = gameService.getGamesByScriptIdAndStatus(scriptId, gameStatus);
+            List<GameResponseDTO> responseDTOs = games.stream()
+                    .map(GameResponseDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
     
     /**
      * 开始游戏
      * @param id 游戏ID
-     * @return 更新后的游戏
+     * @return 更新后的游戏响应DTO
      */
     @PutMapping("/{id}/start")
-    public ResponseEntity<Game> startGame(@PathVariable Long id) {
+    public ResponseEntity<GameResponseDTO> startGame(@PathVariable Long id) {
         Game game = gameService.startGame(id);
-        return new ResponseEntity<>(game, HttpStatus.OK);
+        GameResponseDTO responseDTO = GameResponseDTO.fromEntity(game);
+        return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
     
     /**
      * 结束游戏
      * @param id 游戏ID
-     * @return 更新后的游戏
+     * @return 更新后的游戏响应DTO
      */
     @PutMapping("/{id}/end")
-    public ResponseEntity<Game> endGame(@PathVariable Long id) {
+    public ResponseEntity<GameResponseDTO> endGame(@PathVariable Long id) {
         Game game = gameService.endGame(id);
-        return new ResponseEntity<>(game, HttpStatus.OK);
+        GameResponseDTO responseDTO = GameResponseDTO.fromEntity(game);
+        return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
     
     /**
      * 取消游戏
      * @param id 游戏ID
-     * @return 更新后的游戏
+     * @return 更新后的游戏响应DTO
      */
     @PutMapping("/{id}/cancel")
-    public ResponseEntity<Game> cancelGame(@PathVariable Long id) {
+    public ResponseEntity<GameResponseDTO> cancelGame(@PathVariable Long id) {
         Game game = gameService.cancelGame(id);
-        return new ResponseEntity<>(game, HttpStatus.OK);
+        GameResponseDTO responseDTO = GameResponseDTO.fromEntity(game);
+        return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
     
     /**
      * 更新游戏阶段
      * @param id 游戏ID
      * @param phase 游戏阶段
-     * @return 更新后的游戏
+     * @return 更新后的游戏响应DTO
      */
     @PutMapping("/{id}/phase/{phase}")
-    public ResponseEntity<Game> updateGamePhase(@PathVariable Long id, @PathVariable String phase) {
-        Game game = gameService.updateGamePhase(id, GamePhase.valueOf(phase));
-        return new ResponseEntity<>(game, HttpStatus.OK);
+    public ResponseEntity<GameResponseDTO> updateGamePhase(@PathVariable Long id, @PathVariable String phase) {
+        try {
+            GamePhase gamePhase = GamePhase.valueOf(phase.toUpperCase());
+            Game game = gameService.updateGamePhase(id, gamePhase);
+            GameResponseDTO responseDTO = GameResponseDTO.fromEntity(game);
+            return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 }
