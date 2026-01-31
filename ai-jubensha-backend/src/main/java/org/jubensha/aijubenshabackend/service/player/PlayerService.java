@@ -47,7 +47,7 @@ public interface PlayerService {
     /**
      * 更新玩家状态
      */
-    Player updatePlayerStatus(Long id, PlayerStatus status);
+    Player updatePlayerStatus(Long id, String status);
     
     /**
      * 删除玩家
@@ -72,17 +72,17 @@ public interface PlayerService {
     /**
      * 根据状态获取玩家
      */
-    List<Player> getPlayersByStatus(PlayerStatus status);
+    List<Player> getPlayersByStatus(String status);
     
     /**
      * 根据角色获取玩家
      */
-    List<Player> getPlayersByRole(PlayerRole role);
+    List<Player> getPlayersByRole(String role);
     
     /**
      * 根据状态和角色获取玩家
      */
-    List<Player> getPlayersByStatusAndRole(PlayerStatus status, PlayerRole role);
+    List<Player> getPlayersByStatusAndRole(String status, String role);
     
     /**
      * 更新玩家最后登录时间
