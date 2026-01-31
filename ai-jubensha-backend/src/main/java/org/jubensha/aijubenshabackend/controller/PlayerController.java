@@ -110,7 +110,7 @@ public class PlayerController {
      * @return 玩家列表
      */
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<Player>> getPlayersByStatus(@PathVariable PlayerStatus status) {
+    public ResponseEntity<List<Player>> getPlayersByStatus(@PathVariable String status) {
         List<Player> players = playerService.getPlayersByStatus(status);
         return new ResponseEntity<>(players, HttpStatus.OK);
     }
@@ -121,7 +121,7 @@ public class PlayerController {
      * @return 玩家列表
      */
     @GetMapping("/role/{role}")
-    public ResponseEntity<List<Player>> getPlayersByRole(@PathVariable PlayerRole role) {
+    public ResponseEntity<List<Player>> getPlayersByRole(@PathVariable String role) {
         List<Player> players = playerService.getPlayersByRole(role);
         return new ResponseEntity<>(players, HttpStatus.OK);
     }
@@ -133,7 +133,7 @@ public class PlayerController {
      * @return 玩家列表
      */
     @GetMapping("/status/{status}/role/{role}")
-    public ResponseEntity<List<Player>> getPlayersByStatusAndRole(@PathVariable PlayerStatus status, @PathVariable PlayerRole role) {
+    public ResponseEntity<List<Player>> getPlayersByStatusAndRole(@PathVariable String status, @PathVariable String role) {
         List<Player> players = playerService.getPlayersByStatusAndRole(status, role);
         return new ResponseEntity<>(players, HttpStatus.OK);
     }
