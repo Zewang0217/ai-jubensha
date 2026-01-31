@@ -1,6 +1,6 @@
 package org.jubensha.aijubenshabackend.service.scene;
 
-import org.jubensha.aijubenshabackend.models.entity.Scene;
+import org.jubensha.aijubenshabackend.models.dto.SceneDTO;
 import org.jubensha.aijubenshabackend.models.entity.Script;
 
 import java.util.List;
@@ -11,32 +11,32 @@ public interface SceneService {
     /**
      * 创建新场景
      */
-    Scene createScene(Scene scene);
+    SceneDTO.SceneResponse createScene(SceneDTO.SceneCreateRequest request);
     
     /**
      * 根据ID获取场景
      */
-    Optional<Scene> getSceneById(Long id);
+    Optional<SceneDTO.SceneResponse> getSceneById(Long id);
     
     /**
      * 获取所有场景
      */
-    List<Scene> getAllScenes();
+    List<SceneDTO.SceneResponse> getAllScenes();
     
     /**
      * 获取剧本的所有场景
      */
-    List<Scene> getScenesByScript(Script script);
+    List<SceneDTO.SceneResponse> getScenesByScript(Script script);
     
     /**
      * 根据剧本ID获取场景
      */
-    List<Scene> getScenesByScriptId(Long scriptId);
+    List<SceneDTO.SceneResponse> getScenesByScriptId(Long scriptId);
     
     /**
      * 更新场景
      */
-    Scene updateScene(Long id, Scene scene);
+    SceneDTO.SceneResponse updateScene(Long id, SceneDTO.SceneUpdateRequest request);
     
     /**
      * 删除场景
@@ -46,5 +46,5 @@ public interface SceneService {
     /**
      * 根据名称搜索场景
      */
-    List<Scene> searchScenesByName(String name);
+    List<SceneDTO.SceneResponse> searchScenesByName(String name);
 }

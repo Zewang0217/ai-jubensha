@@ -1,7 +1,7 @@
 package org.jubensha.aijubenshabackend.controller;
 
-import org.jubensha.aijubenshabackend.controller.request.GenerateScriptRequest;
-import org.jubensha.aijubenshabackend.models.entity.Script;
+import jakarta.validation.Valid;
+import org.jubensha.aijubenshabackend.models.dto.ScriptDTO;
 import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 import org.jubensha.aijubenshabackend.service.script.ScriptService;
 import org.jubensha.aijubenshabackend.service.task.TaskService;
@@ -27,30 +27,33 @@ public class ScriptController {
         this.scriptService = scriptService;
         this.taskService = taskService;
     }
-    
+
     /**
      * 创建剧本
-     * @param script 剧本实体
-     * @return 创建的剧本
+     * @param request 剧本创建请求DTO
+     * @return 创建的剧本响应DTO
      */
     @PostMapping
-    public ResponseEntity<Script> createScript(@RequestBody Script script) {
-        Script createdScript = scriptService.createScript(script);
-        return new ResponseEntity<>(createdScript, HttpStatus.CREATED);
+    public ResponseEntity<ScriptDTO.ScriptResponse> createScript(
+            @Valid @RequestBody ScriptDTO.ScriptCreateRequest request) {
+        ScriptDTO.ScriptResponse response = scriptService.createScript(request);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
-    
+
+
     /**
      * 更新剧本
      * @param id 剧本ID
-     * @param script 剧本实体
-     * @return 更新后的剧本
+     * @param request 剧本更新请求DTO
+     * @return 更新后的剧本响应DTO
      */
     @PutMapping("/{id}")
-    public ResponseEntity<Script> updateScript(@PathVariable Long id, @RequestBody Script script) {
-        Script updatedScript = scriptService.updateScript(id, script);
-        return new ResponseEntity<>(updatedScript, HttpStatus.OK);
+    public ResponseEntity<ScriptDTO.ScriptResponse> updateScript(@PathVariable Long id,
+                                                                 @Valid @RequestBody ScriptDTO.ScriptUpdateRequest request) {
+        ScriptDTO.ScriptResponse response = scriptService.updateScript(id, request);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
-    
+
     /**
      * 删除剧本
      * @param id 剧本ID
@@ -61,75 +64,75 @@ public class ScriptController {
         scriptService.deleteScript(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
-    
+
     /**
      * 根据ID查询剧本
      * @param id 剧本ID
-     * @return 剧本实体
+     * @return 剧本响应DTO
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Script> getScriptById(@PathVariable Long id) {
-        Optional<Script> script = scriptService.getScriptById(id);
-        return script.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    public ResponseEntity<ScriptDTO.ScriptResponse> getScriptById(@PathVariable Long id) {
+        Optional<ScriptDTO.ScriptResponse> script = scriptService.getScriptById(id);
+        return script.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
-    
+
     /**
      * 查询所有剧本
-     * @return 剧本列表
+     * @return 剧本响应DTO列表
      */
     @GetMapping
-    public ResponseEntity<List<Script>> getAllScripts() {
-        List<Script> scripts = scriptService.getAllScripts();
+    public ResponseEntity<List<ScriptDTO.ScriptResponse>> getAllScripts() {
+        List<ScriptDTO.ScriptResponse> scripts = scriptService.getAllScripts();
         return new ResponseEntity<>(scripts, HttpStatus.OK);
     }
-    
+
     /**
      * 根据难度查询剧本
      * @param difficulty 难度
-     * @return 剧本列表
+     * @return 剧本响应DTO列表
      */
     @GetMapping("/difficulty/{difficulty}")
-    public ResponseEntity<List<Script>> getScriptsByDifficulty(@PathVariable String difficulty) {
+    public ResponseEntity<List<ScriptDTO.ScriptResponse>> getScriptsByDifficulty(@PathVariable String difficulty) {
         try {
             DifficultyLevel difficultyLevel = DifficultyLevel.valueOf(difficulty.toUpperCase());
-            List<Script> scripts = scriptService.getScriptsByDifficulty(difficultyLevel);
+            List<ScriptDTO.ScriptResponse> scripts = scriptService.getScriptsByDifficulty(difficultyLevel);
             return new ResponseEntity<>(scripts, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
-    
+
     /**
      * 根据玩家人数查询剧本
      * @param playerCount 玩家人数
-     * @return 剧本列表
+     * @return 剧本响应DTO列表
      */
     @GetMapping("/player-count/{playerCount}")
-    public ResponseEntity<List<Script>> getScriptsByPlayerCount(@PathVariable Integer playerCount) {
-        List<Script> scripts = scriptService.getScriptsByPlayerCount(playerCount);
+    public ResponseEntity<List<ScriptDTO.ScriptResponse>> getScriptsByPlayerCount(@PathVariable Integer playerCount) {
+        List<ScriptDTO.ScriptResponse> scripts = scriptService.getScriptsByPlayerCount(playerCount);
         return new ResponseEntity<>(scripts, HttpStatus.OK);
     }
-    
+
     /**
      * 根据名称搜索剧本
      * @param name 名称
-     * @return 剧本列表
+     * @return 剧本响应DTO列表
      */
-    @GetMapping("/search/{name}")
-    public ResponseEntity<List<Script>> searchScriptsByName(@PathVariable String name) {
-        List<Script> scripts = scriptService.searchScriptsByName(name);
+    @GetMapping("/search")
+    public ResponseEntity<List<ScriptDTO.ScriptResponse>> searchScriptsByName(@RequestParam String name) {
+        List<ScriptDTO.ScriptResponse> scripts = scriptService.searchScriptsByName(name);
         return new ResponseEntity<>(scripts, HttpStatus.OK);
     }
-    
+
     /**
      * 根据时长查询剧本
      * @param maxDuration 最大时长
-     * @return 剧本列表
+     * @return 剧本响应DTO列表
      */
     @GetMapping("/duration/{maxDuration}")
-    public ResponseEntity<List<Script>> getScriptsByDuration(@PathVariable Integer maxDuration) {
-        List<Script> scripts = scriptService.getScriptsByDuration(maxDuration);
+    public ResponseEntity<List<ScriptDTO.ScriptResponse>> getScriptsByDuration(@PathVariable Integer maxDuration) {
+        List<ScriptDTO.ScriptResponse> scripts = scriptService.getScriptsByDuration(maxDuration);
         return new ResponseEntity<>(scripts, HttpStatus.OK);
     }
     

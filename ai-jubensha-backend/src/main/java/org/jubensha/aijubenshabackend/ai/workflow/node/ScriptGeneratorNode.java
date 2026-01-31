@@ -10,6 +10,7 @@ import org.jubensha.aijubenshabackend.ai.service.ScriptGenerateService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.dto.ScriptDTO;
 import org.jubensha.aijubenshabackend.service.script.ScriptService;
 import org.jubensha.aijubenshabackend.service.script.ScriptServiceImpl;
 
@@ -56,9 +57,19 @@ public class ScriptGeneratorNode {
             // 将script保存到数据库中
             try {
                 ScriptService scriptService = SpringContextUtil.getBean(ScriptService.class);
-                Script savedScript = scriptService.createScript(newScript);
+                
+                // 将Script实体转换为ScriptCreateRequest DTO
+                ScriptDTO.ScriptCreateRequest createRequest = new ScriptDTO.ScriptCreateRequest();
+                createRequest.setName(newScript.getName());
+                createRequest.setDescription(newScript.getDescription());
+                createRequest.setAuthor("AI Generated");
+                createRequest.setDifficulty(org.jubensha.aijubenshabackend.models.enums.DifficultyLevel.MEDIUM);
+                createRequest.setDuration(120); // 默认2小时
+                createRequest.setPlayerCount(6); // 默认6人
+                
+                ScriptDTO.ScriptResponse savedScript = scriptService.createScript(createRequest);
                 log.info("剧本已保存到数据库，ID: {}", savedScript.getId());
-                context.setScriptId(scriptId);
+                context.setScriptId(savedScript.getId());
             } catch (Exception e) {
                 log.error("保存剧本到数据库失败: {}", e.getMessage(), e);
             }
