@@ -12,6 +12,7 @@ import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.entity.Script;
 import org.jubensha.aijubenshabackend.service.script.ScriptService;
 import org.jubensha.aijubenshabackend.service.script.ScriptServiceImpl;
+import java.time.LocalDateTime;
 
 /**
  * 剧本生成节点
@@ -64,7 +65,14 @@ public class ScriptGeneratorNode {
             }
             
             context.setCurrentStep("剧本生成");
-            // TODO: 完成更多信息的保存
+            // 存储剧本详细信息
+            context.setScriptName(context.getOriginalPrompt());
+            context.setScriptType("推理本"); // 默认类型，后续可从用户输入中解析
+            context.setScriptDifficulty("中等"); // 默认难度，后续可从用户输入中解析
+            context.setModelOutput(script);
+            context.setSuccess(true);
+            context.setStartTime(LocalDateTime.now());
+            
             return WorkflowContext.saveContext(context);
         });
     }
