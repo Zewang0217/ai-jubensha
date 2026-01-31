@@ -80,19 +80,32 @@ public class PlayerServiceImpl implements PlayerService {
             throw new IllegalArgumentException("Player not found with id: " + id);
         }
     }
-    
+
     @Override
-    public Player updatePlayerStatus(Long id, PlayerStatus status) {
+    public Player updatePlayerStatus(Long id, String status) {
         logger.info("Updating player status: {} to {}", id, status);
+
+        // 字符串到枚举的安全转换
+        PlayerStatus playerStatus;
+        try {
+            playerStatus = PlayerStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid player status: {}", status);
+            throw new IllegalArgumentException("Invalid player status: " + status);
+        }
+
+        // 查询现有玩家
         Optional<Player> existingPlayer = playerRepository.findById(id);
         if (existingPlayer.isPresent()) {
             Player updatedPlayer = existingPlayer.get();
-            updatedPlayer.setStatus(status);
+            // 使用转换后的枚举值
+            updatedPlayer.setStatus(playerStatus);
             return playerRepository.save(updatedPlayer);
         } else {
             throw new IllegalArgumentException("Player not found with id: " + id);
         }
     }
+
     
     @Override
     public void deletePlayer(Long id) {
@@ -118,25 +131,59 @@ public class PlayerServiceImpl implements PlayerService {
         logger.info("Checking if email exists: {}", email);
         return playerRepository.existsByEmail(email);
     }
-    
+
     @Override
-    public List<Player> getPlayersByStatus(PlayerStatus status) {
+    public List<Player> getPlayersByStatus(String status) {
         logger.info("Getting players by status: {}", status);
-        return playerRepository.findByStatus(status);
+
+        // 字符串到枚举的安全转换
+        PlayerStatus playerStatus;
+        try {
+            playerStatus = PlayerStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid player status: {}", status);
+            throw new IllegalArgumentException("Invalid player status: " + status);
+        }
+
+        return playerRepository.findByStatus(playerStatus);
     }
-    
+
+
     @Override
-    public List<Player> getPlayersByRole(PlayerRole role) {
+    public List<Player> getPlayersByRole(String role) {
         logger.info("Getting players by role: {}", role);
-        return playerRepository.findByRole(role);
+
+        // 字符串到枚举的安全转换
+        PlayerRole playerRole;
+        try {
+            playerRole = PlayerRole.valueOf(role.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid player role: {}", role);
+            throw new IllegalArgumentException("Invalid player role: " + role);
+        }
+
+        return playerRepository.findByRole(playerRole);
     }
-    
+
     @Override
-    public List<Player> getPlayersByStatusAndRole(PlayerStatus status, PlayerRole role) {
+    public List<Player> getPlayersByStatusAndRole(String status, String role) {
         logger.info("Getting players by status: {} and role: {}", status, role);
-        return playerRepository.findByStatusAndRole(status, role);
+
+        // 字符串到枚举的安全转换
+        PlayerStatus playerStatus;
+        PlayerRole playerRole;
+
+        try {
+            playerStatus = PlayerStatus.valueOf(status.toUpperCase());
+            playerRole = PlayerRole.valueOf(role.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid parameters - status: {}, role: {}", status, role);
+            throw new IllegalArgumentException("Invalid parameters: " + e.getMessage());
+        }
+
+        return playerRepository.findByStatusAndRole(playerStatus, playerRole);
     }
-    
+
     @Override
     public void updateLastLoginTime(Long id) {
         logger.info("Updating last login time for player: {}", id);
