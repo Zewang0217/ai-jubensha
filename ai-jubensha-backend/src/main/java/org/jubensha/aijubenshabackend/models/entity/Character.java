@@ -31,6 +31,7 @@ public class Character {
     private String secret;
 
     @URL(message = "Invalid URL")
+    @Column(name = "avatar")
     private String avatarUrl;
     
     private LocalDateTime createTime;
