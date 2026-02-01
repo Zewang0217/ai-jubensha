@@ -9,6 +9,7 @@ import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
 import jakarta.annotation.Resource;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.tools.ToolManager;
@@ -209,6 +210,38 @@ public class AIService {
     public PlayerAgent getPlayerAgent(Long playerId) {
         String cacheKey = "player:" + playerId;
         return (PlayerAgent) agentCache.getIfPresent(cacheKey);
+    }
+
+    /**
+     * 通知AI玩家读取剧本
+     */
+    public void notifyAIPlayerReadScript(Long playerId, Long characterId) {
+        // 通知AI玩家读取剧本
+        // 这里可以通过消息队列或其他方式通知AI玩家
+        log.info("通知AI玩家 {} 读取角色 {} 的剧本", playerId, characterId);
+        
+        // 获取Player Agent并发送读取剧本的指令
+        PlayerAgent playerAgent = getPlayerAgent(playerId);
+        if (playerAgent != null) {
+            // 这里可以调用Player Agent的方法来读取剧本
+            // 例如：playerAgent.readScript(characterId);
+        }
+    }
+
+    /**
+     * 通知AI玩家开始搜证
+     */
+    public void notifyAIPlayerStartInvestigation(Long playerId, List<Map<String, Object>> investigationScenes) {
+        // 通知AI玩家开始搜证
+        // 这里可以通过消息队列或其他方式通知AI玩家
+        log.info("通知AI玩家 {} 开始第一轮搜证", playerId);
+        
+        // 获取Player Agent并发送开始搜证的指令
+        PlayerAgent playerAgent = getPlayerAgent(playerId);
+        if (playerAgent != null) {
+            // 这里可以调用Player Agent的方法来开始搜证
+            // 例如：playerAgent.startInvestigation(investigationScenes);
+        }
     }
 
     /**
