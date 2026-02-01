@@ -54,7 +54,7 @@ public class CharacterServiceImpl implements CharacterService {
     }
 
     @Override
-    public List<Character> getAiCharactersByName(String name) {
+    public List<Character> getCharactersByName(String name) {
         logger.info("Getting characters by name: {}", name);
         return characterRepository.findByName(name);
     }
@@ -65,11 +65,24 @@ public class CharacterServiceImpl implements CharacterService {
         Optional<Character> existingCharacter = characterRepository.findById(id);
         if (existingCharacter.isPresent()) {
             Character updatedCharacter = existingCharacter.get();
-            updatedCharacter.setName(character.getName());
-            updatedCharacter.setDescription(character.getDescription());
-            updatedCharacter.setBackgroundStory(character.getBackgroundStory());
-            updatedCharacter.setSecret(character.getSecret());
-            updatedCharacter.setAvatarUrl(character.getAvatarUrl());
+
+            // 只更新非 null 的字段
+            if (character.getName() != null) {
+                updatedCharacter.setName(character.getName());
+            }
+            if (character.getDescription() != null) {
+                updatedCharacter.setDescription(character.getDescription());
+            }
+            if (character.getBackgroundStory() != null) {
+                updatedCharacter.setBackgroundStory(character.getBackgroundStory());
+            }
+            if (character.getSecret() != null) {
+                updatedCharacter.setSecret(character.getSecret());
+            }
+            if (character.getAvatarUrl() != null) {
+                updatedCharacter.setAvatarUrl(character.getAvatarUrl());
+            }
+            
             return characterRepository.save(updatedCharacter);
         } else {
             throw new IllegalArgumentException("Character not found with id: " + id);
