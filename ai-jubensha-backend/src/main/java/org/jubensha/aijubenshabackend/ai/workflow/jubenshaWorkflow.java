@@ -14,11 +14,13 @@ import org.bsc.langgraph4j.GraphStateException;
 import org.bsc.langgraph4j.NodeOutput;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.bsc.langgraph4j.prebuilt.MessagesStateGraph;
+import org.jubensha.aijubenshabackend.ai.workflow.node.FirstInvestigationNode;
 import org.jubensha.aijubenshabackend.ai.workflow.node.PlayerAllocatorNode;
+import org.jubensha.aijubenshabackend.ai.workflow.node.SceneLoaderNode;
 import org.jubensha.aijubenshabackend.ai.workflow.node.ScriptGeneratorNode;
+import org.jubensha.aijubenshabackend.ai.workflow.node.ScriptReaderNode;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.springframework.context.MessageSource;
-import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 /**
@@ -42,9 +44,16 @@ public class jubenshaWorkflow {
             return new MessagesStateGraph<String>()
                 .addNode("script_generator", ScriptGeneratorNode.create())
                 .addNode("player_allocator", PlayerAllocatorNode.create())
+                .addNode("scene_loader", SceneLoaderNode.create())
+                .addNode("script_reader", ScriptReaderNode.create())
+                .addNode("first_investigation", FirstInvestigationNode.create())
                 .addEdge("__START__", "script_generator")
                 .addEdge("script_generator", "player_allocator")
-                .addEdge("player_allocator", "__END__")
+                .addEdge("player_allocator", "script_reader")
+                .addEdge("player_allocator", "scene_loader")
+                .addEdge("script_reader", "first_investigation")
+                .addEdge("scene_loader", "first_investigation")
+                .addEdge("first_investigation", "__END__")
                 .compile();
         } catch (GraphStateException e) {
             // TODO: 替换为自定义的事务异常
