@@ -96,6 +96,11 @@ public class WorkflowContext implements Serializable {
      */
     private Integer characterCount;
 
+    /**
+     * 场景列表
+     */
+    private List<org.jubensha.aijubenshabackend.models.entity.Scene> scenes;
+
     // ====== 游戏流程相关字段 ======
 
     /**

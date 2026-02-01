@@ -37,6 +37,9 @@ public class Character {
     @Column(name = "avatar")
     private String avatarUrl;
     
+    @Column(columnDefinition = "TEXT")
+    private String timeline;
+    
     private LocalDateTime createTime;
 
     @PrePersist
