@@ -52,28 +52,13 @@ public class PlayerController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-//    管理员和用户的身份一开始就应该确定,不知道怎么在创建玩家时判断
-//    /**
-//     * 更新管理员
-//     * @param id 管理员ID
-//     * @param player 管理员实体
-//     * @return 更新后的管理员
-//     */
-//    @PutMapping("/{id}/role")
-//    @PreAuthorize("hasRole('ADMIN')")
-//    public ResponseEntity<Player> updatePlayerRole(@PathVariable Long id,
-//                                                   @RequestParam PlayerRole newRole) {
-//        Player updatedPlayer = playerService.updatePlayerRole(id, newRole);
-//        return new ResponseEntity<>(updatedPlayer, HttpStatus.OK);
-//    }
-
     /**
      * 删除玩家 添加权限验证
      * @param id 玩家ID
      * @return 响应
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+//    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
     public ResponseEntity<Void> deletePlayer(@PathVariable Long id) {
         playerService.deletePlayer(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
@@ -85,7 +70,7 @@ public class PlayerController {
      * @return 玩家详细信息DTO
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+    //@PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
     public ResponseEntity<PlayerDTO.PlayerDetailResponse> getPlayerById(@PathVariable Long id) {
         Optional<PlayerDTO.PlayerDetailResponse> player = playerService.getPlayerById(id);
         return player.map(ResponseEntity::ok)
