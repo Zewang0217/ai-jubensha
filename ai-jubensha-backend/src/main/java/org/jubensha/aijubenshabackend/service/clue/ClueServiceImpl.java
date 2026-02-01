@@ -85,12 +85,27 @@ public class ClueServiceImpl implements ClueService {
         Optional<Clue> existingClue = clueRepository.findById(id);
         if (existingClue.isPresent()) {
             Clue updatedClue = existingClue.get();
-            updatedClue.setName(clue.getName());
-            updatedClue.setDescription(clue.getDescription());
-            updatedClue.setType(clue.getType());
-            updatedClue.setVisibility(clue.getVisibility());
-            updatedClue.setScene(clue.getScene());
-            updatedClue.setImportance(clue.getImportance());
+
+            // 只更新非 null 的字段
+            if (clue.getName() != null) {
+                updatedClue.setName(clue.getName());
+            }
+            if (clue.getDescription() != null) {
+                updatedClue.setDescription(clue.getDescription());
+            }
+            if (clue.getType() != null) {
+                updatedClue.setType(clue.getType());
+            }
+            if (clue.getVisibility() != null) {
+                updatedClue.setVisibility(clue.getVisibility());
+            }
+            if (clue.getScene() != null) {
+                updatedClue.setScene(clue.getScene());
+            }
+            if (clue.getImportance() != null) {
+                updatedClue.setImportance(clue.getImportance());
+            }
+            
             return clueRepository.save(updatedClue);
         } else {
             throw new IllegalArgumentException("Clue not found with id: " + id);

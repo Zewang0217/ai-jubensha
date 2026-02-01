@@ -36,7 +36,7 @@ public interface CharacterService {
     /**
      * 根据名字获取AI角色
      */
-    List<Character> getAiCharactersByName(String name);
+    List<Character> getCharactersByName(String name);
 
     /**
      * 更新角色
