@@ -64,7 +64,7 @@ public class BusinessException extends RuntimeException {
      */
     @Builder
     public BusinessException(int status, String code, String message,
-                             @Singular Map<String, Object> data) {
+                             @Singular("datum") Map<String, Object> data) {
         super(message);
         this.status = status;
         this.code = code;
