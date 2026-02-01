@@ -42,8 +42,8 @@ public class ExceptionUsageExample {
                 .status(404)
                 .code("20001")
                 .message("剧本ID: 789 不存在")
-                .data("scriptId", 789)
-                .data("searchTime", System.currentTimeMillis())
+                .datum("scriptId", 789)
+                .datum("searchTime", System.currentTimeMillis())
                 .build();
     }
 
@@ -73,8 +73,8 @@ public class ExceptionUsageExample {
                 .status(ErrorCodeEnum.PARAM_MISSING.getHttpStatus())
                 .code(String.valueOf(ErrorCodeEnum.PARAM_MISSING.getCode()))
                 .message("缺少必要参数")
-                .data("details", errorDetails)
-                .data("timestamp", System.currentTimeMillis())
+                .datum("details", errorDetails)
+                .datum("timestamp", System.currentTimeMillis())
                 .build();
     }
 
@@ -153,8 +153,8 @@ public class ExceptionUsageExample {
                     .status(ErrorCodeEnum.GAME_NOT_FOUND.getHttpStatus())
                     .code(String.valueOf(ErrorCodeEnum.GAME_NOT_FOUND.getCode()))
                     .message(String.format("游戏ID: %d 不存在", gameId))
-                    .data("gameId", gameId)
-                    .data("searchTime", System.currentTimeMillis())
+                    .datum("gameId", gameId)
+                    .datum("searchTime", System.currentTimeMillis())
                     .build();
         }
 
@@ -237,7 +237,7 @@ public class ExceptionUsageExample {
                     .status(ErrorCodeEnum.PARAM_VALIDATION_ERROR.getHttpStatus())
                     .code(String.valueOf(ErrorCodeEnum.PARAM_VALIDATION_ERROR.getCode()))
                     .message("密码长度至少6位")
-                    .data("validationDetails", validationData)
+                    .datum("validationDetails", validationData)
                     .build();
         }
 
@@ -253,14 +253,14 @@ public class ExceptionUsageExample {
                 .status(400)
                 .code("30001")
                 .message("请求参数验证失败")
-                .data("fieldErrors", new HashMap<String, String>() {{
+                .datum("fieldErrors", new HashMap<String, String>() {{
                     put("username", "用户名不能为空");
                     put("email", "邮箱格式不正确");
                     put("password", "密码强度不足");
                 }})
-                .data("requestId", "req_" + System.currentTimeMillis())
-                .data("timestamp", System.currentTimeMillis())
-                .data("validationRules", new String[]{
+                .datum("requestId", "req_" + System.currentTimeMillis())
+                .datum("timestamp", System.currentTimeMillis())
+                .datum("validationRules", new String[]{
                         "username: required, min:3, max:50",
                         "email: required, email format",
                         "password: required, min:6, contains: uppercase, lowercase, digit"
