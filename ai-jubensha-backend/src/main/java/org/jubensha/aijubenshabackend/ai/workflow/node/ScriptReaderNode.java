@@ -7,8 +7,10 @@ import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.jubensha.aijubenshabackend.ai.service.AIService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
+import org.jubensha.aijubenshabackend.memory.MemoryService;
 import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +23,12 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
  * @version 1.0
  * @date 2026-02-01
  * @since 2026
+ * 
+ * 注意：以下部分需要使用Milvus向量数据库实现：
+ * 1. insertCharacterToVectorDB方法：调用MemoryService.storeCharacterMemory方法，
+ *    将角色信息存储到Milvus向量数据库
+ * 2. 存储全局时间线：调用MemoryService.storeGlobalTimelineMemory方法，
+ *    将角色时间线存储到Milvus向量数据库
  */
 
 @Slf4j
@@ -59,25 +67,25 @@ public class ScriptReaderNode {
                 log.info("剧本 {} 共有 {} 个角色", scriptId, characters.size());
                 
                 // 通知玩家读取剧本
-                for (Map<String, Object> assignment : playerAssignments) {
-                    String playerType = (String) assignment.get("playerType");
-                    Long playerId = (Long) assignment.get("playerId");
-                    Long characterId = (Long) assignment.get("characterId");
-                    String characterName = (String) assignment.get("characterName");
+            for (Map<String, Object> assignment : playerAssignments) {
+                String playerType = (String) assignment.get("playerType");
+                Long playerId = (Long) assignment.get("playerId");
+                Long characterId = (Long) assignment.get("characterId");
+                String characterName = (String) assignment.get("characterName");
+                
+                if ("AI".equals(playerType)) {
+                    // 为AI玩家将角色信息插入到向量数据库
+                    insertCharacterToVectorDB(context.getGameId(), playerId, characterId, characters);
                     
-                    if ("AI".equals(playerType)) {
-                        // 为AI玩家将角色信息插入到向量数据库
-                        insertCharacterToVectorDB(playerId, characterId, characters);
-                        
-                        // 通知AI玩家读取剧本
-                        aiService.notifyAIPlayerReadScript(playerId, characterId);
-                        log.info("通知AI玩家 {} 读取角色 {} 的剧本", playerId, characterName);
-                    } else {
-                        // 通知真人玩家读取剧本
-                        // 这里可以通过WebSocket或其他方式通知前端
-                        log.info("通知真人玩家 {} 读取角色 {} 的剧本", playerId, characterName);
-                    }
+                    // 通知AI玩家读取剧本
+                    aiService.notifyAIPlayerReadScript(playerId, characterId);
+                    log.info("通知AI玩家 {} 读取角色 {} 的剧本", playerId, characterName);
+                } else {
+                    // 通知真人玩家读取剧本
+                    // 这里可以通过WebSocket或其他方式通知前端
+                    log.info("通知真人玩家 {} 读取角色 {} 的剧本", playerId, characterName);
                 }
+            }
                 
                 // 更新WorkflowContext
                 context.setCurrentStep("剧本读取");
@@ -99,13 +107,29 @@ public class ScriptReaderNode {
     /**
      * 为AI玩家将角色信息插入到向量数据库
      */
-    private static void insertCharacterToVectorDB(Long playerId, Long characterId, List<Character> characters) {
+    private static void insertCharacterToVectorDB(Long gameId, Long playerId, Long characterId, List<Character> characters) {
         // 查找对应的角色
         for (Character character : characters) {
             if (character.getId().equals(characterId)) {
                 // 准备角色信息
-                // 这里可以使用向量数据库服务将角色信息插入到向量数据库
-                // 例如，使用Milvus存储角色的背景故事、时间线、秘密等信息
+                Map<String, String> characterInfo = new HashMap<>();
+                characterInfo.put("name", character.getName());
+                characterInfo.put("description", character.getDescription());
+                characterInfo.put("background", character.getBackgroundStory());
+                characterInfo.put("secret", character.getSecret());
+                characterInfo.put("timeline", character.getTimeline());
+                
+                // 获取记忆服务
+                MemoryService memoryService = SpringContextUtil.getBean(MemoryService.class);
+                
+                // 存储角色记忆到向量数据库
+                memoryService.storeCharacterMemory(gameId, playerId, characterId, characterInfo);
+                
+                // 存储全局时间线（如果有）
+                if (character.getTimeline() != null && !character.getTimeline().isEmpty()) {
+                    memoryService.storeGlobalTimelineMemory(character.getScriptId(), characterId, character.getTimeline(), "game_start");
+                }
+                
                 log.info("为AI玩家 {} 插入角色 {} 的信息到向量数据库", playerId, character.getName());
                 break;
             }
