@@ -41,11 +41,10 @@ public class AIConfig {
     
     @Bean
     public EmbeddingModel embeddingModel() {
-        // 由于DeepSeek API可能不支持专门的嵌入模型，我们使用OpenAI兼容的嵌入模型
-        // 可以使用text-embedding-ada-002或其他兼容的嵌入模型
+        // 使用专门为嵌入模型配置的API密钥和baseUrl
         return OpenAiEmbeddingModel.builder()
-                .apiKey(apiKey)
-                .baseUrl(baseUrl)
+                .apiKey(embeddingApiKey)
+                .baseUrl(embeddingBaseUrl)
                 .modelName(embeddingModelName)  // 使用配置的嵌入模型名称
                 .build();
     }
