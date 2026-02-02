@@ -24,6 +24,12 @@ import org.springframework.context.annotation.Configuration;
  * @version 1.0
  * @date 2026-01-31 15:30
  * @since 2026
+ * 
+ * 注意：以下部分需要使用Milvus向量数据库实现：
+ * 1. notifyAIPlayerReadScript：通知AI玩家读取剧本时，
+ *    会触发角色信息存储到Milvus向量数据库
+ * 2. PlayerAgent的推理过程：在AI推理时，
+ *    会使用Milvus向量数据库检索相关记忆
  */
 
 @Configuration
