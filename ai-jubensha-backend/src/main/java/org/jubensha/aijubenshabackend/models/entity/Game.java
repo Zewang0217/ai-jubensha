@@ -1,9 +1,10 @@
 package org.jubensha.aijubenshabackend.models.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 
 import java.time.LocalDateTime;
 
@@ -15,10 +16,14 @@ public class Game {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @ManyToOne
-    @JoinColumn(name = "script_id", nullable = false)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "script_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Script script;
+
+    @Column(name = "script_id", nullable = false)
+    private Long scriptId;
     
     private String gameCode;
     
