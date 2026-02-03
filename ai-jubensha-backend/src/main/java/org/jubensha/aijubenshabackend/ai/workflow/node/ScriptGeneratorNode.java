@@ -15,6 +15,7 @@ import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.Clue;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
 import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.dto.ScriptDTO;
 import org.jubensha.aijubenshabackend.models.enums.ClueType;
 import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
@@ -83,6 +84,20 @@ public class ScriptGeneratorNode {
 
                 // 保存剧本到数据库，获取自增ID
                 ScriptService scriptService = SpringContextUtil.getBean(ScriptService.class);
+
+              // TODO：修改逻辑，使用更新后的代码逻辑
+                // 将Script实体转换为ScriptCreateRequest DTO
+                ScriptDTO.ScriptCreateRequest createRequest = new ScriptDTO.ScriptCreateRequest();
+                createRequest.setName(newScript.getName());
+                createRequest.setDescription(newScript.getDescription());
+                createRequest.setAuthor("AI Generated");
+                createRequest.setDifficulty(org.jubensha.aijubenshabackend.models.enums.DifficultyLevel.MEDIUM);
+                createRequest.setDuration(120); // 默认2小时
+                createRequest.setPlayerCount(6); // 默认6人
+                
+                ScriptDTO.ScriptResponse savedScript = scriptService.createScript(createRequest);
+                log.info("剧本已保存到数据库，ID: {}", savedScript.getId());
+                context.setScriptId(savedScript.getId());
                 Script savedScript = scriptService.createScript(newScript);
                 Long scriptId = savedScript.getId();
                 log.info("剧本已保存到数据库，ID: {}", scriptId);
