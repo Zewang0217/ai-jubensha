@@ -1,67 +1,60 @@
 package org.jubensha.aijubenshabackend.service.script;
 
-import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.models.dto.ScriptDTO;
 import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface ScriptService {
-    
+
     /**
-     * 创建新剧本
+     * 创建新剧本（DTO方式）
      */
-    Script createScript(Script script);
-    
+    ScriptDTO.ScriptResponse createScript(ScriptDTO.ScriptCreateRequest request);
+
     /**
-     * 根据ID获取剧本
+     * 根据ID获取剧本（返回Optional包装的DTO）
      */
-    Optional<Script> getScriptById(Long id);
-    
+    Optional<ScriptDTO.ScriptResponse> getScriptById(Long id);
+
     /**
-     * 获取所有剧本
+     * 获取所有剧本（返回DTO列表）
      */
-    List<Script> getAllScripts();
-    
+    List<ScriptDTO.ScriptResponse> getAllScripts();
+
     /**
-     * 更新剧本
+     * 更新剧本（DTO方式）
      */
-    Script updateScript(Long id, Script script);
-    
+    ScriptDTO.ScriptResponse updateScript(Long id, ScriptDTO.ScriptUpdateRequest request);
+
     /**
      * 删除剧本
      */
     void deleteScript(Long id);
-    
-    /**
-     * 根据名称搜索剧本
-     */
-    List<Script> searchScriptsByName(String name);
-    
-    /**
-     * 根据难度级别筛选剧本
-     */
-    List<Script> getScriptsByDifficulty(DifficultyLevel difficulty);
-    
-    /**
-     * 根据玩家数量筛选剧本
-     */
-    List<Script> getScriptsByPlayerCount(Integer playerCount);
-    
-    /**
-     * 根据时长筛选剧本
-     */
-    List<Script> getScriptsByDuration(Integer maxDuration);
-    
-    /**
-     * 生成剧本
-     */
-//    Script generateScript(String scriptName, String description, Integer playerCount, DifficultyLevel difficulty, String extraRequirements);
 
-    //
     /**
-     * 生成并保存剧本
+     * 根据名称搜索剧本（返回DTO列表）
      */
-    public Script generateAndSaveScript(String prompt, String scriptContent);
+    List<ScriptDTO.ScriptResponse> searchScriptsByName(String name);
 
+    /**
+     * 根据难度级别筛选剧本（返回DTO列表）
+     */
+    List<ScriptDTO.ScriptResponse> getScriptsByDifficulty(DifficultyLevel difficulty);
+
+    /**
+     * 根据玩家数量筛选剧本（返回DTO列表）
+     */
+    List<ScriptDTO.ScriptResponse> getScriptsByPlayerCount(Integer playerCount);
+
+    /**
+     * 根据时长筛选剧本（返回DTO列表）
+     */
+    List<ScriptDTO.ScriptResponse> getScriptsByDuration(Integer maxDuration);
+
+    /**
+     * 生成并保存剧本（AI功能）
+     */
+    //ScriptDTO.ScriptResponse generateAndSaveScript(String prompt);
 }

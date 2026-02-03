@@ -1,10 +1,11 @@
 package org.jubensha.aijubenshabackend.controller;
 
-import org.jubensha.aijubenshabackend.models.entity.Scene;
+import org.jubensha.aijubenshabackend.models.dto.SceneDTO;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,25 +25,27 @@ public class SceneController {
     
     /**
      * 创建场景
-     * @param scene 场景实体
-     * @return 创建的场景
+     * @param request 场景创建请求DTO
+     * @return 创建的场景响应DTO
      */
     @PostMapping
-    public ResponseEntity<Scene> createScene(@RequestBody Scene scene) {
-        Scene createdScene = sceneService.createScene(scene);
-        return new ResponseEntity<>(createdScene, HttpStatus.CREATED);
+    public ResponseEntity<SceneDTO.SceneResponse> createScene(
+            @Valid @RequestBody SceneDTO.SceneCreateRequest request) {
+        SceneDTO.SceneResponse response = sceneService.createScene(request);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
     
     /**
      * 更新场景
      * @param id 场景ID
-     * @param scene 场景实体
-     * @return 更新后的场景
+     * @param request 场景更新请求DTO
+     * @return 更新后的场景响应DTO
      */
     @PutMapping("/{id}")
-    public ResponseEntity<Scene> updateScene(@PathVariable Long id, @RequestBody Scene scene) {
-        Scene updatedScene = sceneService.updateScene(id, scene);
-        return new ResponseEntity<>(updatedScene, HttpStatus.OK);
+    public ResponseEntity<SceneDTO.SceneResponse> updateScene(@PathVariable Long id,
+                                               @Valid @RequestBody SceneDTO.SceneUpdateRequest request) {
+        SceneDTO.SceneResponse response = sceneService.updateScene(id, request);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
     
     /**
@@ -59,33 +62,44 @@ public class SceneController {
     /**
      * 根据ID查询场景
      * @param id 场景ID
-     * @return 场景实体
+     * @return 场景详细信息DTO
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Scene> getSceneById(@PathVariable Long id) {
-        Optional<Scene> scene = sceneService.getSceneById(id);
-        return scene.map(value -> new ResponseEntity<>(value, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    public ResponseEntity<SceneDTO.SceneResponse> getSceneById(@PathVariable Long id) {
+        Optional<SceneDTO.SceneResponse> scene = sceneService.getSceneById(id);
+        return scene.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
     
     /**
      * 查询所有场景
-     * @return 场景列表
+     * @return 场景详细列表
      */
     @GetMapping
-    public ResponseEntity<List<Scene>> getAllScenes() {
-        List<Scene> scenes = sceneService.getAllScenes();
+    public ResponseEntity<List<SceneDTO.SceneResponse>> getAllScenes() {
+        List<SceneDTO.SceneResponse> scenes = sceneService.getAllScenes();
         return new ResponseEntity<>(scenes, HttpStatus.OK);
     }
     
     /**
      * 根据剧本ID查询场景
      * @param scriptId 剧本ID
-     * @return 场景列表
+     * @return 场景列表响应DTO
      */
     @GetMapping("/script/{scriptId}")
-    public ResponseEntity<List<Scene>> getScenesByScriptId(@PathVariable Long scriptId) {
-        List<Scene> scenes = sceneService.getScenesByScriptId(scriptId);
+    public ResponseEntity<List<SceneDTO.SceneResponse>> getScenesByScriptId(@PathVariable Long scriptId) {
+        List<SceneDTO.SceneResponse> scenes = sceneService.getScenesByScriptId(scriptId);
+        return new ResponseEntity<>(scenes, HttpStatus.OK);
+    }
+    
+    /**
+     * 根据名称搜索场景
+     * @param name 场景名称
+     * @return 场景列表响应DTO
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<SceneDTO.SceneResponse>> searchScenesByName(@RequestParam String name) {
+        List<SceneDTO.SceneResponse> scenes = sceneService.searchScenesByName(name);
         return new ResponseEntity<>(scenes, HttpStatus.OK);
     }
 

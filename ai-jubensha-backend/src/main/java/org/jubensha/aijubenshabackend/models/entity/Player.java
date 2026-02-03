@@ -35,6 +35,9 @@ public class Player {
     private LocalDateTime createTime;
     
     private LocalDateTime updateTime;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
     
     @PrePersist
     protected void onCreate() {
