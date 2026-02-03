@@ -40,6 +40,9 @@ public class Script {
 //    @Column(columnDefinition = "LONGTEXT")
 //    private String content;
     
+    @Column(columnDefinition = "TEXT")
+    private String timeline;
+    
     private LocalDateTime createTime;
     
     private LocalDateTime updateTime;

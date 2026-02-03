@@ -67,12 +67,25 @@ public class GameServiceImpl implements GameService {
         Optional<Game> existingGame = gameRepository.findById(id);
         if (existingGame.isPresent()) {
             Game updatedGame = existingGame.get();
-            updatedGame.setGameCode(game.getGameCode());
-            updatedGame.setScript(game.getScript());
-            updatedGame.setStatus(game.getStatus());
-            updatedGame.setCurrentPhase(game.getCurrentPhase());
-            updatedGame.setStartTime(game.getStartTime());
-            updatedGame.setEndTime(game.getEndTime());
+
+            // 只更新非 null 的字段，特别注意不要更新 scriptId（因为 GameUpdateDTO 中没有这个字段）
+            if (game.getGameCode() != null) {
+                updatedGame.setGameCode(game.getGameCode());
+            }
+            // 注意：scriptId 不应该在更新时修改，所以这里不设置 scriptId
+            if (game.getStatus() != null) {
+                updatedGame.setStatus(game.getStatus());
+            }
+            if (game.getCurrentPhase() != null) {
+                updatedGame.setCurrentPhase(game.getCurrentPhase());
+            }
+            if (game.getStartTime() != null) {
+                updatedGame.setStartTime(game.getStartTime());
+            }
+            if (game.getEndTime() != null) {
+                updatedGame.setEndTime(game.getEndTime());
+            }
+            
             return gameRepository.save(updatedGame);
         } else {
             throw new IllegalArgumentException("Game not found with id: " + id);

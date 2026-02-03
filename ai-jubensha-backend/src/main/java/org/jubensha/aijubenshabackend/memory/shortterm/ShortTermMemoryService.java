@@ -7,6 +7,18 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 短期记忆服务
+ * 
+ * 注意：短期记忆服务使用Redis作为存储，不需要使用Milvus向量数据库
+ * 所有方法都使用Redis操作，包括：
+ * 1. storeMemory：使用Redis的set操作存储短期记忆
+ * 2. getMemory：使用Redis的get操作获取短期记忆
+ * 3. deleteMemory：使用Redis的delete操作删除短期记忆
+ * 4. addToList：使用Redis的lpush操作向列表添加元素
+ * 5. getList：使用Redis的lrange操作获取列表元素
+ * 6. clearGameMemory：使用Redis的keys和delete操作清除游戏的所有短期记忆
+ */
 @Service
 public class ShortTermMemoryService {
     

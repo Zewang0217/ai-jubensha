@@ -18,12 +18,12 @@ spring:
   # JPA配置
   jpa:
     hibernate:
-      ddl-auto: validate
-    show-sql: false
+      ddl-auto: update
+    show-sql: true
     database-platform: org.hibernate.dialect.MySQLDialect
     properties:
       hibernate:
-        format_sql: false
+        format_sql: true
   
   # Redis配置
   data:
@@ -74,8 +74,19 @@ server:
 milvus:
   host: localhost
   port: 19530
-  collection:
-    name: ai_jubensha_collection
+  token: root:Milvus
+  collections:
+    conversation-prefix: "conversation_"
+    global-memory: "global_memory"
+  embedding-dimension: 1024
+  metric-type: L2
+  index-type: HNSW
+  index-params:
+    hnsw:
+      M: 16
+      efConstruction: 200
+    ivf:
+      nlist: 1024
 
 # 日志配置
 logging:

@@ -1,8 +1,7 @@
 package org.jubensha.aijubenshabackend.models.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.Data;
 import org.jubensha.aijubenshabackend.models.enums.ClueType;
 import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
@@ -17,13 +16,18 @@ public class Clue {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @ManyToOne
-    @JoinColumn(name = "script_id", nullable = false)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "script_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Script script;
+
+    @Column(name = "script_id", nullable = false)
+    private Long scriptId;
     
     private String name;
-    
+
+    // 线索的内容
     @Column(columnDefinition = "TEXT", nullable = false)
     private String description;
     
@@ -35,8 +39,6 @@ public class Clue {
     
     private String scene;
 
-    @Min(1)
-    @Max(100)
     // 面向DM用于控场
     private Integer importance;
     

@@ -108,6 +108,19 @@ services:
     networks:
       - ai-jubensha-network
 
+  attu:
+    image: zilliz/attu:v2.3.1
+    container_name: ai-jubensha-attu
+    ports:
+      - "8000:3000"
+    environment:
+      MILVUS_URL: milvus:19530
+    depends_on:
+      - milvus
+    restart: always
+    networks:
+      - ai-jubensha-network
+
   # Kibana（Elasticsearch可视化工具，可选）
   kibana:
     image: kibana:8.6.0
