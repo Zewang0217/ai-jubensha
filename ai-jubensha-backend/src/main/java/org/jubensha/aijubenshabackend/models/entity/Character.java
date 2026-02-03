@@ -1,5 +1,6 @@
 package org.jubensha.aijubenshabackend.models.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -13,10 +14,14 @@ public class Character {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @ManyToOne
-    @JoinColumn(name = "script_id", nullable = false)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "script_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Script script;
+
+    @Column(name = "script_id", nullable = false)
+    private Long scriptId;
     
     private String name;
     
@@ -28,13 +33,15 @@ public class Character {
     
     @Column(columnDefinition = "TEXT")
     private String secret;
+
+    @Column(name = "avatar")
+    private String avatarUrl;
     
-    private String avatar;
-    
-    private Boolean isAi;
+    @Column(columnDefinition = "TEXT")
+    private String timeline;
     
     private LocalDateTime createTime;
-    
+
     @PrePersist
     protected void onCreate() {
         createTime = LocalDateTime.now();
