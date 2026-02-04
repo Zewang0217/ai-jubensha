@@ -16,43 +16,41 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Script {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     private String name;
-    
-    @Column(columnDefinition = "TEXT")
+
+    // 包含剧本内容
+    @Column(columnDefinition = "LONGTEXT")
     private String description;
-    
+
     private String author;
-    
+
     @Enumerated(EnumType.STRING)
     private DifficultyLevel difficulty;
-    
+
     private Integer duration;
-    
+
     private Integer playerCount;
-    
-    private String coverImage;
-    
-//    @Column(columnDefinition = "LONGTEXT")
-//    private String content;
-    
+
+    private String coverImageUrl;
+
     @Column(columnDefinition = "TEXT")
     private String timeline;
-    
+
     private LocalDateTime createTime;
-    
+
     private LocalDateTime updateTime;
-    
+
     @PrePersist
     protected void onCreate() {
         createTime = LocalDateTime.now();
         updateTime = LocalDateTime.now();
     }
-    
+
     @PreUpdate
     protected void onUpdate() {
         updateTime = LocalDateTime.now();
