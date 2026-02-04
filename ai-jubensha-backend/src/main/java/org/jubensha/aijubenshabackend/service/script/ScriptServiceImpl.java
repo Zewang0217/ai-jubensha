@@ -1,7 +1,6 @@
 package org.jubensha.aijubenshabackend.service.script;
 
 import org.jubensha.aijubenshabackend.core.exception.AppException;
-import org.jubensha.aijubenshabackend.models.dto.ScriptDTO;
 import org.jubensha.aijubenshabackend.models.entity.Script;
 import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 import org.jubensha.aijubenshabackend.repository.script.ScriptRepository;
@@ -13,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -29,66 +27,70 @@ public class ScriptServiceImpl implements ScriptService {
     }
 
     @Override
-    public ScriptDTO.ScriptResponse createScript(ScriptDTO.ScriptCreateRequest request) {
-        logger.info("Creating new script: {}", request.getName());
+    public Script saveScript(Script script) {
+        logger.info("Saving script: {}", script.getName());
         try {
-            // 数据验证已在DTO中通过注解完成
-
-            Script script = new Script();
-            script.setName(request.getName());
-            script.setDescription(request.getDescription());
-            script.setAuthor(request.getAuthor());
-            script.setDifficulty(request.getDifficulty());
-            script.setDuration(request.getDuration());
-            script.setPlayerCount(request.getPlayerCount());
-            script.setCoverImage(request.getCoverImage());
-
             Script savedScript = scriptRepository.save(script);
-            logger.info("Script created successfully with ID: {}", savedScript.getId());
-            return convertToResponse(savedScript);
+            logger.info("Script saved successfully with ID: {}", savedScript.getId());
+            return savedScript;
         } catch (Exception e) {
-            logger.error("Error creating script: {}", e.getMessage(), e);
-            throw new AppException("创建剧本失败: " + e.getMessage());
+            logger.error("Error saving script: {}", e.getMessage(), e);
+            throw new AppException("保存剧本失败: " + e.getMessage());
         }
     }
 
     @Override
-    public Optional<ScriptDTO.ScriptResponse> getScriptById(Long id) {
+    public Optional<Script> getScriptById(Long id) {
         logger.info("Getting script by id: {}", id);
         if (id == null || id <= 0) {
             logger.warn("Invalid script ID: {}", id);
             return Optional.empty();
         }
-        return scriptRepository.findById(id).map(this::convertToResponse);
+        return scriptRepository.findById(id);
     }
 
     @Override
-    public List<ScriptDTO.ScriptResponse> getAllScripts() {
+    public List<Script> getAllScripts() {
         logger.info("Getting all scripts");
-        return scriptRepository.findAll().stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
+        return scriptRepository.findAll();
     }
 
     @Override
-    public ScriptDTO.ScriptResponse updateScript(Long id, ScriptDTO.ScriptUpdateRequest request) {
+    public Script updateScript(Long id, Script script) {
         logger.info("Updating script: {}", id);
         try {
             Script existingScript = scriptRepository.findById(id)
                     .orElseThrow(() -> new AppException("剧本不存在，ID: " + id));
 
             // 更新字段
-            existingScript.setName(request.getName());
-            existingScript.setDescription(request.getDescription());
-            existingScript.setAuthor(request.getAuthor());
-            existingScript.setDifficulty(request.getDifficulty());
-            existingScript.setDuration(request.getDuration());
-            existingScript.setPlayerCount(request.getPlayerCount());
-            existingScript.setCoverImage(request.getCoverImage());
+            if (script.getName() != null && !script.getName().trim().isEmpty()) {
+                existingScript.setName(script.getName());
+            }
+            if (script.getDescription() != null) {
+                existingScript.setDescription(script.getDescription());
+            }
+            if (script.getAuthor() != null) {
+                existingScript.setAuthor(script.getAuthor());
+            }
+            if (script.getDifficulty() != null) {
+                existingScript.setDifficulty(script.getDifficulty());
+            }
+            if (script.getDuration() != null && script.getDuration() > 0) {
+                existingScript.setDuration(script.getDuration());
+            }
+            if (script.getPlayerCount() != null && script.getPlayerCount() > 0) {
+                existingScript.setPlayerCount(script.getPlayerCount());
+            }
+            if (script.getCoverImage() != null) {
+                existingScript.setCoverImage(script.getCoverImage());
+            }
+            if (script.getTimeline() != null) {
+                existingScript.setTimeline(script.getTimeline());
+            }
 
             Script updatedScript = scriptRepository.save(existingScript);
             logger.info("Script updated successfully with ID: {}", updatedScript.getId());
-            return convertToResponse(updatedScript);
+            return updatedScript;
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {
@@ -116,105 +118,102 @@ public class ScriptServiceImpl implements ScriptService {
     }
 
     @Override
-    public List<ScriptDTO.ScriptResponse> searchScriptsByName(String name) {
-        logger.info("Searching scripts by name: {}", name);
-        if (name == null || name.trim().isEmpty()) {
-            logger.warn("Empty search name provided");
-            return getAllScripts();
-        }
-        return scriptRepository.findByNameContaining(name.trim()).stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
+    public List<Script> getScriptsByAuthor(String author) {
+        logger.info("Getting scripts by author: {}", author);
+        // 这里可以根据需要添加具体的查询逻辑
+        return getAllScripts();
     }
 
     @Override
-    public List<ScriptDTO.ScriptResponse> getScriptsByDifficulty(DifficultyLevel difficulty) {
+    public List<Script> getScriptsByDifficulty(DifficultyLevel difficulty) {
         logger.info("Getting scripts by difficulty: {}", difficulty);
         if (difficulty == null) {
             logger.warn("Null difficulty level provided");
             return getAllScripts();
         }
-        return scriptRepository.findByDifficulty(difficulty).stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
+        return scriptRepository.findByDifficulty(difficulty);
     }
 
     @Override
-    public List<ScriptDTO.ScriptResponse> getScriptsByPlayerCount(Integer playerCount) {
+    public List<Script> getScriptsByPlayerCount(Integer playerCount) {
         logger.info("Getting scripts by player count: {}", playerCount);
         if (playerCount == null || playerCount <= 0) {
             logger.warn("Invalid player count: {}", playerCount);
             return getAllScripts();
         }
-        return scriptRepository.findByPlayerCount(playerCount).stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
+        return scriptRepository.findByPlayerCount(playerCount);
     }
 
     @Override
-    public List<ScriptDTO.ScriptResponse> getScriptsByDuration(Integer maxDuration) {
-        logger.info("Getting scripts by duration: {}", maxDuration);
-        if (maxDuration == null || maxDuration <= 0) {
-            logger.warn("Invalid duration: {}", maxDuration);
+    public List<Script> getScriptsByDuration(Integer duration) {
+        logger.info("Getting scripts by duration: {}", duration);
+        if (duration == null || duration <= 0) {
+            logger.warn("Invalid duration: {}", duration);
             return getAllScripts();
         }
-        return scriptRepository.findByDurationLessThanEqual(maxDuration).stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
+        return scriptRepository.findByDurationLessThanEqual(duration);
     }
 
-//    @Override
-//    public Script generateScript(String scriptName, String description, Integer playerCount, DifficultyLevel difficulty, String extraRequirements) {
-//        logger.info("Generating script: {}", scriptName);
-//
-//        try {
-//            // 获取剧本生成Agent
-//            ScriptGeneratorAgent scriptGeneratorAgent = (ScriptGeneratorAgent) aiService.getScriptGeneratorAgent();
-//
-//            // 设置剧本信息
-//            scriptGeneratorAgent.setScriptInfo(scriptName, playerCount, difficulty);
-//
-//            // 生成剧本内容
-//            String generatedDescription = scriptGeneratorAgent.process(extraRequirements);
-//
-//            // 创建剧本实体
-//            Script script = new Script();
-//            script.setName(scriptName);
-//            script.setDescription(generatedDescription); // 始终使用AI生成的内容作为description
-//            script.setAuthor("AI Generated");
-//            script.setDifficulty(difficulty);
-//            script.setDuration(120); // 默认时长2小时
-//            script.setPlayerCount(playerCount);
+    @Override
+    public List<Script> searchScriptsByName(String name) {
+        logger.info("Searching scripts by name: {}", name);
+        if (name == null || name.trim().isEmpty()) {
+            logger.warn("Empty search name provided");
+            return getAllScripts();
+        }
+        return scriptRepository.findByNameContaining(name.trim());
+    }
 
-    /// /            script.setContent(scriptContent);
-//
-//            // 保存到数据库
-//            Script savedScript = scriptRepository.save(script);
-//            logger.info("Script generated and saved: {}", savedScript.getId());
-//
-//            // 重置Agent状态
-//            scriptGeneratorAgent.reset();
-//
-//            return savedScript;
-//         catch (Exception e) {
-//            logger.error("Error generating script: {}", e.getMessage());
-//            throw new RuntimeException("Failed to generate script: " + e.getMessage(), e);
-//        }
-//    }
+    @Override
+    public List<Script> searchScriptsByDescription(String keyword) {
+        logger.info("Searching scripts by description keyword: {}", keyword);
+        // 这里可以添加具体的实现逻辑，目前返回所有剧本
+        return getAllScripts();
+    }
 
-    // DTO转换方法
-    private ScriptDTO.ScriptResponse convertToResponse(Script script) {
-        ScriptDTO.ScriptResponse response = new ScriptDTO.ScriptResponse();
-        response.setId(script.getId());
-        response.setName(script.getName());
-        response.setDescription(script.getDescription());
-        response.setAuthor(script.getAuthor());
-        response.setDifficulty(script.getDifficulty());
-        response.setDuration(script.getDuration());
-        response.setPlayerCount(script.getPlayerCount());
-        response.setCoverImage(script.getCoverImage());
-        response.setCreateTime(script.getCreateTime());
-        response.setUpdateTime(script.getUpdateTime());
-        return response;
+    @Override
+    public List<Script> getScriptsByDifficultyAndPlayerCount(DifficultyLevel difficulty, Integer playerCount) {
+        logger.info("Getting scripts by difficulty: {} and player count: {}", difficulty, playerCount);
+        // 这里可以根据需要添加更复杂的查询逻辑
+        List<Script> scripts = getScriptsByDifficulty(difficulty);
+        if (playerCount != null && playerCount > 0) {
+            return scripts.stream()
+                    .filter(script -> script.getPlayerCount() != null && script.getPlayerCount().equals(playerCount))
+                    .toList();
+        }
+        return scripts;
+    }
+
+    @Override
+    public List<Script> getScriptsByCreateTimeRange(String startTime, String endTime) {
+        logger.info("Getting scripts by create time range: {} to {}", startTime, endTime);
+        // 这里可以添加具体的实现逻辑，目前返回所有剧本
+        return getAllScripts();
+    }
+
+    @Override
+    public Script updateScriptCoverImage(Long id, String coverImage) {
+        logger.info("Updating script cover image: {}", id);
+        Script existingScript = scriptRepository.findById(id)
+                .orElseThrow(() -> new AppException("剧本不存在: " + id));
+        existingScript.setCoverImage(coverImage);
+        return scriptRepository.save(existingScript);
+    }
+
+    @Override
+    public Script updateScriptTimeline(Long id, String timeline) {
+        logger.info("Updating script timeline: {}", id);
+        Script existingScript = scriptRepository.findById(id)
+                .orElseThrow(() -> new AppException("剧本不存在: " + id));
+        existingScript.setTimeline(timeline);
+        return scriptRepository.save(existingScript);
+    }
+
+    @Override
+    public void deleteScriptsBatch(List<Long> ids) {
+        logger.info("Deleting scripts batch: {}", ids);
+        if (ids != null && !ids.isEmpty()) {
+            scriptRepository.deleteAllById(ids);
+        }
     }
 }
