@@ -12,7 +12,7 @@ public interface PlayerService {
     /**
      * 保存玩家
      */
-    Player savePlayer(Player player);
+    Player createPlayer(Player player);
     
     /**
      * 根据ID获取玩家

@@ -26,7 +26,7 @@ public class PlayerServiceImpl implements PlayerService {
     }
 
     @Override
-    public Player savePlayer(Player player) {
+    public Player createPlayer(Player player) {
         logger.info("Saving player: {}", player.getUsername());
 
         // 检查用户名和邮箱是否已存在

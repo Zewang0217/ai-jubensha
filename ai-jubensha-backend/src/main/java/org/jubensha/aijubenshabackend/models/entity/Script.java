@@ -36,7 +36,7 @@ public class Script {
 
     private Integer playerCount;
 
-    private String coverImage;
+    private String coverImageUrl;
 
     @Column(columnDefinition = "TEXT")
     private String timeline;
