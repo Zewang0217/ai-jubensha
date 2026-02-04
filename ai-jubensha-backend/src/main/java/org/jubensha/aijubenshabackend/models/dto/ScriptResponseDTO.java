@@ -19,7 +19,7 @@ public class ScriptResponseDTO {
     private DifficultyLevel difficulty;
     private Integer duration;
     private Integer playerCount;
-    private String coverImage;
+    private String coverImageUrl;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 
@@ -38,7 +38,7 @@ public class ScriptResponseDTO {
         dto.setDifficulty(script.getDifficulty());
         dto.setDuration(script.getDuration());
         dto.setPlayerCount(script.getPlayerCount());
-        dto.setCoverImage(script.getCoverImage());
+        dto.setCoverImageUrl(script.getCoverImageUrl());
         dto.setCreateTime(script.getCreateTime());
         dto.setUpdateTime(script.getUpdateTime());
         return dto;

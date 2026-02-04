@@ -1,6 +1,7 @@
 package org.jubensha.aijubenshabackend.controller;
 
 import jakarta.validation.Valid;
+import org.hibernate.validator.constraints.URL;
 import org.jubensha.aijubenshabackend.models.dto.ScriptCreateDTO;
 import org.jubensha.aijubenshabackend.models.dto.ScriptResponseDTO;
 import org.jubensha.aijubenshabackend.models.dto.ScriptUpdateDTO;
@@ -47,9 +48,9 @@ public class ScriptController {
         script.setDifficulty(scriptCreateDTO.getDifficulty());
         script.setDuration(scriptCreateDTO.getDuration());
         script.setPlayerCount(scriptCreateDTO.getPlayerCount());
-        script.setCoverImage(scriptCreateDTO.getCoverImage());
+        script.setCoverImageUrl(scriptCreateDTO.getCoverImageUrl());
 
-        Script createdScript = scriptService.saveScript(script);
+        Script createdScript = scriptService.createScript(script);
         ScriptResponseDTO responseDTO = ScriptResponseDTO.fromEntity(createdScript);
         return new ResponseEntity<>(responseDTO, HttpStatus.CREATED);
     }
@@ -70,7 +71,7 @@ public class ScriptController {
         script.setDifficulty(scriptUpdateDTO.getDifficulty());
         script.setDuration(scriptUpdateDTO.getDuration());
         script.setPlayerCount(scriptUpdateDTO.getPlayerCount());
-        script.setCoverImage(scriptUpdateDTO.getCoverImage());
+        script.setCoverImageUrl(scriptUpdateDTO.getCoverImageUrl());
 
         try {
             Script updatedScript = scriptService.updateScript(id, script);
@@ -265,13 +266,13 @@ public class ScriptController {
      * 更新剧本封面图片
      *
      * @param id         剧本ID
-     * @param coverImage 封面图片URL
+     * @param coverImageUrl 封面图片URL
      * @return 更新后的剧本响应DTO
      */
     @PutMapping("/{id}/cover-image")
-    public ResponseEntity<ScriptResponseDTO> updateScriptCoverImage(@PathVariable Long id, @RequestParam String coverImage) {
+    public ResponseEntity<ScriptResponseDTO> updateScriptCoverImage(@PathVariable Long id, @URL @RequestParam String coverImageUrl) {
         try {
-            Script script = scriptService.updateScriptCoverImage(id, coverImage);
+            Script script = scriptService.updateScriptCoverImage(id, coverImageUrl);
             ScriptResponseDTO responseDTO = ScriptResponseDTO.fromEntity(script);
             return new ResponseEntity<>(responseDTO, HttpStatus.OK);
         } catch (IllegalArgumentException e) {

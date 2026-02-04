@@ -11,7 +11,7 @@ public interface ScriptService {
     /**
      * 保存剧本
      */
-    Script saveScript(Script script);
+    Script createScript(Script script);
 
     /**
      * 根据ID获取剧本
@@ -76,7 +76,7 @@ public interface ScriptService {
     /**
      * 更新剧本封面图片
      */
-    Script updateScriptCoverImage(Long id, String coverImage);
+    Script updateScriptCoverImage(Long id, String coverImageUrl);
 
     /**
      * 更新剧本时间线

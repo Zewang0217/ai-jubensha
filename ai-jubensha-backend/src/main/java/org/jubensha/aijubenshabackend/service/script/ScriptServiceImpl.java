@@ -27,7 +27,7 @@ public class ScriptServiceImpl implements ScriptService {
     }
 
     @Override
-    public Script saveScript(Script script) {
+    public Script createScript(Script script) {
         logger.info("Saving script: {}", script.getName());
         try {
             Script savedScript = scriptRepository.save(script);
@@ -81,8 +81,8 @@ public class ScriptServiceImpl implements ScriptService {
             if (script.getPlayerCount() != null && script.getPlayerCount() > 0) {
                 existingScript.setPlayerCount(script.getPlayerCount());
             }
-            if (script.getCoverImage() != null) {
-                existingScript.setCoverImage(script.getCoverImage());
+            if (script.getCoverImageUrl() != null) {
+                existingScript.setCoverImageUrl(script.getCoverImageUrl());
             }
             if (script.getTimeline() != null) {
                 existingScript.setTimeline(script.getTimeline());
@@ -192,11 +192,11 @@ public class ScriptServiceImpl implements ScriptService {
     }
 
     @Override
-    public Script updateScriptCoverImage(Long id, String coverImage) {
+    public Script updateScriptCoverImage(Long id, String coverImageUrl) {
         logger.info("Updating script cover image: {}", id);
         Script existingScript = scriptRepository.findById(id)
                 .orElseThrow(() -> new AppException("剧本不存在: " + id));
-        existingScript.setCoverImage(coverImage);
+        existingScript.setCoverImageUrl(coverImageUrl);
         return scriptRepository.save(existingScript);
     }
 

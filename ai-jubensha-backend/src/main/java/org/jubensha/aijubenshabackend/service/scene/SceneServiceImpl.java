@@ -27,7 +27,7 @@ public class SceneServiceImpl implements SceneService {
     }
 
     @Override
-    public Scene saveScene(Scene scene) {
+    public Scene createScene(Scene scene) {
         logger.info("Saving scene: {}", scene.getName());
 
         // 验证剧本是否存在
