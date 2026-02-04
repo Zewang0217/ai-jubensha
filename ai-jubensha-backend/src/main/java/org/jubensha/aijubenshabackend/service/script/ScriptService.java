@@ -1,6 +1,6 @@
 package org.jubensha.aijubenshabackend.service.script;
 
-import org.jubensha.aijubenshabackend.models.dto.ScriptDTO;
+import org.jubensha.aijubenshabackend.models.entity.Script;
 import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 
 import java.util.List;
@@ -9,24 +9,24 @@ import java.util.Optional;
 public interface ScriptService {
 
     /**
-     * 创建新剧本（DTO方式）
+     * 保存剧本
      */
-    ScriptDTO.ScriptResponse createScript(ScriptDTO.ScriptCreateRequest request);
+    Script saveScript(Script script);
 
     /**
-     * 根据ID获取剧本（返回Optional包装的DTO）
+     * 根据ID获取剧本
      */
-    Optional<ScriptDTO.ScriptResponse> getScriptById(Long id);
+    Optional<Script> getScriptById(Long id);
 
     /**
-     * 获取所有剧本（返回DTO列表）
+     * 获取所有剧本
      */
-    List<ScriptDTO.ScriptResponse> getAllScripts();
+    List<Script> getAllScripts();
 
     /**
-     * 更新剧本（DTO方式）
+     * 更新剧本
      */
-    ScriptDTO.ScriptResponse updateScript(Long id, ScriptDTO.ScriptUpdateRequest request);
+    Script updateScript(Long id, Script script);
 
     /**
      * 删除剧本
@@ -34,27 +34,57 @@ public interface ScriptService {
     void deleteScript(Long id);
 
     /**
-     * 根据名称搜索剧本（返回DTO列表）
+     * 根据作者查询剧本
      */
-    List<ScriptDTO.ScriptResponse> searchScriptsByName(String name);
+    List<Script> getScriptsByAuthor(String author);
 
     /**
-     * 根据难度级别筛选剧本（返回DTO列表）
+     * 根据难度查询剧本
      */
-    List<ScriptDTO.ScriptResponse> getScriptsByDifficulty(DifficultyLevel difficulty);
+    List<Script> getScriptsByDifficulty(DifficultyLevel difficulty);
 
     /**
-     * 根据玩家数量筛选剧本（返回DTO列表）
+     * 根据玩家人数查询剧本
      */
-    List<ScriptDTO.ScriptResponse> getScriptsByPlayerCount(Integer playerCount);
+    List<Script> getScriptsByPlayerCount(Integer playerCount);
 
     /**
-     * 根据时长筛选剧本（返回DTO列表）
+     * 根据时长查询剧本
      */
-    List<ScriptDTO.ScriptResponse> getScriptsByDuration(Integer maxDuration);
+    List<Script> getScriptsByDuration(Integer duration);
 
     /**
-     * 生成并保存剧本（AI功能）
+     * 根据名称搜索剧本
      */
-    //ScriptDTO.ScriptResponse generateAndSaveScript(String prompt);
+    List<Script> searchScriptsByName(String name);
+
+    /**
+     * 根据描述关键词搜索剧本
+     */
+    List<Script> searchScriptsByDescription(String keyword);
+
+    /**
+     * 根据难度和玩家人数查询剧本
+     */
+    List<Script> getScriptsByDifficultyAndPlayerCount(DifficultyLevel difficulty, Integer playerCount);
+
+    /**
+     * 根据创建时间范围查询剧本
+     */
+    List<Script> getScriptsByCreateTimeRange(String startTime, String endTime);
+
+    /**
+     * 更新剧本封面图片
+     */
+    Script updateScriptCoverImage(Long id, String coverImage);
+
+    /**
+     * 更新剧本时间线
+     */
+    Script updateScriptTimeline(Long id, String timeline);
+
+    /**
+     * 批量删除剧本
+     */
+    void deleteScriptsBatch(List<Long> ids);
 }
