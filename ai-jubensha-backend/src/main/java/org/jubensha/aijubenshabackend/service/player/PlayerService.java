@@ -1,6 +1,5 @@
 package org.jubensha.aijubenshabackend.service.player;
 
-import org.jubensha.aijubenshabackend.models.dto.PlayerDTO;
 import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.models.enums.PlayerRole;
 import org.jubensha.aijubenshabackend.models.enums.PlayerStatus;
@@ -11,46 +10,44 @@ import java.util.Optional;
 public interface PlayerService {
 
     /**
-     * 创建新玩家
+     * 保存玩家
      */
-    PlayerDTO.PlayerResponse createPlayer(PlayerDTO.PlayerCreateRequest request);
-
+    Player createPlayer(Player player);
     
     /**
      * 根据ID获取玩家
      */
-    Optional<PlayerDTO.PlayerDetailResponse> getPlayerById(Long id);
+    Optional<Player> getPlayerById(Long id);
     
     /**
      * 根据用户名获取玩家
      */
-    Optional<PlayerDTO.PlayerDetailResponse> getPlayerByUsername(String username);
+    Optional<Player> getPlayerByUsername(String username);
     
     /**
      * 根据邮箱获取玩家
      */
-    Optional<PlayerDTO.PlayerDetailResponse> getPlayerByEmail(String email);
+    Optional<Player> getPlayerByEmail(String email);
     
     /**
      * 获取所有玩家
      */
-    List<PlayerDTO.PlayerDetailResponse> getAllPlayers();
-
+    List<Player> getAllPlayers();
 
     /**
      * 获取在线玩家
      */
-    List<PlayerDTO.PlayerDetailResponse> getOnlinePlayers();
+    List<Player> getOnlinePlayers();
     
     /**
      * 更新玩家
      */
-    PlayerDTO.PlayerResponse updatePlayer(Long id, PlayerDTO.PlayerUpdateRequest request);
+    Player updatePlayer(Long id, Player player);
     
     /**
      * 更新玩家状态
      */
-    PlayerDTO.PlayerResponse updatePlayerStatus(Long id, String status);
+    Player updatePlayerStatus(Long id, PlayerStatus status);
     
     /**
      * 删除玩家
@@ -75,20 +72,40 @@ public interface PlayerService {
     /**
      * 根据状态获取玩家
      */
-    List<PlayerDTO.PlayerResponse> getPlayersByStatus(String status);
+    List<Player> getPlayersByStatus(PlayerStatus status);
     
     /**
      * 根据角色获取玩家
      */
-    List<PlayerDTO.PlayerResponse> getPlayersByRole(String role);
+    List<Player> getPlayersByRole(PlayerRole role);
     
     /**
      * 根据状态和角色获取玩家
      */
-    List<PlayerDTO.PlayerResponse> getPlayersByStatusAndRole(String status, String role);
+    List<Player> getPlayersByStatusAndRole(PlayerStatus status, PlayerRole role);
     
     /**
      * 更新玩家最后登录时间
      */
     void updateLastLoginTime(Long id);
+
+    /**
+     * 根据昵称查询玩家
+     */
+    List<Player> getPlayersByNickname(String nickname);
+
+    /**
+     * 根据创建时间范围查询玩家
+     */
+    List<Player> getPlayersByCreateTimeRange(String startTime, String endTime);
+
+    /**
+     * 更新玩家角色
+     */
+    Player updatePlayerRole(Long id, PlayerRole role);
+
+    /**
+     * 更新玩家头像
+     */
+    Player updatePlayerAvatar(Long id, String avatarUrl);
 }
