@@ -11,7 +11,7 @@ public interface SceneService {
     /**
      * 保存场景
      */
-    Scene saveScene(Scene scene);
+    Scene createScene(Scene scene);
     
     /**
      * 根据ID获取场景

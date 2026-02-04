@@ -47,7 +47,7 @@ public class PlayerController {
         // 默认状态为在线
         player.setStatus(PlayerStatus.ONLINE);
 
-        Player createdPlayer = playerService.savePlayer(player);
+        Player createdPlayer = playerService.createPlayer(player);
         PlayerResponseDTO responseDTO = PlayerResponseDTO.fromEntity(createdPlayer);
         return new ResponseEntity<>(responseDTO, HttpStatus.CREATED);
     }

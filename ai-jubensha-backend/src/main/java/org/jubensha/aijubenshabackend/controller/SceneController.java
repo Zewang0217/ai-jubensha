@@ -44,7 +44,7 @@ public class SceneController {
         scene.setImageUrl(sceneCreateDTO.getImageUrl());
         scene.setAvailableActions(sceneCreateDTO.getAvailableActions());
 
-        Scene createdScene = sceneService.saveScene(scene);
+        Scene createdScene = sceneService.createScene(scene);
         SceneResponseDTO responseDTO = SceneResponseDTO.fromEntity(createdScene);
         return new ResponseEntity<>(responseDTO, HttpStatus.CREATED);
     }

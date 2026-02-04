@@ -29,5 +29,5 @@ public class ScriptUpdateDTO {
     @Positive(message = "玩家人数必须为正数")
     private Integer playerCount;
 
-    private String coverImage;
+    private String coverImageUrl;
 }
