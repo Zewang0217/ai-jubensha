@@ -140,7 +140,7 @@ public class PlayerAllocatorNode {
      */
     private static List<Player> getRealPlayers(PlayerService playerService) {
         try {
-            return playerService.getPlayersByRole("REAL");
+            return playerService.getPlayersByRole(PlayerRole.valueOf("REAL"));
         } catch (Exception e) {
             log.warn("获取真人玩家失败，返回空列表", e);
             return new ArrayList<>();
