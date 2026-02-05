@@ -9,6 +9,10 @@ import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.jubensha.aijubenshabackend.ai.service.agent.DMAgent;
+import org.jubensha.aijubenshabackend.ai.service.agent.PlayerAgent;
+import org.jubensha.aijubenshabackend.ai.service.agent.JudgeAgent;
+import org.jubensha.aijubenshabackend.ai.service.util.PromptUtils;
 import org.jubensha.aijubenshabackend.ai.tools.ToolManager;
 import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
@@ -246,42 +250,5 @@ public class AIService {
             // 这里可以调用Player Agent的方法来开始搜证
             // 例如：playerAgent.startInvestigation(investigationScenes);
         }
-    }
-
-    /**
-     * DM Agent接口
-     */
-    public interface DMAgent {
-        String introduceGame(String gameInfo);
-
-        String presentClue(String clueInfo);
-
-        String advancePhase(String phaseInfo);
-
-        String respondToPlayer(String playerMessage, String playerId);
-    }
-
-    /**
-     * Player Agent接口
-     */
-    public interface PlayerAgent {
-        String speak(String message);
-
-        String respondToClue(String clueInfo);
-
-        String discuss(String topic);
-
-        String vote(String suspect);
-    }
-
-    /**
-     * Judge Agent接口
-     */
-    public interface JudgeAgent {
-        boolean validateMessage(String message);
-
-        boolean validateAction(String action, String playerId);
-
-        String generateSummary(String gameState);
     }
 }
