@@ -43,13 +43,15 @@ public class jubenshaWorkflow {
                     .addNode("scene_loader", SceneLoaderNode.create())
                     .addNode("script_reader", ScriptReaderNode.create())
                     .addNode("first_investigation", FirstInvestigationNode.create())
+                    .addNode("discussion", DiscussionNode.create())
                     .addEdge("__START__", "script_generator")
                     .addEdge("script_generator", "player_allocator")
                     .addEdge("player_allocator", "script_reader")
                     .addEdge("player_allocator", "scene_loader")
                     .addEdge("script_reader", "first_investigation")
                     .addEdge("scene_loader", "first_investigation")
-                    .addEdge("first_investigation", "__END__")
+                    .addEdge("first_investigation", "discussion")
+                    .addEdge("discussion", "__END__")
                     .compile();
         } catch (GraphStateException e) {
             // TODO: 替换为自定义的事务异常
