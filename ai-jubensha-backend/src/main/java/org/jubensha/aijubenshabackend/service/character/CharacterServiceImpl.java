@@ -82,7 +82,7 @@ public class CharacterServiceImpl implements CharacterService {
             if (character.getAvatarUrl() != null) {
                 updatedCharacter.setAvatarUrl(character.getAvatarUrl());
             }
-            
+
             return characterRepository.save(updatedCharacter);
         } else {
             throw new IllegalArgumentException("Character not found with id: " + id);

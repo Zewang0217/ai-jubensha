@@ -8,11 +8,10 @@ import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
-import org.jubensha.aijubenshabackend.models.entity.Clue;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
-import org.jubensha.aijubenshabackend.models.entity.SceneClue;
 import org.jubensha.aijubenshabackend.service.clue.ClueService;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,7 +36,7 @@ public class SceneLoaderNode {
             WorkflowContext context = WorkflowContext.getContext(state);
             log.debug("SceneLoaderNode: {}", context);
             log.info("执行节点：场景加载");
-            
+
             // 获取剧本ID
             Long scriptId = context.getScriptId();
             if (scriptId == null) {
@@ -45,7 +44,7 @@ public class SceneLoaderNode {
                 context.setErrorMessage("剧本ID为空，无法加载场景");
                 return WorkflowContext.saveContext(context);
             }
-            
+
             // 获取剧本JSON
             String scriptJson = context.getModelOutput();
             if (scriptJson == null || scriptJson.isEmpty()) {
@@ -53,41 +52,41 @@ public class SceneLoaderNode {
                 context.setErrorMessage("剧本内容为空，无法加载场景");
                 return WorkflowContext.saveContext(context);
             }
-            
+
             try {
                 // 解析JSON剧本
                 JsonNode rootNode = objectMapper.readTree(scriptJson);
-                
+
                 // 提取场景信息
                 List<Scene> scenes = parseScenes(rootNode, scriptId);
-                
+
                 // 保存场景到数据库
                 SceneService sceneService = SpringContextUtil.getBean(SceneService.class);
                 ClueService clueService = SpringContextUtil.getBean(ClueService.class);
-                
+
                 List<Scene> savedScenes = new ArrayList<>();
                 for (Scene scene : scenes) {
                     Scene savedScene = sceneService.createScene(scene);
                     savedScenes.add(savedScene);
                     log.info("场景已保存到数据库，ID: {}, 名称: {}", savedScene.getId(), savedScene.getName());
                 }
-                
+
                 // 关联场景和线索
                 associateSceneClues(rootNode, savedScenes, clueService);
-                
+
                 // 更新WorkflowContext
                 context.setCurrentStep("场景加载");
                 context.setScenes(savedScenes);
                 context.setSuccess(true);
-                
+
                 log.info("场景加载完成，共加载 {} 个场景", savedScenes.size());
-                
+
             } catch (Exception e) {
                 log.error("加载场景失败: {}", e.getMessage(), e);
                 context.setErrorMessage("加载场景失败: " + e.getMessage());
                 context.setSuccess(false);
             }
-            
+
             return WorkflowContext.saveContext(context);
         });
     }
@@ -106,9 +105,9 @@ public class SceneLoaderNode {
                 scene.setScript(script);
                 scene.setName(sceneNode.path("name").asText());
                 scene.setDescription("时间: " + sceneNode.path("time").asText() + "\n" +
-                    "地点: " + sceneNode.path("location").asText() + "\n" +
-                    "氛围: " + sceneNode.path("atmosphere").asText() + "\n" +
-                    "描述: " + sceneNode.path("description").asText());
+                        "地点: " + sceneNode.path("location").asText() + "\n" +
+                        "氛围: " + sceneNode.path("atmosphere").asText() + "\n" +
+                        "描述: " + sceneNode.path("description").asText());
                 scene.setCreateTime(java.time.LocalDateTime.now());
                 scenes.add(scene);
             }
@@ -125,7 +124,7 @@ public class SceneLoaderNode {
         if (!cluesNode.isArray()) {
             return;
         }
-        
+
         // 为每个场景关联线索
         for (Scene scene : scenes) {
             JsonNode scenesNode = rootNode.path("scenes");

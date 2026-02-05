@@ -1,23 +1,23 @@
 package org.jubensha.aijubenshabackend.memory;
 
-import io.milvus.client.MilvusServiceClient;
 import io.milvus.v2.client.MilvusClientV2;
-import io.milvus.v2.service.collection.request.AddFieldReq;
 import io.milvus.v2.service.collection.request.CreateCollectionReq;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.EmbeddingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 记忆管理服务实现
  * 使用内存存储作为临时实现，确保代码能够编译通过
  * 后续可以替换为实际的Milvus实现
- * 
+ * <p>
  * 注意：以下部分需要使用Milvus向量数据库实现：
  * 1. storeCharacterMemory：使用Milvus的insert操作存储角色记忆
  * 2. retrieveCharacterMemory：使用Milvus的search操作检索角色记忆
@@ -70,7 +70,7 @@ public class MemoryServiceImpl implements MemoryService {
             memory.put("game_id", gameId);
             memory.put("player_id", playerId);
             memory.put("character_id", characterId);
-            
+
             memories.add(memory);
         }
 
@@ -81,7 +81,7 @@ public class MemoryServiceImpl implements MemoryService {
     public List<Map<String, Object>> retrieveCharacterMemory(Long gameId, Long playerId, String query, int topK) {
         String key = generateKey(gameId, playerId, null);
         List<Map<String, Object>> memories = characterMemoryStore.getOrDefault(key, new ArrayList<>());
-        
+
         // 简单的基于关键词的搜索
         List<Map<String, Object>> results = new ArrayList<>();
         for (Map<String, Object> memory : memories) {
@@ -95,7 +95,7 @@ public class MemoryServiceImpl implements MemoryService {
                 }
             }
         }
-        
+
         return results;
     }
 
@@ -118,7 +118,7 @@ public class MemoryServiceImpl implements MemoryService {
     public List<Map<String, Object>> retrieveConversationMemory(Long gameId, Long playerId, String query, int topK) {
         String key = generateKey(gameId, playerId, null);
         List<Map<String, Object>> memories = conversationMemoryStore.getOrDefault(key, new ArrayList<>());
-        
+
         // 简单的基于关键词的搜索
         List<Map<String, Object>> results = new ArrayList<>();
         for (Map<String, Object> memory : memories) {
@@ -132,7 +132,7 @@ public class MemoryServiceImpl implements MemoryService {
                 }
             }
         }
-        
+
         return results;
     }
 
@@ -156,7 +156,7 @@ public class MemoryServiceImpl implements MemoryService {
     public List<Map<String, Object>> retrieveClueMemory(Long gameId, Long playerId, String query, int topK) {
         String key = generateKey(gameId, playerId, null);
         List<Map<String, Object>> memories = clueMemoryStore.getOrDefault(key, new ArrayList<>());
-        
+
         // 简单的基于关键词的搜索
         List<Map<String, Object>> results = new ArrayList<>();
         for (Map<String, Object> memory : memories) {
@@ -170,7 +170,7 @@ public class MemoryServiceImpl implements MemoryService {
                 }
             }
         }
-        
+
         return results;
     }
 
@@ -192,7 +192,7 @@ public class MemoryServiceImpl implements MemoryService {
     public List<Map<String, Object>> retrieveGlobalClueMemory(Long scriptId, Long characterId, String query, int topK) {
         String key = generateKey(scriptId, characterId, null);
         List<Map<String, Object>> clues = globalClueStore.getOrDefault(key, new ArrayList<>());
-        
+
         // 简单的基于关键词的搜索
         List<Map<String, Object>> results = new ArrayList<>();
         for (Map<String, Object> clue : clues) {
@@ -206,7 +206,7 @@ public class MemoryServiceImpl implements MemoryService {
                 }
             }
         }
-        
+
         return results;
     }
 
@@ -229,7 +229,7 @@ public class MemoryServiceImpl implements MemoryService {
     public List<Map<String, Object>> retrieveGlobalTimelineMemory(Long scriptId, Long characterId, String query, int topK) {
         String key = generateKey(scriptId, characterId, null);
         List<Map<String, Object>> timelines = globalTimelineStore.getOrDefault(key, new ArrayList<>());
-        
+
         // 简单的基于关键词的搜索
         List<Map<String, Object>> results = new ArrayList<>();
         for (Map<String, Object> timeline : timelines) {
@@ -243,7 +243,7 @@ public class MemoryServiceImpl implements MemoryService {
                 }
             }
         }
-        
+
         return results;
     }
 
@@ -289,7 +289,7 @@ public class MemoryServiceImpl implements MemoryService {
     private void createCollectionIfNotExists(String collectionName) {
         // 创建一个schema
         CreateCollectionReq.CollectionSchema schema =
-            milvusClientV2.createSchema();
+                milvusClientV2.createSchema();
 
 
     }
