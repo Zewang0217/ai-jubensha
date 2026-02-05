@@ -1,33 +1,33 @@
 package org.jubensha.aijubenshabackend.ai.service;
 
-import io.milvus.param.R;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import io.milvus.v2.client.MilvusClientV2;
-import io.milvus.v2.service.collection.request.HasCollectionReq;
 import io.milvus.v2.service.collection.request.GetLoadStateReq;
 import io.milvus.v2.service.collection.request.LoadCollectionReq;
 import io.milvus.v2.service.vector.request.DeleteReq;
 import io.milvus.v2.service.vector.request.InsertReq;
 import io.milvus.v2.service.vector.request.SearchReq;
 import io.milvus.v2.service.vector.request.UpsertReq;
-import io.milvus.v2.service.vector.request.data.FloatVec;
 import io.milvus.v2.service.vector.response.DeleteResp;
 import io.milvus.v2.service.vector.response.InsertResp;
 import io.milvus.v2.service.vector.response.SearchResp;
 import io.milvus.v2.service.vector.response.UpsertResp;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.core.config.ai.MilvusSchemaConfig;
 import org.jubensha.aijubenshabackend.memory.MilvusCollectionManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * RAG检索服务实现
  * 基于Milvus向量数据库提供高效的语义搜索功能
- *
+ * <p>
  * 实现最终架构设计：
  * - 对话记忆集合：conversation_{gameId}，存储每局游戏的对话历史
  * - 全局记忆集合：global_memory，存储所有剧本的线索和时间线数据
@@ -44,9 +44,9 @@ public class RAGServiceImpl implements RAGService {
 
     @Autowired
     public RAGServiceImpl(EmbeddingService embeddingService,
-        MilvusClientV2 milvusClientV2,
-        MilvusCollectionManager collectionManager,
-        MilvusSchemaConfig schemaConfig) {
+                          MilvusClientV2 milvusClientV2,
+                          MilvusCollectionManager collectionManager,
+                          MilvusSchemaConfig schemaConfig) {
         this.embeddingService = embeddingService;
         this.milvusClientV2 = milvusClientV2;
         this.collectionManager = collectionManager;
@@ -56,32 +56,32 @@ public class RAGServiceImpl implements RAGService {
 
     /**
      * 构建向量搜索请求
-     * 
+     *
      * @param collectionName 集合名称
      * @param queryEmbedding 查询向量
-     * @param filter 过滤条件
-     * @param topK 返回结果数量
-     * @param outputFields 输出字段列表
+     * @param filter         过滤条件
+     * @param topK           返回结果数量
+     * @param outputFields   输出字段列表
      * @return 搜索请求对象
      */
-    private SearchReq buildSearchRequest(String collectionName, List<Float> queryEmbedding, 
-                                        String filter, int topK, List<String> outputFields) {
+    private SearchReq buildSearchRequest(String collectionName, List<Float> queryEmbedding,
+                                         String filter, int topK, List<String> outputFields) {
         // 构建向量搜索请求 - 根据Milvus官方文档更新API调用方式
         // 这是一个过滤搜索，使用了基本ANN搜索并结合标量条件过滤
         return SearchReq.builder()
-            .collectionName(collectionName)
-            .annsField("embedding")  // 指定向量字段名，使用官方推荐的参数名
-            .topK(topK)
-            // 将List<Float>转换为float数组，然后创建FloatVec对象
-            .data(List.of(new io.milvus.v2.service.vector.request.data.FloatVec(
-                convertToPrimitiveArray(queryEmbedding))))
-            .filter(filter)  // 使用布尔表达式作为过滤条件
-            .outputFields(outputFields)  // 指定要返回的标量字段
-            .searchParams(Map.of(
-                "metric_type", "L2",  // 与创建索引时一致
-                "params", "{\"nprobe\": 10}"  // 搜索参数，使用JSON字符串
-            ))
-            .build();
+                .collectionName(collectionName)
+                .annsField("embedding")  // 指定向量字段名，使用官方推荐的参数名
+                .topK(topK)
+                // 将List<Float>转换为float数组，然后创建FloatVec对象
+                .data(List.of(new io.milvus.v2.service.vector.request.data.FloatVec(
+                        convertToPrimitiveArray(queryEmbedding))))
+                .filter(filter)  // 使用布尔表达式作为过滤条件
+                .outputFields(outputFields)  // 指定要返回的标量字段
+                .searchParams(Map.of(
+                        "metric_type", "L2",  // 与创建索引时一致
+                        "params", "{\"nprobe\": 10}"  // 搜索参数，使用JSON字符串
+                ))
+                .build();
     }
 
     @Override
@@ -108,16 +108,16 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建向量搜索请求
         SearchReq searchReq = buildSearchRequest(
-            collectionName,
-            queryEmbedding,
-            filter,
-            topK,
-            List.of("id", "player_id", "player_name", "content", "timestamp")
+                collectionName,
+                queryEmbedding,
+                filter,
+                topK,
+                List.of("id", "player_id", "player_name", "content", "timestamp")
         );
 
         // 执行搜索，使用官方推荐的方式处理响应
         SearchResp searchResp = milvusClientV2.search(searchReq);
-        
+
         // 检查搜索结果是否为空
         if (searchResp == null) {
             log.error("Milvus搜索失败，返回结果为空");
@@ -159,7 +159,7 @@ public class RAGServiceImpl implements RAGService {
                     .collectionName(collectionName)
                     .build();
             Boolean loaded = milvusClientV2.getLoadState(loadStateReq);
-            
+
             if (!loaded) {
                 // 加载集合
                 LoadCollectionReq loadReq = LoadCollectionReq.builder()
@@ -199,16 +199,16 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建向量搜索请求
         SearchReq searchReq = buildSearchRequest(
-            collectionName,
-            queryEmbedding,
-            filter,
-            topK,
-            List.of("id", "script_id", "character_id", "type", "content", "timestamp")
+                collectionName,
+                queryEmbedding,
+                filter,
+                topK,
+                List.of("id", "script_id", "character_id", "type", "content", "timestamp")
         );
 
         // 执行搜索，使用官方推荐的方式处理响应
         SearchResp searchResp = milvusClientV2.search(searchReq);
-        
+
         // 检查搜索结果是否为空
         if (searchResp == null) {
             log.error("Milvus搜索失败，返回结果为空");
@@ -269,16 +269,16 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建向量搜索请求
         SearchReq searchReq = buildSearchRequest(
-            collectionName,
-            queryEmbedding,
-            filter,
-            topK,
-            List.of("id", "script_id", "character_id", "type", "content", "timestamp")
+                collectionName,
+                queryEmbedding,
+                filter,
+                topK,
+                List.of("id", "script_id", "character_id", "type", "content", "timestamp")
         );
 
         // 执行搜索，使用官方推荐的方式处理响应
         SearchResp searchResp = milvusClientV2.search(searchReq);
-        
+
         // 检查搜索结果是否为空
         if (searchResp == null) {
             log.error("Milvus搜索失败，返回结果为空");
@@ -334,14 +334,14 @@ public class RAGServiceImpl implements RAGService {
 
         // 限制返回数量
         return allResults.stream()
-            .limit(topK)
-            .toList();
+                .limit(topK)
+                .toList();
     }
 
     @Override
     public int calculateClueRelationStrength(Long gameId, Long clueId1, Long clueId2) {
         String collectionName = schemaConfig.getGlobalMemoryCollectionName();
-        
+
         // 检查集合是否存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("全局记忆集合不存在");
@@ -365,10 +365,10 @@ public class RAGServiceImpl implements RAGService {
 
             // 计算余弦相似度
             double similarity = calculateCosineSimilarity(embedding1, embedding2);
-            
+
             // 将相似度转换为0-100的强度值
             int strength = (int) ((similarity + 1) / 2 * 100);
-            
+
             log.debug("计算线索关联强度，clueId1: {}, clueId2: {}, 强度: {}", clueId1, clueId2, strength);
             return strength;
         } catch (Exception e) {
@@ -384,22 +384,22 @@ public class RAGServiceImpl implements RAGService {
         try {
             // 构建搜索请求，使用ID过滤条件
             SearchReq searchReq = SearchReq.builder()
-                .collectionName(collectionName)
-                .annsField("embedding")
-                .topK(1)
-                .data(List.of(new io.milvus.v2.service.vector.request.data.FloatVec(
-                    new float[1024]))) // 使用零向量作为查询
-                .filter("id == " + clueId + " and type == 'clue'")
-                .outputFields(List.of("embedding"))
-                .searchParams(Map.of(
-                    "metric_type", "L2",
-                    "params", "{\"nprobe\": 10}" // 使用JSON字符串格式
-                ))
-                .build();
+                    .collectionName(collectionName)
+                    .annsField("embedding")
+                    .topK(1)
+                    .data(List.of(new io.milvus.v2.service.vector.request.data.FloatVec(
+                            new float[1024]))) // 使用零向量作为查询
+                    .filter("id == " + clueId + " and type == 'clue'")
+                    .outputFields(List.of("embedding"))
+                    .searchParams(Map.of(
+                            "metric_type", "L2",
+                            "params", "{\"nprobe\": 10}" // 使用JSON字符串格式
+                    ))
+                    .build();
 
             // 执行搜索
             SearchResp searchResp = milvusClientV2.search(searchReq);
-            
+
             // 处理搜索结果
             if (searchResp != null && !searchResp.getSearchResults().isEmpty()) {
                 List<SearchResp.SearchResult> results = searchResp.getSearchResults().get(0);
@@ -451,10 +451,10 @@ public class RAGServiceImpl implements RAGService {
 
         return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
     }
-    
+
     /**
      * 将List<Float>转换为基本类型数组float[]
-     * 
+     *
      * @param floatList 包装类型的浮点数列表
      * @return 基本类型的浮点数数组
      */
@@ -462,7 +462,7 @@ public class RAGServiceImpl implements RAGService {
         if (floatList == null || floatList.isEmpty()) {
             return new float[0];
         }
-        
+
         float[] result = new float[floatList.size()];
         for (int i = 0; i < floatList.size(); i++) {
             result[i] = floatList.get(i);
@@ -473,7 +473,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public Long insertConversationMemory(Long gameId, Long playerId, String playerName, String content) {
         String collectionName = schemaConfig.getConversationCollectionName(gameId);
-        
+
         // 确保集合存在
         if (!collectionManager.collectionExists(collectionName)) {
             collectionManager.initializeConversationCollection(gameId);
@@ -502,9 +502,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建插入请求
         InsertReq insertReq = InsertReq.builder()
-            .collectionName(collectionName)
-            .data(List.of(data))
-            .build();
+                .collectionName(collectionName)
+                .data(List.of(data))
+                .build();
 
         // 执行插入
         try {
@@ -526,7 +526,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public List<Long> batchInsertConversationMemory(Long gameId, List<Map<String, Object>> conversationRecords) {
         String collectionName = schemaConfig.getConversationCollectionName(gameId);
-        
+
         // 确保集合存在
         if (!collectionManager.collectionExists(collectionName)) {
             collectionManager.initializeConversationCollection(gameId);
@@ -568,9 +568,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建插入请求
         InsertReq insertReq = InsertReq.builder()
-            .collectionName(collectionName)
-            .data(dataList)
-            .build();
+                .collectionName(collectionName)
+                .data(dataList)
+                .build();
 
         // 执行插入
         try {
@@ -598,7 +598,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public Long insertGlobalClueMemory(Long scriptId, Long characterId, String content) {
         String collectionName = schemaConfig.getGlobalMemoryCollectionName();
-        
+
         // 确保集合存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("全局记忆集合不存在");
@@ -628,9 +628,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建插入请求
         InsertReq insertReq = InsertReq.builder()
-            .collectionName(collectionName)
-            .data(List.of(data))
-            .build();
+                .collectionName(collectionName)
+                .data(List.of(data))
+                .build();
 
         // 执行插入
         try {
@@ -652,7 +652,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public Long insertGlobalTimelineMemory(Long scriptId, Long characterId, String content, String timestamp) {
         String collectionName = schemaConfig.getGlobalMemoryCollectionName();
-        
+
         // 确保集合存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("全局记忆集合不存在");
@@ -682,9 +682,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建插入请求
         InsertReq insertReq = InsertReq.builder()
-            .collectionName(collectionName)
-            .data(List.of(data))
-            .build();
+                .collectionName(collectionName)
+                .data(List.of(data))
+                .build();
 
         // 执行插入
         try {
@@ -706,7 +706,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public List<Long> batchInsertGlobalMemory(List<Map<String, Object>> memoryRecords) {
         String collectionName = schemaConfig.getGlobalMemoryCollectionName();
-        
+
         // 确保集合存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("全局记忆集合不存在");
@@ -744,7 +744,7 @@ public class RAGServiceImpl implements RAGService {
                 log.warn("批量插入全局记忆：scriptId/script_id字段为空，跳过记录");
                 continue;
             }
-            
+
             Long characterIdVal = null;
             Object characterIdObj = record.get("characterId");
             if (characterIdObj == null) {
@@ -758,7 +758,7 @@ public class RAGServiceImpl implements RAGService {
                 log.warn("批量插入全局记忆：characterId/character_id字段为空，跳过记录");
                 continue;
             }
-            
+
             String typeVal = null;
             Object typeObj = record.get("type");
             if (typeObj != null) {
@@ -769,10 +769,10 @@ public class RAGServiceImpl implements RAGService {
                 log.warn("批量插入全局记忆：type字段为空，跳过记录");
                 continue;
             }
-            
+
             data.addProperty("content", content);
             log.debug("批量插入全局记忆：content = {}", content);
-            
+
             // 处理时间戳字段
             if (record.containsKey("timestamp")) {
                 Object timestampObj = record.get("timestamp");
@@ -790,7 +790,7 @@ public class RAGServiceImpl implements RAGService {
                 data.addProperty("timestamp", timestampStr);
                 log.debug("批量插入全局记忆：使用当前时间戳 = {}", timestampStr);
             }
-            
+
             // 直接将向量作为JSON数组添加
             com.google.gson.JsonArray embeddingArray = new com.google.gson.JsonArray();
             for (Float value : embedding) {
@@ -810,9 +810,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建插入请求
         InsertReq insertReq = InsertReq.builder()
-            .collectionName(collectionName)
-            .data(dataList)
-            .build();
+                .collectionName(collectionName)
+                .data(dataList)
+                .build();
 
         // 执行插入
         try {
@@ -822,7 +822,7 @@ public class RAGServiceImpl implements RAGService {
                 log.debug("批量插入全局记忆：插入响应不为空");
                 log.debug("批量插入全局记忆：插入计数 = {}", insertResp.getInsertCnt());
                 log.debug("批量插入全局记忆：主键列表 = {}", insertResp.getPrimaryKeys());
-                
+
                 // 处理类型转换，确保返回List<Long>类型
                 List<Long> ids = new ArrayList<>();
                 if (insertResp.getPrimaryKeys() != null && !insertResp.getPrimaryKeys().isEmpty()) {
@@ -853,7 +853,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public boolean updateConversationMemory(Long gameId, Long recordId, String content) {
         String collectionName = schemaConfig.getConversationCollectionName(gameId);
-        
+
         // 检查集合是否存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("游戏 {} 的对话记忆集合不存在", gameId);
@@ -884,9 +884,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建upsert请求
         UpsertReq upsertReq = UpsertReq.builder()
-            .collectionName(collectionName)
-            .data(List.of(data))
-            .build();
+                .collectionName(collectionName)
+                .data(List.of(data))
+                .build();
 
         // 执行更新
         try {
@@ -918,7 +918,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public boolean updateGlobalMemory(Long recordId, String content) {
         String collectionName = schemaConfig.getGlobalMemoryCollectionName();
-        
+
         // 检查集合是否存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("全局记忆集合不存在");
@@ -950,9 +950,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建upsert请求
         UpsertReq upsertReq = UpsertReq.builder()
-            .collectionName(collectionName)
-            .data(List.of(data))
-            .build();
+                .collectionName(collectionName)
+                .data(List.of(data))
+                .build();
 
         // 执行更新
         try {
@@ -984,7 +984,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public boolean deleteConversationMemory(Long gameId, Long recordId) {
         String collectionName = schemaConfig.getConversationCollectionName(gameId);
-        
+
         // 检查集合是否存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("游戏 {} 的对话记忆集合不存在", gameId);
@@ -993,9 +993,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建删除请求
         DeleteReq deleteReq = DeleteReq.builder()
-            .collectionName(collectionName)
-            .filter("id == " + recordId)
-            .build();
+                .collectionName(collectionName)
+                .filter("id == " + recordId)
+                .build();
 
         // 执行删除
         try {
@@ -1012,7 +1012,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public boolean deleteGlobalMemory(Long recordId) {
         String collectionName = schemaConfig.getGlobalMemoryCollectionName();
-        
+
         // 检查集合是否存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("全局记忆集合不存在");
@@ -1021,9 +1021,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建删除请求
         DeleteReq deleteReq = DeleteReq.builder()
-            .collectionName(collectionName)
-            .filter("id == " + recordId)
-            .build();
+                .collectionName(collectionName)
+                .filter("id == " + recordId)
+                .build();
 
         // 执行删除
         try {
@@ -1040,7 +1040,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public int batchDeleteConversationMemory(Long gameId, List<Long> recordIds) {
         String collectionName = schemaConfig.getConversationCollectionName(gameId);
-        
+
         // 检查集合是否存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("游戏 {} 的对话记忆集合不存在", gameId);
@@ -1065,9 +1065,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建删除请求
         DeleteReq deleteReq = DeleteReq.builder()
-            .collectionName(collectionName)
-            .filter(filter)
-            .build();
+                .collectionName(collectionName)
+                .filter(filter)
+                .build();
 
         // 执行删除
         try {
@@ -1084,7 +1084,7 @@ public class RAGServiceImpl implements RAGService {
     @Override
     public int batchDeleteGlobalMemory(List<Long> recordIds) {
         String collectionName = schemaConfig.getGlobalMemoryCollectionName();
-        
+
         // 检查集合是否存在
         if (!collectionManager.collectionExists(collectionName)) {
             log.warn("全局记忆集合不存在");
@@ -1111,9 +1111,9 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建删除请求
         DeleteReq deleteReq = DeleteReq.builder()
-            .collectionName(collectionName)
-            .filter(filter)
-            .build();
+                .collectionName(collectionName)
+                .filter(filter)
+                .build();
 
         // 执行删除
         try {

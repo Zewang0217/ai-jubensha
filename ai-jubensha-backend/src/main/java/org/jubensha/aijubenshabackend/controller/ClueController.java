@@ -45,7 +45,7 @@ public class ClueController {
         clue.setVisibility(clueCreateDTO.getVisibility());
         clue.setScene(clueCreateDTO.getScene());
         clue.setImportance(clueCreateDTO.getImportance());
-        
+
         Clue createdClue = clueService.createClue(clue);
         ClueResponseDTO responseDTO = ClueResponseDTO.fromEntity(createdClue);
         return new ResponseEntity<>(responseDTO, HttpStatus.CREATED);
@@ -54,7 +54,7 @@ public class ClueController {
     /**
      * 更新线索
      *
-     * @param id   线索ID
+     * @param id            线索ID
      * @param clueUpdateDTO 线索更新DTO
      * @return 更新后的线索响应DTO
      */

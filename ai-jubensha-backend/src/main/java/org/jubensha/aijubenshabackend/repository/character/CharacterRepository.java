@@ -9,9 +9,9 @@ import java.util.List;
 
 @Repository
 public interface CharacterRepository extends JpaRepository<Character, Long> {
-    
+
     List<Character> findByScript(Script script);
-    
+
     List<Character> findByScriptId(Long scriptId);
 
     List<Character> findByName(String name);

@@ -9,25 +9,25 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AIConfig {
-    
+
     @Value("${ai.api-key}")
     private String apiKey;
-    
+
     @Value("${ai.base-url}")
     private String baseUrl;
 
     @Value("${ai.embedding-base-url}")
     private String embeddingBaseUrl;
-    
+
     @Value("${ai.model:deepseek-chat}")
     private String modelName;
-    
+
     @Value("${ai.embedding-model:text-embedding-ada-002}")
     private String embeddingModelName;
 
     @Value("${ai.embedding-api-key}")
     private String embeddingApiKey;
-    
+
     @Bean
     public OpenAiChatModel openAiChatModel() {
         return OpenAiChatModel.builder()
@@ -38,7 +38,7 @@ public class AIConfig {
                 .timeout(java.time.Duration.ofSeconds(300))  // 设置超时时间为300秒
                 .build();
     }
-    
+
     @Bean
     public EmbeddingModel embeddingModel() {
         // 使用专门为嵌入模型配置的API密钥和baseUrl

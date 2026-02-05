@@ -15,70 +15,70 @@ import java.util.Optional;
 
 @Service
 public class ClueServiceImpl implements ClueService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(ClueServiceImpl.class);
-    
+
     private final ClueRepository clueRepository;
-    
+
     @Autowired
     public ClueServiceImpl(ClueRepository clueRepository) {
         this.clueRepository = clueRepository;
     }
-    
+
     @Override
     public Clue createClue(Clue clue) {
         logger.info("Creating new clue: {}", clue.getName());
         return clueRepository.save(clue);
     }
-    
+
     @Override
     public Optional<Clue> getClueById(Long id) {
         logger.info("Getting clue by id: {}", id);
         return clueRepository.findById(id);
     }
-    
+
     @Override
     public List<Clue> getAllClues() {
         logger.info("Getting all clues");
         return clueRepository.findAll();
     }
-    
+
     @Override
     public List<Clue> getCluesByScript(Script script) {
         logger.info("Getting clues by script: {}", script.getName());
         return clueRepository.findByScript(script);
     }
-    
+
     @Override
     public List<Clue> getCluesByScriptId(Long scriptId) {
         logger.info("Getting clues by script id: {}", scriptId);
         return clueRepository.findByScriptId(scriptId);
     }
-    
+
     @Override
     public List<Clue> getCluesByType(ClueType type) {
         logger.info("Getting clues by type: {}", type);
         return clueRepository.findByType(type);
     }
-    
+
     @Override
     public List<Clue> getCluesByVisibility(ClueVisibility visibility) {
         logger.info("Getting clues by visibility: {}", visibility);
         return clueRepository.findByVisibility(visibility);
     }
-    
+
     @Override
     public List<Clue> getCluesByScene(String scene) {
         logger.info("Getting clues by scene: {}", scene);
         return clueRepository.findByScene(scene);
     }
-    
+
     @Override
     public List<Clue> getImportantClues(Integer importanceThreshold) {
         logger.info("Getting important clues with threshold: {}", importanceThreshold);
         return clueRepository.findByImportanceGreaterThanEqual(importanceThreshold);
     }
-    
+
     @Override
     public Clue updateClue(Long id, Clue clue) {
         logger.info("Updating clue: {}", id);
@@ -105,13 +105,13 @@ public class ClueServiceImpl implements ClueService {
             if (clue.getImportance() != null) {
                 updatedClue.setImportance(clue.getImportance());
             }
-            
+
             return clueRepository.save(updatedClue);
         } else {
             throw new IllegalArgumentException("Clue not found with id: " + id);
         }
     }
-    
+
     @Override
     public void deleteClue(Long id) {
         logger.info("Deleting clue: {}", id);

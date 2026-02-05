@@ -12,15 +12,15 @@ import java.util.Optional;
 
 @Repository
 public interface GameRepository extends JpaRepository<Game, Long> {
-    
+
     Optional<Game> findByGameCode(String gameCode);
 
     List<Game> findByScript(Script script);
-    
+
     List<Game> findByScriptId(Long scriptId);
 
     List<Game> findByStatus(GameStatus status);
-    
+
     List<Game> findByCurrentPhase(GamePhase currentPhase);
 
     List<Game> findByScriptIdAndStatus(Long scriptId, GameStatus status);
