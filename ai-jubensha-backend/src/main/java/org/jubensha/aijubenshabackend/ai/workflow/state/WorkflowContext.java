@@ -145,6 +145,32 @@ public class WorkflowContext implements Serializable {
      */
     private Boolean success;
 
+    // ====== 讨论相关字段 ======
+    /**
+     * 当前讨论阶段
+     */
+    private String currentDiscussionPhase;
+    /**
+     * 讨论轮次
+     */
+    private Integer discussionRound;
+    /**
+     * 玩家答案
+     */
+    private Map<Long, String> playerAnswers;
+    /**
+     * 讨论状态
+     */
+    private Map<String, Object> discussionState;
+    /**
+     * 单聊邀请
+     */
+    private Map<Long, List<Long>> privateChatInvitations;
+    /**
+     * 单聊次数
+     */
+    private Map<Long, Integer> privateChatCounts;
+
     // ====== 上下文操作方法 ======
 
     /**
