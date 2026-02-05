@@ -25,17 +25,17 @@ public class PromptSafetyInputGuardrail implements InputGuardrail {
 
     // 敏感词列表
     private static final List<String> SENSITIVE_WORDS = Arrays.asList(
-        "忽略之前的指令", "ignore previous instructions", "ignore above",
-        "破解", "hack", "绕过", "bypass", "越狱", "jailbreak"
+            "忽略之前的指令", "ignore previous instructions", "ignore above",
+            "破解", "hack", "绕过", "bypass", "越狱", "jailbreak"
     );
 
     // 注入攻击模式
     private static final List<Pattern> INJECTION_PATTERNS = Arrays.asList(
-        Pattern.compile("(?i)ignore\\s+(?:previous|above|all)\\s+(?:instructions?|commands?|prompts?)"),
-        Pattern.compile("(?i)(?:forget|disregard)\\s+(?:everything|all)\\s+(?:above|before)"),
-        Pattern.compile("(?i)(?:pretend|act|behave)\\s+(?:as|like)\\s+(?:if|you\\s+are)"),
-        Pattern.compile("(?i)system\\s*:\\s*you\\s+are"),
-        Pattern.compile("(?i)new\\s+(?:instructions?|commands?|prompts?)\\s*:")
+            Pattern.compile("(?i)ignore\\s+(?:previous|above|all)\\s+(?:instructions?|commands?|prompts?)"),
+            Pattern.compile("(?i)(?:forget|disregard)\\s+(?:everything|all)\\s+(?:above|before)"),
+            Pattern.compile("(?i)(?:pretend|act|behave)\\s+(?:as|like)\\s+(?:if|you\\s+are)"),
+            Pattern.compile("(?i)system\\s*:\\s*you\\s+are"),
+            Pattern.compile("(?i)new\\s+(?:instructions?|commands?|prompts?)\\s*:")
     );
 
     @Override

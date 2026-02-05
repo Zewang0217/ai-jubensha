@@ -3,10 +3,11 @@ package org.jubensha.aijubenshabackend.ai.tools;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * tools的管理类
@@ -34,7 +35,7 @@ public class ToolManager {
 
     /**
      * 初始化工具映射
-     *
+     * <p>
      * 把spring自动装配好的所有tool装配到toolMap中，形成映射
      */
     @PostConstruct

@@ -1,7 +1,6 @@
 package org.jubensha.aijubenshabackend.service.task;
 
 import java.util.Optional;
-import java.util.concurrent.Future;
 
 public interface TaskService {
     /**

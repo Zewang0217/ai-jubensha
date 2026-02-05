@@ -9,12 +9,12 @@ import java.util.List;
 
 @Repository
 public interface ScriptRepository extends JpaRepository<Script, Long> {
-    
+
     List<Script> findByNameContaining(String name);
-    
+
     List<Script> findByPlayerCount(Integer playerCount);
-    
+
     List<Script> findByDifficulty(DifficultyLevel difficulty);
-    
+
     List<Script> findByDurationLessThanEqual(Integer duration);
 }

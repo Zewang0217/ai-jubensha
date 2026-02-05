@@ -11,16 +11,16 @@ import java.util.List;
 
 @Repository
 public interface ClueRepository extends JpaRepository<Clue, Long> {
-    
+
     List<Clue> findByScript(Script script);
-    
+
     List<Clue> findByScriptId(Long scriptId);
-    
+
     List<Clue> findByType(ClueType type);
-    
+
     List<Clue> findByVisibility(ClueVisibility visibility);
-    
+
     List<Clue> findByImportanceGreaterThanEqual(Integer importance);
-    
+
     List<Clue> findByScene(String scene);
 }

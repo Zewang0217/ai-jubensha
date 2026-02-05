@@ -1,29 +1,20 @@
 package org.jubensha.aijubenshabackend.memory;
 
 
-import io.milvus.param.R;
-import io.milvus.param.RpcStatus;
 import io.milvus.v2.client.MilvusClientV2;
 import io.milvus.v2.common.IndexParam;
 import io.milvus.v2.common.IndexParam.IndexType;
 import io.milvus.v2.common.IndexParam.MetricType;
-import io.milvus.v2.service.collection.request.CreateCollectionReq;
-import io.milvus.v2.service.collection.request.DropCollectionReq;
-import io.milvus.v2.service.collection.request.GetLoadStateReq;
-import io.milvus.v2.service.collection.request.HasCollectionReq;
-import io.milvus.v2.service.collection.request.ReleaseCollectionReq;
-import io.milvus.v2.service.index.request.CreateIndexReq;
-import io.milvus.v2.service.index.request.CreateIndexReq.CreateIndexReqBuilder;
-import java.util.List;
-import java.util.Map;
+import io.milvus.v2.service.collection.request.*;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.core.config.ai.MilvusSchemaConfig;
 import org.jubensha.aijubenshabackend.core.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.mapping.model.IdPropertyIdentifierAccessor;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.BindException;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 管理milvus的collections的类
@@ -99,9 +90,9 @@ public class MilvusCollectionManager {
      */
     private void createCollectionIfNotExists(String collectionName, CreateCollectionReq.CollectionSchema schema) {
         Boolean hasCollection = milvusClientV2.hasCollection(
-            HasCollectionReq.builder()
-                .collectionName(collectionName)
-                .build()
+                HasCollectionReq.builder()
+                        .collectionName(collectionName)
+                        .build()
         );
 
         if (hasCollection) {
@@ -111,30 +102,30 @@ public class MilvusCollectionManager {
 
         // 索引添加
         IndexParam indexParamForEmbeddingField = IndexParam.builder()
-            .fieldName("embedding")
-            .indexName(collectionName + "_embedding" + "_idx")
-            .metricType(MetricType.valueOf(metricType != null ? metricType : "L2"))
-            .indexType(IndexType.HNSW)
-            .extraParams(Map.of(
-                "M", 16,
-                "efConstruction", 200
-            ))
-            .build();
+                .fieldName("embedding")
+                .indexName(collectionName + "_embedding" + "_idx")
+                .metricType(MetricType.valueOf(metricType != null ? metricType : "L2"))
+                .indexType(IndexType.HNSW)
+                .extraParams(Map.of(
+                        "M", 16,
+                        "efConstruction", 200
+                ))
+                .build();
         log.info("创建embedding索引：{}", indexParamForEmbeddingField);
 
         IndexParam indexParamForIdField = IndexParam.builder()
-            .fieldName("id")
-            .indexType(IndexType.STL_SORT)
-            .indexName(collectionName + "_id" + "_idx")
-            .build();
+                .fieldName("id")
+                .indexType(IndexType.STL_SORT)
+                .indexName(collectionName + "_id" + "_idx")
+                .build();
 
         // 创建集合
         CreateCollectionReq request = CreateCollectionReq.builder()
-            .collectionName(collectionName)
-            .collectionSchema(schema)
-            .indexParams(List.of(
-                indexParamForEmbeddingField, indexParamForIdField))
-            .build();
+                .collectionName(collectionName)
+                .collectionSchema(schema)
+                .indexParams(List.of(
+                        indexParamForEmbeddingField, indexParamForIdField))
+                .build();
 
         // 执行创建操作
         milvusClientV2.createCollection(request);
@@ -142,8 +133,8 @@ public class MilvusCollectionManager {
 
         //  查询状态
         GetLoadStateReq getLoadStateReq = GetLoadStateReq.builder()
-            .collectionName(collectionName)
-            .build();
+                .collectionName(collectionName)
+                .build();
         Boolean loaded = milvusClientV2.getLoadState(getLoadStateReq);
         log.info("集合 {} 的加载状态为：{}", collectionName, loaded);
     }
@@ -157,13 +148,13 @@ public class MilvusCollectionManager {
         try {
             // 释放集合（从内存中卸载
             milvusClientV2.releaseCollection(ReleaseCollectionReq.builder()
-                .collectionName(collectionName)
-                .build());
+                    .collectionName(collectionName)
+                    .build());
 
             // 删除集合
             milvusClientV2.dropCollection(DropCollectionReq.builder()
-                .collectionName(collectionName)
-                .build());
+                    .collectionName(collectionName)
+                    .build());
             log.info("已删除游戏 {} 的对话记忆集合: {}", gameId, collectionName);
         } catch (Exception e) {
             log.error("删除游戏 {} 的对话记忆集合失败: {}", gameId, collectionName, e);
@@ -176,8 +167,8 @@ public class MilvusCollectionManager {
     public boolean collectionExists(String collectionName) {
         try {
             return milvusClientV2.hasCollection(HasCollectionReq.builder()
-                .collectionName(collectionName)
-                .build());
+                    .collectionName(collectionName)
+                    .build());
         } catch (Exception e) {
             log.error("检查集合 {} 是否存在时出错", collectionName, e);
             return false;

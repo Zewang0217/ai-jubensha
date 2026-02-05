@@ -3,7 +3,6 @@ package org.jubensha.aijubenshabackend.ai.workflow.node;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
@@ -11,28 +10,23 @@ import org.jubensha.aijubenshabackend.ai.factory.ScriptGenerateServiceFactory;
 import org.jubensha.aijubenshabackend.ai.service.ScriptGenerateService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
+import org.jubensha.aijubenshabackend.models.dto.ScriptResponseDTO;
 import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.Clue;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
 import org.jubensha.aijubenshabackend.models.entity.Script;
 import org.jubensha.aijubenshabackend.models.enums.ClueType;
 import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
+import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.clue.ClueService;
-import org.jubensha.aijubenshabackend.service.script.ScriptService;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
+import org.jubensha.aijubenshabackend.service.script.ScriptService;
+
+import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
-/**
- * 剧本生成节点
- *
- * @author zewang
- * @version 1.0
- * @date 2026-01-30 20:29
- * @since 2026
- */
 
 import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 
@@ -51,7 +45,7 @@ public class ScriptGeneratorNode {
 
             // 获取 AI 服务实例
             ScriptGenerateServiceFactory scriptGenerateServiceFactory = SpringContextUtil.getBean(
-                ScriptGenerateServiceFactory.class);
+                    ScriptGenerateServiceFactory.class);
             log.info("获取 AI 服务实例");
             log.info("开始生成剧本");
             // 生成临时scriptId，使用UUID的哈希值确保唯一性
@@ -60,15 +54,15 @@ public class ScriptGeneratorNode {
             String scriptJson = generateServiceFactoryService.generateScript(userMessage);
 
             log.info("剧本生成完成");
-            
+
             try {
                 // 预处理JSON，移除代码块标记
                 String cleanedJson = preprocessJson(scriptJson);
                 log.debug("清理后的JSON长度: {}", cleanedJson.length());
-                
+
                 // 解析JSON剧本
                 JsonNode rootNode = objectMapper.readTree(cleanedJson);
-                
+
                 // 提取剧本基本信息
                 String scriptName = rootNode.path("scriptName").asText();
                 if (scriptName == null || scriptName.isEmpty()) {
@@ -79,21 +73,46 @@ public class ScriptGeneratorNode {
                 }
                 String scriptIntro = rootNode.path("scriptIntro").asText("");
                 String scriptTimeline = rootNode.path("scriptTimeline").asText("");
-                
+
+                // 创建封面图片URL
+                URL coverImageUrl = new URL("https://picsum.photos/200/300");
+
                 // 创建剧本实体（不设置ID，由数据库自增）
                 Script newScript = Script.builder()
-                    .name(scriptName)
-                    .description(scriptIntro)
-                    .timeline(scriptTimeline)
-                    .build();
+                        .name(scriptName)
+                        .description(scriptIntro)
+                        .timeline(scriptTimeline)
+                        .author("AI Generated")
+                        .difficulty(DifficultyLevel.MEDIUM)
+                        // 默认2小时
+                        .duration(120)
+                        // 默认6人
+                        .playerCount(6)
+                        .coverImageUrl(coverImageUrl.toString())
+                        .build();
 
                 // 保存剧本到数据库，获取自增ID
                 ScriptService scriptService = SpringContextUtil.getBean(ScriptService.class);
-                Script savedScript = scriptService.createScript(newScript);
+
+                /*
+                // 将Script实体转换为ScriptCreateRequest DTO
+                ScriptDTO.ScriptCreateRequest createRequest = new ScriptDTO.ScriptCreateRequest();
+                createRequest.setName(newScript.getName());
+                createRequest.setDescription(newScript.getDescription());
+                createRequest.setAuthor("AI Generated");
+                createRequest.setDifficulty(org.jubensha.aijubenshabackend.models.enums.DifficultyLevel.MEDIUM);
+                createRequest.setDuration(120); // 默认2小时
+                createRequest.setPlayerCount(6); // 默认6人
+                */
+
+                ScriptResponseDTO savedScript = ScriptResponseDTO.fromEntity(
+                        scriptService.createScript(newScript)
+                );
+
                 Long scriptId = savedScript.getId();
                 log.info("剧本已保存到数据库，ID: {}", scriptId);
                 context.setScriptId(scriptId);
-                
+
                 // 提取并保存角色信息
                 List<Character> characters = parseCharacters(rootNode, scriptId);
                 CharacterService characterService = SpringContextUtil.getBean(CharacterService.class);
@@ -101,7 +120,7 @@ public class ScriptGeneratorNode {
                     characterService.createCharacter(character);
                 }
                 log.info("已保存 {} 个角色", characters.size());
-                
+
                 // 提取并保存线索信息
                 List<Clue> clues = parseClues(rootNode, scriptId);
                 ClueService clueService = SpringContextUtil.getBean(ClueService.class);
@@ -109,7 +128,7 @@ public class ScriptGeneratorNode {
                     clueService.createClue(clue);
                 }
                 log.info("已保存 {} 个线索", clues.size());
-                
+
                 // 提取并保存场景信息
                 List<Scene> scenes = parseScenes(rootNode, scriptId);
                 SceneService sceneService = SpringContextUtil.getBean(SceneService.class);
@@ -117,7 +136,7 @@ public class ScriptGeneratorNode {
                     sceneService.createScene(scene);
                 }
                 log.info("已保存 {} 个场景", scenes.size());
-                
+
                 // 更新WorkflowContext
                 context.setCurrentStep("剧本生成");
                 context.setScriptName(scriptName);
@@ -126,13 +145,13 @@ public class ScriptGeneratorNode {
                 context.setModelOutput(scriptJson);
                 context.setSuccess(true);
                 context.setStartTime(LocalDateTime.now());
-                
+
             } catch (Exception e) {
                 log.error("解析和保存剧本失败: {}", e.getMessage(), e);
                 context.setErrorMessage("解析剧本失败: " + e.getMessage());
                 context.setSuccess(false);
             }
-            
+
             return WorkflowContext.saveContext(context);
         });
     }
@@ -149,8 +168,8 @@ public class ScriptGeneratorNode {
                 character.setScriptId(scriptId);
                 character.setName(characterNode.path("name").asText());
                 character.setDescription("年龄: " + characterNode.path("age").asText() + "\n" +
-                    "身份: " + characterNode.path("identity").asText() + "\n" +
-                    "性格特点: " + characterNode.path("personality").asText());
+                        "身份: " + characterNode.path("identity").asText() + "\n" +
+                        "性格特点: " + characterNode.path("personality").asText());
                 character.setBackgroundStory(characterNode.path("background").asText());
                 character.setSecret(characterNode.path("secrets").asText());
                 character.setTimeline(characterNode.path("timeline").asText());
@@ -206,9 +225,9 @@ public class ScriptGeneratorNode {
                 scene.setScript(script);
                 scene.setName(sceneNode.path("name").asText());
                 scene.setDescription("时间: " + sceneNode.path("time").asText() + "\n" +
-                    "地点: " + sceneNode.path("location").asText() + "\n" +
-                    "氛围: " + sceneNode.path("atmosphere").asText() + "\n" +
-                    "描述: " + sceneNode.path("description").asText());
+                        "地点: " + sceneNode.path("location").asText() + "\n" +
+                        "氛围: " + sceneNode.path("atmosphere").asText() + "\n" +
+                        "描述: " + sceneNode.path("description").asText());
                 scene.setCreateTime(LocalDateTime.now());
                 scenes.add(scene);
             }
@@ -241,15 +260,15 @@ public class ScriptGeneratorNode {
         } else if (json.startsWith("```")) {
             json = json.substring(3);
         }
-        
+
         // 移除结尾的代码块标记
         if (json.endsWith("```")) {
             json = json.substring(0, json.length() - 3);
         }
-        
+
         // 去除首尾空白
         json = json.trim();
-        
+
         return json;
     }
 }

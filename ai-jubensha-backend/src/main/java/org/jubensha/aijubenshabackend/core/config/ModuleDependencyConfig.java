@@ -8,10 +8,10 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class ModuleDependencyConfig {
-    
+
     /**
      * 模块依赖关系定义
-     * 
+     *
      * 依赖层级：
      * 1. core模块：核心配置和工具类，被其他所有模块依赖
      * 2. domain模块：领域模型和仓库接口，被services模块依赖
@@ -21,7 +21,7 @@ public class ModuleDependencyConfig {
      * 6. game模块：游戏相关功能，被api模块依赖
      * 7. api模块：接口层，依赖其他所有模块
      */
-    
+
     // 核心模块配置
     // 领域模块配置
     // 基础设施模块配置

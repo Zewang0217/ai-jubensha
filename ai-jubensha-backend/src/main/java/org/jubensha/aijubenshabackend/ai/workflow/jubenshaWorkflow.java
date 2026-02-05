@@ -3,9 +3,6 @@ package org.jubensha.aijubenshabackend.ai.workflow;
 
 import cn.hutool.core.thread.ExecutorBuilder;
 import cn.hutool.core.thread.ThreadFactoryBuilder;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
 import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.GraphRepresentation;
@@ -14,14 +11,13 @@ import org.bsc.langgraph4j.GraphStateException;
 import org.bsc.langgraph4j.NodeOutput;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.bsc.langgraph4j.prebuilt.MessagesStateGraph;
-import org.jubensha.aijubenshabackend.ai.workflow.node.FirstInvestigationNode;
-import org.jubensha.aijubenshabackend.ai.workflow.node.PlayerAllocatorNode;
-import org.jubensha.aijubenshabackend.ai.workflow.node.SceneLoaderNode;
-import org.jubensha.aijubenshabackend.ai.workflow.node.ScriptGeneratorNode;
-import org.jubensha.aijubenshabackend.ai.workflow.node.ScriptReaderNode;
+import org.jubensha.aijubenshabackend.ai.workflow.node.*;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
-import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * 剧本杀的工作流
@@ -42,19 +38,19 @@ public class jubenshaWorkflow {
     public CompiledGraph<MessagesState<String>> createWorkflow() {
         try {
             return new MessagesStateGraph<String>()
-                .addNode("script_generator", ScriptGeneratorNode.create())
-                .addNode("player_allocator", PlayerAllocatorNode.create())
-                .addNode("scene_loader", SceneLoaderNode.create())
-                .addNode("script_reader", ScriptReaderNode.create())
-                .addNode("first_investigation", FirstInvestigationNode.create())
-                .addEdge("__START__", "script_generator")
-                .addEdge("script_generator", "player_allocator")
-                .addEdge("player_allocator", "script_reader")
-                .addEdge("player_allocator", "scene_loader")
-                .addEdge("script_reader", "first_investigation")
-                .addEdge("scene_loader", "first_investigation")
-                .addEdge("first_investigation", "__END__")
-                .compile();
+                    .addNode("script_generator", ScriptGeneratorNode.create())
+                    .addNode("player_allocator", PlayerAllocatorNode.create())
+                    .addNode("scene_loader", SceneLoaderNode.create())
+                    .addNode("script_reader", ScriptReaderNode.create())
+                    .addNode("first_investigation", FirstInvestigationNode.create())
+                    .addEdge("__START__", "script_generator")
+                    .addEdge("script_generator", "player_allocator")
+                    .addEdge("player_allocator", "script_reader")
+                    .addEdge("player_allocator", "scene_loader")
+                    .addEdge("script_reader", "first_investigation")
+                    .addEdge("scene_loader", "first_investigation")
+                    .addEdge("first_investigation", "__END__")
+                    .compile();
         } catch (GraphStateException e) {
             // TODO: 替换为自定义的事务异常
             throw new RuntimeException(e);
@@ -81,15 +77,15 @@ public class jubenshaWorkflow {
         int stepCounter = 1;
         // 配置并发执行
         ExecutorService pool = ExecutorBuilder.create()
-            .setCorePoolSize(10)
-            .setMaxPoolSize(20)
-            .setWorkQueue(new LinkedBlockingQueue<>(100))
-            .setThreadFactory(ThreadFactoryBuilder.create().setNamePrefix("workflow-executor-").build())
-            .build();
+                .setCorePoolSize(10)
+                .setMaxPoolSize(20)
+                .setWorkQueue(new LinkedBlockingQueue<>(100))
+                .setThreadFactory(ThreadFactoryBuilder.create().setNamePrefix("workflow-executor-").build())
+                .build();
 //        RunnableConfig runnableConfig = RunnableConfig.builder()
 //            .addParallelNodeExecutor("") //
         for (NodeOutput<MessagesState<String>> step : workflow.stream(
-            Map.of(WorkflowContext.WORKFLOW_CONTEXT_KEY, initialContext)
+                Map.of(WorkflowContext.WORKFLOW_CONTEXT_KEY, initialContext)
         )) {
             log.info("--- 第{}步：{}完成 ---", stepCounter, step.node());
             WorkflowContext currentContext = WorkflowContext.getContext(step.state());
