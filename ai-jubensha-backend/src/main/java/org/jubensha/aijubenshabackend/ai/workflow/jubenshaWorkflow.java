@@ -62,13 +62,17 @@ public class jubenshaWorkflow {
      */
     public WorkflowContext executeWorkflow(String originalPrompt) {
         CompiledGraph<MessagesState<String>> workflow = createWorkflow();
+        // 生成唯一的游戏ID
+        Long gameId = System.currentTimeMillis();
         WorkflowContext initialContext = WorkflowContext.builder()
-                .originalPrompt(originalPrompt)
-                .currentStep("初始化")
-                .build();
+            .originalPrompt(originalPrompt)
+            .currentStep("初始化")
+            .gameId(gameId)
+            .build();
         GraphRepresentation graph = workflow.getGraph(Type.MERMAID);
         log.info("并发工作流图：\n{}", graph.content());
         log.info("开始执行并发工作流...");
+        log.info("游戏ID: {}", gameId);
         WorkflowContext finalContext = null;
         int stepCounter = 1;
         // 配置并发执行
@@ -87,6 +91,10 @@ public class jubenshaWorkflow {
             WorkflowContext currentContext = WorkflowContext.getContext(step.state());
             if (currentContext != null) {
                 finalContext = currentContext;
+                // 确保gameId在整个工作流中传递
+                if (finalContext.getGameId() == null) {
+                    finalContext.setGameId(gameId);
+                }
                 log.info("当前上下文：{}", currentContext);
             }
             stepCounter++;

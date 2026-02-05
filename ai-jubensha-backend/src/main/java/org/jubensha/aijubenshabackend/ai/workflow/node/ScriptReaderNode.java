@@ -1,15 +1,15 @@
 package org.jubensha.aijubenshabackend.ai.workflow.node;
 
-
 import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.jubensha.aijubenshabackend.ai.service.AIService;
+import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
-import org.jubensha.aijubenshabackend.memory.MemoryService;
 import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
+import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
 
 import java.util.HashMap;
 import java.util.List;
@@ -62,6 +62,8 @@ public class ScriptReaderNode {
                 CharacterService characterService = SpringContextUtil.getBean(CharacterService.class);
                 // 获取AI服务
                 AIService aiService = SpringContextUtil.getBean(AIService.class);
+                // 获取WebSocket服务
+                WebSocketService webSocketService = SpringContextUtil.getBean(WebSocketService.class);
 
                 // 获取剧本的所有角色
                 List<Character> characters = characterService.getCharactersByScriptId(scriptId);
@@ -83,8 +85,13 @@ public class ScriptReaderNode {
                         log.info("通知AI玩家 {} 读取角色 {} 的剧本", playerId, characterName);
                     } else {
                         // 通知真人玩家读取剧本
-                        // 这里可以通过WebSocket或其他方式通知前端
-                        log.info("通知真人玩家 {} 读取角色 {} 的剧本", playerId, characterName);
+                        try {
+//                            webSocketService.notifyPlayerReadScript(playerId, characterId);
+                            log.info("通过WebSocket通知真人玩家 {} 读取角色 {} 的剧本", playerId, characterName);
+                        } catch (Exception e) {
+                            log.warn("WebSocket通知失败，使用日志记录", e);
+                            log.info("通知真人玩家 {} 读取角色 {} 的剧本", playerId, characterName);
+                        }
                     }
                 }
 
@@ -112,26 +119,22 @@ public class ScriptReaderNode {
         // 查找对应的角色
         for (Character character : characters) {
             if (character.getId().equals(characterId)) {
-                // 准备角色信息
-                Map<String, String> characterInfo = new HashMap<>();
-                characterInfo.put("name", character.getName());
-                characterInfo.put("description", character.getDescription());
-                characterInfo.put("background", character.getBackgroundStory());
-                characterInfo.put("secret", character.getSecret());
-                characterInfo.put("timeline", character.getTimeline());
+                // 获取RAG服务
+                RAGService ragService = SpringContextUtil.getBean(RAGService.class);
 
-                // 获取记忆服务
-                MemoryService memoryService = SpringContextUtil.getBean(MemoryService.class);
-
-                // 存储角色记忆到向量数据库
-                memoryService.storeCharacterMemory(gameId, playerId, characterId, characterInfo);
-
-                // 存储全局时间线（如果有）
+                // 只存储全局时间线，不存储角色信息到对话记忆
+                // 对话记忆是全局的，每个角色都可以查看，会导致角色信息泄露
                 if (character.getTimeline() != null && !character.getTimeline().isEmpty()) {
-                    memoryService.storeGlobalTimelineMemory(character.getScriptId(), characterId, character.getTimeline(), "game_start");
+                    // 存储全局时间线
+                    ragService.insertGlobalTimelineMemory(character.getScriptId(), characterId, character.getTimeline(), "game_start");
                 }
 
-                log.info("为AI玩家 {} 插入角色 {} 的信息到向量数据库", playerId, character.getName());
+                // 存储角色相关的线索到全局线索记忆
+                if (character.getSecret() != null && !character.getSecret().isEmpty()) {
+                    ragService.insertGlobalClueMemory(character.getScriptId(), characterId, character.getSecret());
+                }
+
+                log.info("为AI玩家 {} 插入角色 {} 的时间线和线索到全局记忆", playerId, character.getName());
                 break;
             }
         }
