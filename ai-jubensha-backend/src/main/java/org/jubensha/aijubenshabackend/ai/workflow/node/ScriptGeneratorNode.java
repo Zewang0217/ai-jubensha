@@ -48,8 +48,8 @@ public class ScriptGeneratorNode {
                     ScriptGenerateServiceFactory.class);
             log.info("获取 AI 服务实例");
             log.info("开始生成剧本");
-            // 临时scriptId，用于服务实例创建
-            Long tempScriptId = System.currentTimeMillis();
+            // 生成临时scriptId，使用UUID的哈希值确保唯一性
+            Long tempScriptId = Math.abs(java.util.UUID.randomUUID().getLeastSignificantBits());
             ScriptGenerateService generateServiceFactoryService = scriptGenerateServiceFactory.getService(tempScriptId);
             String scriptJson = generateServiceFactoryService.generateScript(userMessage);
 
@@ -64,7 +64,13 @@ public class ScriptGeneratorNode {
                 JsonNode rootNode = objectMapper.readTree(cleanedJson);
 
                 // 提取剧本基本信息
-                String scriptName = rootNode.path("scriptName").asText(context.getOriginalPrompt());
+                String scriptName = rootNode.path("scriptName").asText();
+                if (scriptName == null || scriptName.isEmpty()) {
+                    scriptName = context.getOriginalPrompt();
+                    if (scriptName == null || scriptName.isEmpty()) {
+                        scriptName = "默认剧本_" + System.currentTimeMillis();
+                    }
+                }
                 String scriptIntro = rootNode.path("scriptIntro").asText("");
                 String scriptTimeline = rootNode.path("scriptTimeline").asText("");
 
