@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Entity(name = "CharacterEntity")
 @Table(name = "characters")
 public class Character {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,24 +22,24 @@ public class Character {
 
     @Column(name = "script_id", nullable = false)
     private Long scriptId;
-    
+
     private String name;
-    
+
     @Column(columnDefinition = "TEXT")
     private String description;
-    
+
     @Column(columnDefinition = "TEXT")
     private String backgroundStory;
-    
+
     @Column(columnDefinition = "TEXT")
     private String secret;
 
     @Column(name = "avatar")
     private String avatarUrl;
-    
+
     @Column(columnDefinition = "TEXT")
     private String timeline;
-    
+
     private LocalDateTime createTime;
 
     @PrePersist

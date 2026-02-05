@@ -7,12 +7,12 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CharacterService {
-    
+
     /**
      * 创建新角色
      */
     Character createCharacter(Character character);
-    
+
     /**
      * 根据ID获取角色
      */
@@ -22,12 +22,12 @@ public interface CharacterService {
      * 获取所有角色
      */
     List<Character> getAllCharacters();
-    
+
     /**
      * 获取剧本的所有角色
      */
     List<Character> getCharactersByScript(Script script);
-    
+
     /**
      * 根据剧本ID获取角色
      */
@@ -42,7 +42,7 @@ public interface CharacterService {
      * 更新角色
      */
     Character updateCharacter(Long id, Character character);
-    
+
     /**
      * 删除角色
      */

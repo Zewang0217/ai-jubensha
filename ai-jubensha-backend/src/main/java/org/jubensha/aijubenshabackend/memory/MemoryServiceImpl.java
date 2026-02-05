@@ -1,24 +1,24 @@
 package org.jubensha.aijubenshabackend.memory;
 
-import io.milvus.client.MilvusServiceClient;
 import io.milvus.v2.client.MilvusClientV2;
-import io.milvus.v2.service.collection.request.AddFieldReq;
 import io.milvus.v2.service.collection.request.CreateCollectionReq;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.EmbeddingService;
 import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 记忆管理服务实现
  * 使用内存存储作为临时实现，确保代码能够编译通过
  * 后续可以替换为实际的Milvus实现
- * 
+ * <p>
  * 注意：以下部分需要使用Milvus向量数据库实现：
  * 1. storeCharacterMemory：使用Milvus的insert操作存储角色记忆
  * 2. retrieveCharacterMemory：使用Milvus的search操作检索角色记忆

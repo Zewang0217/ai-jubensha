@@ -10,6 +10,8 @@ import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
+
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,12 +24,12 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
  * @version 1.0
  * @date 2026-02-01
  * @since 2026
- * 
+ * <p>
  * 注意：以下部分需要使用Milvus向量数据库实现：
  * 1. insertCharacterToVectorDB方法：调用MemoryService.storeCharacterMemory方法，
- *    将角色信息存储到Milvus向量数据库
+ * 将角色信息存储到Milvus向量数据库
  * 2. 存储全局时间线：调用MemoryService.storeGlobalTimelineMemory方法，
- *    将角色时间线存储到Milvus向量数据库
+ * 将角色时间线存储到Milvus向量数据库
  */
 
 @Slf4j

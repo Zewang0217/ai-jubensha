@@ -33,9 +33,9 @@ public class PlayerAllocatorNode {
     public static AsyncNodeAction<MessagesState<String>> create() {
         return node_async(state -> {
             WorkflowContext context = WorkflowContext.getContext(state);
-            log.debug("PlayerAllocatorNode: 步骤={}, 剧本ID={}, 剧本名称={}", 
-                    context.getCurrentStep(), 
-                    context.getScriptId(), 
+            log.debug("PlayerAllocatorNode: 步骤={}, 剧本ID={}, 剧本名称={}",
+                    context.getCurrentStep(),
+                    context.getScriptId(),
                     context.getScriptName());
             log.info("执行节点：玩家分配");
 

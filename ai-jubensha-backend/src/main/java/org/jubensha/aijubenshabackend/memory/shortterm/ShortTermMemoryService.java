@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 短期记忆服务
- * 
+ * <p>
  * 注意：短期记忆服务使用Redis作为存储，不需要使用Milvus向量数据库
  * 所有方法都使用Redis操作，包括：
  * 1. storeMemory：使用Redis的set操作存储短期记忆
@@ -21,16 +21,16 @@ import java.util.concurrent.TimeUnit;
  */
 @Service
 public class ShortTermMemoryService {
-    
-    private final RedisTemplate<String, Object> redisTemplate;
+
     private static final long DEFAULT_TTL = 24L;
     private static final TimeUnit TTL_UNIT = TimeUnit.HOURS;
-    
+    private final RedisTemplate<String, Object> redisTemplate;
+
     @Autowired
     public ShortTermMemoryService(RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
-    
+
     /**
      * 存储短期记忆
      */
@@ -38,7 +38,7 @@ public class ShortTermMemoryService {
         String redisKey = getRedisKey(gameId, key);
         redisTemplate.opsForValue().set(redisKey, value, DEFAULT_TTL, TTL_UNIT);
     }
-    
+
     /**
      * 存储短期记忆，指定过期时间
      */
@@ -46,7 +46,7 @@ public class ShortTermMemoryService {
         String redisKey = getRedisKey(gameId, key);
         redisTemplate.opsForValue().set(redisKey, value, ttl, unit);
     }
-    
+
     /**
      * 获取短期记忆
      */
@@ -54,7 +54,7 @@ public class ShortTermMemoryService {
         String redisKey = getRedisKey(gameId, key);
         return redisTemplate.opsForValue().get(redisKey);
     }
-    
+
     /**
      * 删除短期记忆
      */
@@ -62,7 +62,7 @@ public class ShortTermMemoryService {
         String redisKey = getRedisKey(gameId, key);
         redisTemplate.delete(redisKey);
     }
-    
+
     /**
      * 向列表添加元素
      */
@@ -71,7 +71,7 @@ public class ShortTermMemoryService {
         redisTemplate.opsForList().rightPush(redisKey, value);
         redisTemplate.expire(redisKey, DEFAULT_TTL, TTL_UNIT);
     }
-    
+
     /**
      * 获取列表元素
      */
@@ -79,7 +79,7 @@ public class ShortTermMemoryService {
         String redisKey = getRedisKey(gameId, listKey);
         return redisTemplate.opsForList().range(redisKey, start, end);
     }
-    
+
     /**
      * 清除游戏的所有短期记忆
      */
@@ -87,7 +87,7 @@ public class ShortTermMemoryService {
         String pattern = "game:" + gameId + ":*";
         redisTemplate.keys(pattern).forEach(redisTemplate::delete);
     }
-    
+
     /**
      * 生成Redis键
      */

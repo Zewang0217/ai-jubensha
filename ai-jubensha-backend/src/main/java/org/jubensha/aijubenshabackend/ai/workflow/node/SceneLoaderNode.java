@@ -8,10 +8,10 @@ import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
-import org.jubensha.aijubenshabackend.models.entity.Clue;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
 import org.jubensha.aijubenshabackend.service.clue.ClueService;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -158,7 +158,7 @@ public class SceneLoaderNode {
                 context.setErrorMessage("加载场景失败: " + e.getMessage());
                 context.setSuccess(false);
             }
-            
+
             return WorkflowContext.saveContext(context);
         });
     }
@@ -184,9 +184,9 @@ public class SceneLoaderNode {
                 scene.setScript(script);
                 scene.setName(sceneNode.path("name").asText());
                 scene.setDescription("时间: " + sceneNode.path("time").asText() + "\n" +
-                    "地点: " + sceneNode.path("location").asText() + "\n" +
-                    "氛围: " + sceneNode.path("atmosphere").asText() + "\n" +
-                    "描述: " + sceneNode.path("description").asText());
+                        "地点: " + sceneNode.path("location").asText() + "\n" +
+                        "氛围: " + sceneNode.path("atmosphere").asText() + "\n" +
+                        "描述: " + sceneNode.path("description").asText());
                 scene.setCreateTime(java.time.LocalDateTime.now());
                 scenes.add(scene);
             }
