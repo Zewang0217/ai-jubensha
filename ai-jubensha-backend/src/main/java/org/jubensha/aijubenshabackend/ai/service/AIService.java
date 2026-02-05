@@ -8,14 +8,15 @@ import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
 import jakarta.annotation.Resource;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.tools.ToolManager;
 import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 /**
  * AI服务类，用于管理各种Agent
@@ -24,26 +25,17 @@ import org.springframework.context.annotation.Configuration;
  * @version 1.0
  * @date 2026-01-31 15:30
  * @since 2026
- * 
+ * <p>
  * 注意：以下部分需要使用Milvus向量数据库实现：
  * 1. notifyAIPlayerReadScript：通知AI玩家读取剧本时，
- *    会触发角色信息存储到Milvus向量数据库
+ * 会触发角色信息存储到Milvus向量数据库
  * 2. PlayerAgent的推理过程：在AI推理时，
- *    会使用Milvus向量数据库检索相关记忆
+ * 会使用Milvus向量数据库检索相关记忆
  */
 
 @Configuration
 @Slf4j
 public class AIService {
-
-    @Resource(name = "openAiChatModel")
-    private ChatModel chatModel;
-
-    @Resource
-    private ToolManager toolManager;
-
-    @Resource
-    private PlayerService playerService;
 
     /**
      * Agent实例缓存
@@ -53,13 +45,19 @@ public class AIService {
      * - 访问后 10 分钟过期
      */
     private final Cache<String, Object> agentCache = Caffeine.newBuilder()
-        .maximumSize(100)
-        .expireAfterWrite(Duration.ofMinutes(30))
-        .expireAfterAccess(Duration.ofMinutes(10))
-        .removalListener((key, value, cause) -> {
-            log.debug("Agent实例被移除，缓存键: {}, 原因: {}", key, cause);
-        })
-        .build();
+            .maximumSize(100)
+            .expireAfterWrite(Duration.ofMinutes(30))
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .removalListener((key, value, cause) -> {
+                log.debug("Agent实例被移除，缓存键: {}, 原因: {}", key, cause);
+            })
+            .build();
+    @Resource(name = "openAiChatModel")
+    private ChatModel chatModel;
+    @Resource
+    private ToolManager toolManager;
+    @Resource
+    private PlayerService playerService;
 
     /**
      * 创建AI玩家
@@ -88,11 +86,11 @@ public class AIService {
         dm.setStatus(org.jubensha.aijubenshabackend.models.enums.PlayerStatus.ONLINE);
         dm.setRole(org.jubensha.aijubenshabackend.models.enums.PlayerRole.USER);
         Player savedDM = playerService.createPlayer(dm);
-        
+
         // 创建DM Agent实例
         String cacheKey = "dm:" + savedDM.getId();
         agentCache.get(cacheKey, key -> createDMAgentInstance(savedDM.getId()));
-        
+
         log.info("创建DM Agent，ID: {}", savedDM.getId());
         return savedDM;
     }
@@ -110,11 +108,11 @@ public class AIService {
         judge.setStatus(org.jubensha.aijubenshabackend.models.enums.PlayerStatus.ONLINE);
         judge.setRole(org.jubensha.aijubenshabackend.models.enums.PlayerRole.USER);
         Player savedJudge = playerService.createPlayer(judge);
-        
+
         // 创建Judge Agent实例
         String cacheKey = "judge:" + savedJudge.getId();
         agentCache.get(cacheKey, key -> createJudgeAgentInstance(savedJudge.getId()));
-        
+
         log.info("创建Judge Agent，ID: {}", savedJudge.getId());
         return savedJudge;
     }
@@ -134,20 +132,20 @@ public class AIService {
     private Object createDMAgentInstance(Long dmId) {
         log.info("创建新的DM Agent实例, DM ID：{}", dmId);
         MessageWindowChatMemory chatMemory = MessageWindowChatMemory
-            .builder()
-            .id(dmId)
-            .maxMessages(20)
-            .build();
+                .builder()
+                .id(dmId)
+                .maxMessages(20)
+                .build();
 
         return AiServices.builder(DMAgent.class)
-            .chatModel(chatModel)
-            .chatMemory(chatMemory)
-            .tools(toolManager.getAllTools())
-            .hallucinatedToolNameStrategy(toolExecutionRequest ->
-                ToolExecutionResultMessage.from(toolExecutionRequest,
-                    "Error: there is no tool called" + toolExecutionRequest.name()))
-            .maxSequentialToolsInvocations(20)
-            .build();
+                .chatModel(chatModel)
+                .chatMemory(chatMemory)
+                .tools(toolManager.getAllTools())
+                .hallucinatedToolNameStrategy(toolExecutionRequest ->
+                        ToolExecutionResultMessage.from(toolExecutionRequest,
+                                "Error: there is no tool called" + toolExecutionRequest.name()))
+                .maxSequentialToolsInvocations(20)
+                .build();
     }
 
     /**
@@ -156,20 +154,20 @@ public class AIService {
     private Object createJudgeAgentInstance(Long judgeId) {
         log.info("创建新的Judge Agent实例, Judge ID：{}", judgeId);
         MessageWindowChatMemory chatMemory = MessageWindowChatMemory
-            .builder()
-            .id(judgeId)
-            .maxMessages(20)
-            .build();
+                .builder()
+                .id(judgeId)
+                .maxMessages(20)
+                .build();
 
         return AiServices.builder(JudgeAgent.class)
-            .chatModel(chatModel)
-            .chatMemory(chatMemory)
-            .tools(toolManager.getAllTools())
-            .hallucinatedToolNameStrategy(toolExecutionRequest ->
-                ToolExecutionResultMessage.from(toolExecutionRequest,
-                    "Error: there is no tool called" + toolExecutionRequest.name()))
-            .maxSequentialToolsInvocations(20)
-            .build();
+                .chatModel(chatModel)
+                .chatMemory(chatMemory)
+                .tools(toolManager.getAllTools())
+                .hallucinatedToolNameStrategy(toolExecutionRequest ->
+                        ToolExecutionResultMessage.from(toolExecutionRequest,
+                                "Error: there is no tool called" + toolExecutionRequest.name()))
+                .maxSequentialToolsInvocations(20)
+                .build();
     }
 
     /**
@@ -178,20 +176,20 @@ public class AIService {
     private Object createPlayerAgentInstance(Long playerId, Long characterId) {
         log.info("创建新的Player Agent实例, 玩家ID：{}, 角色ID：{}", playerId, characterId);
         MessageWindowChatMemory chatMemory = MessageWindowChatMemory
-            .builder()
-            .id(playerId)
-            .maxMessages(20)
-            .build();
+                .builder()
+                .id(playerId)
+                .maxMessages(20)
+                .build();
 
         return AiServices.builder(PlayerAgent.class)
-            .chatModel(chatModel)
-            .chatMemory(chatMemory)
-            .tools(toolManager.getAllTools())
-            .hallucinatedToolNameStrategy(toolExecutionRequest ->
-                ToolExecutionResultMessage.from(toolExecutionRequest,
-                    "Error: there is no tool called" + toolExecutionRequest.name()))
-            .maxSequentialToolsInvocations(20)
-            .build();
+                .chatModel(chatModel)
+                .chatMemory(chatMemory)
+                .tools(toolManager.getAllTools())
+                .hallucinatedToolNameStrategy(toolExecutionRequest ->
+                        ToolExecutionResultMessage.from(toolExecutionRequest,
+                                "Error: there is no tool called" + toolExecutionRequest.name()))
+                .maxSequentialToolsInvocations(20)
+                .build();
     }
 
     /**
@@ -225,7 +223,7 @@ public class AIService {
         // 通知AI玩家读取剧本
         // 这里可以通过消息队列或其他方式通知AI玩家
         log.info("通知AI玩家 {} 读取角色 {} 的剧本", playerId, characterId);
-        
+
         // 获取Player Agent并发送读取剧本的指令
         PlayerAgent playerAgent = getPlayerAgent(playerId);
         if (playerAgent != null) {
@@ -241,7 +239,7 @@ public class AIService {
         // 通知AI玩家开始搜证
         // 这里可以通过消息队列或其他方式通知AI玩家
         log.info("通知AI玩家 {} 开始第一轮搜证", playerId);
-        
+
         // 获取Player Agent并发送开始搜证的指令
         PlayerAgent playerAgent = getPlayerAgent(playerId);
         if (playerAgent != null) {
@@ -255,8 +253,11 @@ public class AIService {
      */
     public interface DMAgent {
         String introduceGame(String gameInfo);
+
         String presentClue(String clueInfo);
+
         String advancePhase(String phaseInfo);
+
         String respondToPlayer(String playerMessage, String playerId);
     }
 
@@ -265,8 +266,11 @@ public class AIService {
      */
     public interface PlayerAgent {
         String speak(String message);
+
         String respondToClue(String clueInfo);
+
         String discuss(String topic);
+
         String vote(String suspect);
     }
 
@@ -275,7 +279,9 @@ public class AIService {
      */
     public interface JudgeAgent {
         boolean validateMessage(String message);
+
         boolean validateAction(String action, String playerId);
+
         String generateSummary(String gameState);
     }
 }
