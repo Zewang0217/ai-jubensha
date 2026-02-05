@@ -1,12 +1,12 @@
 package org.jubensha.aijubenshabackend.controller;
 
 import jakarta.validation.Valid;
-import org.jubensha.aijubenshabackend.models.dto.GameCreateDTO;
-import org.jubensha.aijubenshabackend.models.dto.GameResponseDTO;
-import org.jubensha.aijubenshabackend.models.dto.GameUpdateDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.workflow.jubenshaWorkflow;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
+import org.jubensha.aijubenshabackend.models.dto.GameCreateDTO;
+import org.jubensha.aijubenshabackend.models.dto.GameResponseDTO;
+import org.jubensha.aijubenshabackend.models.dto.GameUpdateDTO;
 import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.models.enums.GameStatus;
@@ -27,17 +27,18 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/games")
 public class GameController {
-    
+
     private final GameService gameService;
     private final jubenshaWorkflow workflow;
-    
+
     public GameController(GameService gameService, jubenshaWorkflow workflow) {
         this.gameService = gameService;
         this.workflow = workflow;
     }
-    
+
     /**
      * 创建游戏
+     *
      * @param gameCreateDTO 游戏创建DTO
      * @return 创建的游戏响应DTO
      */
@@ -50,15 +51,16 @@ public class GameController {
         game.setCurrentPhase(gameCreateDTO.getCurrentPhase());
         game.setStartTime(gameCreateDTO.getStartTime());
         game.setEndTime(gameCreateDTO.getEndTime());
-        
+
         Game createdGame = gameService.createGame(game);
         GameResponseDTO responseDTO = GameResponseDTO.fromEntity(createdGame);
         return new ResponseEntity<>(responseDTO, HttpStatus.CREATED);
     }
-    
+
     /**
      * 更新游戏
-     * @param id 游戏ID
+     *
+     * @param id            游戏ID
      * @param gameUpdateDTO 游戏更新DTO
      * @return 更新后的游戏响应DTO
      */
@@ -79,9 +81,10 @@ public class GameController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
-    
+
     /**
      * 删除游戏
+     *
      * @param id 游戏ID
      * @return 响应
      */
@@ -90,9 +93,10 @@ public class GameController {
         gameService.deleteGame(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
-    
+
     /**
      * 根据ID查询游戏
+     *
      * @param id 游戏ID
      * @return 游戏响应DTO
      */
@@ -104,9 +108,10 @@ public class GameController {
             return new ResponseEntity<>(responseDTO, HttpStatus.OK);
         }).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
-    
+
     /**
      * 根据游戏房间码查询游戏
+     *
      * @param gameCode 游戏房间码
      * @return 游戏响应DTO
      */
@@ -118,9 +123,10 @@ public class GameController {
             return new ResponseEntity<>(responseDTO, HttpStatus.OK);
         }).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
-    
+
     /**
      * 查询所有游戏
+     *
      * @return 游戏响应DTO列表
      */
     @GetMapping
@@ -131,9 +137,10 @@ public class GameController {
                 .collect(Collectors.toList());
         return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
     }
-    
+
     /**
      * 根据状态查询游戏
+     *
      * @param status 状态
      * @return 游戏响应DTO列表
      */
@@ -150,9 +157,10 @@ public class GameController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
-    
+
     /**
      * 根据当前阶段查询游戏
+     *
      * @param currentPhase 当前阶段
      * @return 游戏响应DTO列表
      */
@@ -169,9 +177,10 @@ public class GameController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
-    
+
     /**
      * 根据剧本ID查询游戏
+     *
      * @param scriptId 剧本ID
      * @return 游戏响应DTO列表
      */
@@ -183,10 +192,11 @@ public class GameController {
                 .collect(Collectors.toList());
         return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
     }
-    
+
     /**
      * 根据状态和剧本ID查询游戏
-     * @param status 状态
+     *
+     * @param status   状态
      * @param scriptId 剧本ID
      * @return 游戏响应DTO列表
      */
@@ -203,9 +213,10 @@ public class GameController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
-    
+
     /**
      * 开始游戏
+     *
      * @param id 游戏ID
      * @return 更新后的游戏响应DTO
      */
@@ -215,9 +226,10 @@ public class GameController {
         GameResponseDTO responseDTO = GameResponseDTO.fromEntity(game);
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
-    
+
     /**
      * 结束游戏
+     *
      * @param id 游戏ID
      * @return 更新后的游戏响应DTO
      */
@@ -227,9 +239,10 @@ public class GameController {
         GameResponseDTO responseDTO = GameResponseDTO.fromEntity(game);
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
-    
+
     /**
      * 取消游戏
+     *
      * @param id 游戏ID
      * @return 更新后的游戏响应DTO
      */
@@ -239,10 +252,11 @@ public class GameController {
         GameResponseDTO responseDTO = GameResponseDTO.fromEntity(game);
         return new ResponseEntity<>(responseDTO, HttpStatus.OK);
     }
-    
+
     /**
      * 更新游戏阶段
-     * @param id 游戏ID
+     *
+     * @param id    游戏ID
      * @param phase 游戏阶段
      * @return 更新后的游戏响应DTO
      */
@@ -257,9 +271,10 @@ public class GameController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
-    
+
     /**
      * 启动工作流
+     *
      * @param request 包含原始提示词的请求
      * @return 工作流执行结果
      */
@@ -271,23 +286,23 @@ public class GameController {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error", "originalPrompt is required"));
             }
-            
+
             WorkflowContext result = workflow.executeWorkflow(originalPrompt);
-            
+
             // 构建响应
             Map<String, Object> response = Map.of(
-                "success", true,
-                "scriptId", result.getScriptId(),
-                "scriptName", result.getScriptName(),
-                "currentStep", result.getCurrentStep(),
-                "playerAssignments", result.getPlayerAssignments(),
-                "dmId", result.getDmId(),
-                "judgeId", result.getJudgeId(),
-                "realPlayerCount", result.getRealPlayerCount(),
-                "aiPlayerCount", result.getAiPlayerCount(),
-                "totalPlayerCount", result.getTotalPlayerCount()
+                    "success", true,
+                    "scriptId", result.getScriptId(),
+                    "scriptName", result.getScriptName(),
+                    "currentStep", result.getCurrentStep(),
+                    "playerAssignments", result.getPlayerAssignments(),
+                    "dmId", result.getDmId(),
+                    "judgeId", result.getJudgeId(),
+                    "realPlayerCount", result.getRealPlayerCount(),
+                    "aiPlayerCount", result.getAiPlayerCount(),
+                    "totalPlayerCount", result.getTotalPlayerCount()
             );
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("启动工作流失败: {}", e.getMessage(), e);

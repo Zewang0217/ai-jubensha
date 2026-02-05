@@ -265,7 +265,7 @@ public class ScriptController {
     /**
      * 更新剧本封面图片
      *
-     * @param id         剧本ID
+     * @param id            剧本ID
      * @param coverImageUrl 封面图片URL
      * @return 更新后的剧本响应DTO
      */
