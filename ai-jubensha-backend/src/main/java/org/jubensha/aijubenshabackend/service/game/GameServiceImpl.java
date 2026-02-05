@@ -14,34 +14,34 @@ import java.util.Optional;
 
 @Service
 public class GameServiceImpl implements GameService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(GameServiceImpl.class);
-    
+
     private final GameRepository gameRepository;
-    
+
     @Autowired
     public GameServiceImpl(GameRepository gameRepository) {
         this.gameRepository = gameRepository;
     }
-    
+
     @Override
     public Game createGame(Game game) {
         logger.info("Creating new game: {}", game.getGameCode());
         return gameRepository.save(game);
     }
-    
+
     @Override
     public Optional<Game> getGameById(Long id) {
         logger.info("Getting game by id: {}", id);
         return gameRepository.findById(id);
     }
-    
+
     @Override
     public Optional<Game> getGameByGameCode(String gameCode) {
         logger.info("Getting game by game code: {}", gameCode);
         return gameRepository.findByGameCode(gameCode);
     }
-    
+
     @Override
     public List<Game> getAllGames() {
         logger.info("Getting all games");
@@ -60,7 +60,7 @@ public class GameServiceImpl implements GameService {
         logger.info("Getting games by current phase: {}", currentPhase);
         return gameRepository.findByCurrentPhase(currentPhase);
     }
-    
+
     @Override
     public Game updateGame(Long id, Game game) {
         logger.info("Updating game: {}", id);
@@ -85,13 +85,13 @@ public class GameServiceImpl implements GameService {
             if (game.getEndTime() != null) {
                 updatedGame.setEndTime(game.getEndTime());
             }
-            
+
             return gameRepository.save(updatedGame);
         } else {
             throw new IllegalArgumentException("Game not found with id: " + id);
         }
     }
-    
+
     @Override
     public Game updateGameStatus(Long id, GameStatus status) {
         logger.info("Updating game status: {} to {}", id, status);
@@ -104,7 +104,7 @@ public class GameServiceImpl implements GameService {
             throw new IllegalArgumentException("Game not found with id: " + id);
         }
     }
-    
+
     @Override
     public Game updateGamePhase(Long id, GamePhase phase) {
         logger.info("Updating game phase: {} to {}", id, phase);
@@ -117,25 +117,25 @@ public class GameServiceImpl implements GameService {
             throw new IllegalArgumentException("Game not found with id: " + id);
         }
     }
-    
+
     @Override
     public void deleteGame(Long id) {
         logger.info("Deleting game: {}", id);
         gameRepository.deleteById(id);
     }
-    
+
     @Override
     public List<Game> getGamesByScriptId(Long scriptId) {
         logger.info("Getting games by script id: {}", scriptId);
         return gameRepository.findByScriptId(scriptId);
     }
-    
+
     @Override
     public List<Game> getGamesByScriptIdAndStatus(Long scriptId, GameStatus status) {
         logger.info("Getting games by status: {} and script id: {}", status, scriptId);
         return gameRepository.findByScriptIdAndStatus(scriptId, status);
     }
-    
+
     @Override
     public Game startGame(Long id) {
         logger.info("Starting game: {}", id);
@@ -150,7 +150,7 @@ public class GameServiceImpl implements GameService {
             throw new IllegalArgumentException("Game not found with id: " + id);
         }
     }
-    
+
     @Override
     public Game endGame(Long id) {
         logger.info("Ending game: {}", id);
@@ -164,7 +164,7 @@ public class GameServiceImpl implements GameService {
             throw new IllegalArgumentException("Game not found with id: " + id);
         }
     }
-    
+
     @Override
     public Game cancelGame(Long id) {
         logger.info("Canceling game: {}", id);

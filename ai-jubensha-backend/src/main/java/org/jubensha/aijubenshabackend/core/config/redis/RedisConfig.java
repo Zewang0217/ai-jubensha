@@ -11,32 +11,32 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
 public class RedisConfig {
-    
+
     @Value("${spring.data.redis.host}")
     private String host;
-    
+
     @Value("${spring.data.redis.port}")
     private int port;
-    
+
     @Value("${spring.data.redis.password}")
     private String password;
-    
+
     @Value("${spring.data.redis.database}")
     private int database;
-    
+
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         // 使用 RedisStandaloneConfiguration 替代过时的 setter 方法
-        org.springframework.data.redis.connection.RedisStandaloneConfiguration redisConfig 
-            = new org.springframework.data.redis.connection.RedisStandaloneConfiguration();
+        org.springframework.data.redis.connection.RedisStandaloneConfiguration redisConfig
+                = new org.springframework.data.redis.connection.RedisStandaloneConfiguration();
         redisConfig.setHostName(host);
         redisConfig.setPort(port);
         redisConfig.setPassword(org.springframework.data.redis.connection.RedisPassword.of(password));
         redisConfig.setDatabase(database);
-        
+
         return new LettuceConnectionFactory(redisConfig);
     }
-    
+
     @Bean
     public RedisTemplate<String, Object> redisTemplate() {
         // 创建 RedisTemplate 实例

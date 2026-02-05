@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "games")
 public class Game {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -24,29 +24,29 @@ public class Game {
 
     @Column(name = "script_id", nullable = false)
     private Long scriptId;
-    
+
     private String gameCode;
-    
+
     @Enumerated(EnumType.STRING)
     private GameStatus status;
-    
+
     private LocalDateTime startTime;
-    
+
     private LocalDateTime endTime;
-    
+
     @Enumerated(EnumType.STRING)
     private GamePhase currentPhase;
-    
+
     private LocalDateTime createTime;
-    
+
     private LocalDateTime updateTime;
-    
+
     @PrePersist
     protected void onCreate() {
         createTime = LocalDateTime.now();
         updateTime = LocalDateTime.now();
     }
-    
+
     @PreUpdate
     protected void onUpdate() {
         updateTime = LocalDateTime.now();

@@ -20,15 +20,16 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/characters")
 public class CharacterController {
-    
+
     private final CharacterService characterService;
-    
+
     public CharacterController(CharacterService characterService) {
         this.characterService = characterService;
     }
-    
+
     /**
      * 创建角色
+     *
      * @param characterCreateDTO 角色创建DTO
      * @return 创建的角色响应DTO
      */
@@ -41,15 +42,16 @@ public class CharacterController {
         character.setBackgroundStory(characterCreateDTO.getBackgroundStory());
         character.setSecret(characterCreateDTO.getSecret());
         character.setAvatarUrl(characterCreateDTO.getAvatarUrl());
-        
+
         Character createdCharacter = characterService.createCharacter(character);
         CharacterResponseDTO responseDTO = CharacterResponseDTO.fromEntity(createdCharacter);
         return new ResponseEntity<>(responseDTO, HttpStatus.CREATED);
     }
-    
+
     /**
      * 更新角色
-     * @param id 角色ID
+     *
+     * @param id                 角色ID
      * @param characterUpdateDTO 角色更新DTO
      * @return 更新后的角色响应DTO
      */
@@ -70,9 +72,10 @@ public class CharacterController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
-    
+
     /**
      * 删除角色
+     *
      * @param id 角色ID
      * @return 响应
      */
@@ -81,9 +84,10 @@ public class CharacterController {
         characterService.deleteCharacter(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
-    
+
     /**
      * 根据ID查询角色
+     *
      * @param id 角色ID
      * @return 角色响应DTO
      */
@@ -95,9 +99,10 @@ public class CharacterController {
             return new ResponseEntity<>(responseDTO, HttpStatus.OK);
         }).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
-    
+
     /**
      * 查询所有角色
+     *
      * @return 角色响应DTO列表
      */
     @GetMapping
@@ -108,9 +113,10 @@ public class CharacterController {
                 .collect(Collectors.toList());
         return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
     }
-    
+
     /**
      * 根据剧本ID查询角色
+     *
      * @param scriptId 剧本ID
      * @return 角色响应DTO列表
      */

@@ -1,7 +1,5 @@
 package org.jubensha.aijubenshabackend.service.task;
 
-import org.jubensha.aijubenshabackend.models.entity.Script;
-import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 import org.jubensha.aijubenshabackend.service.script.ScriptService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -35,6 +32,7 @@ public class TaskServiceImpl implements TaskService {
                 new LinkedBlockingQueue<>(100),
                 new ThreadFactory() {
                     private final AtomicInteger counter = new AtomicInteger(0);
+
                     @Override
                     public Thread newThread(Runnable r) {
                         return new Thread(r, "script-generation-thread-" + counter.incrementAndGet());
