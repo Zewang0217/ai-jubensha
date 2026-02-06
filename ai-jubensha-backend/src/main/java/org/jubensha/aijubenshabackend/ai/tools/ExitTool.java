@@ -13,6 +13,8 @@ package org.jubensha.aijubenshabackend.ai.tools;
 import cn.hutool.json.JSONObject;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
+import org.jubensha.aijubenshabackend.ai.tools.permission.AgentType;
+import org.jubensha.aijubenshabackend.ai.tools.permission.ToolPermissionLevel;
 import org.springframework.stereotype.Component;
 
 /**
@@ -48,5 +50,11 @@ public class ExitTool extends BaseTool {
     @Override
     public String generateToolExecutedResult(JSONObject arguments) {
         return "\n\n[执行结束]\n\n";
+    }
+
+    @Override
+    public ToolPermissionLevel getRequiredPermissionLevel(AgentType agentType) {
+        // 所有Agent都可以使用退出工具
+        return ToolPermissionLevel.PLAYER;
     }
 }
