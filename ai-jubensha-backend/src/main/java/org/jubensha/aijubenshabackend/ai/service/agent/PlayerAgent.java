@@ -31,4 +31,13 @@ public interface PlayerAgent {
 
     @UserMessage("问题：{{question}}")
     String answerQuestion(String question);
+
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n当前讨论阶段：{{phase}}\n讨论历史：{{discussionHistory}}\n请基于上述信息，通过调用相关工具收集更多信息，然后生成下一步的讨论内容。")
+    String reasonAndDiscuss(String gameId, String playerId, String phase, String discussionHistory);
+
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。")
+    String analyzeTopic(String gameId, String playerId, String topic);
+
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请分析当前讨论情况，决定是否需要发起单聊，并选择合适的目标玩家。")
+    String decidePrivateChat(String gameId, String playerId);
 }
