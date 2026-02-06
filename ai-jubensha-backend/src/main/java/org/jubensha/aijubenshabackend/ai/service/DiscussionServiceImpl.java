@@ -3,9 +3,12 @@ package org.jubensha.aijubenshabackend.ai.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.agent.DMAgent;
-import org.jubensha.aijubenshabackend.ai.service.agent.PlayerAgent;
 import org.jubensha.aijubenshabackend.ai.service.agent.JudgeAgent;
-import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.ai.service.util.DMModerator;
+import org.jubensha.aijubenshabackend.ai.service.util.DiscussionHelper;
+import org.jubensha.aijubenshabackend.ai.service.util.DiscussionReasoningManager;
+import org.jubensha.aijubenshabackend.ai.service.util.MessageAccumulator;
+import org.jubensha.aijubenshabackend.ai.service.util.TurnManager;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
@@ -15,6 +18,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 讨论服务实现
@@ -36,6 +41,21 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Resource
     private TimerService timerService;
+
+    @Resource
+    private MessageAccumulator messageAccumulator;
+
+    @Resource
+    private TurnManager turnManager;
+
+    @Resource
+    private DiscussionHelper discussionHelper;
+
+    @Resource
+    private DMModerator dmModerator;
+
+    @Resource
+    private DiscussionReasoningManager discussionReasoningManager;
 
     // 讨论状态
     private final Map<String, Object> discussionState = new ConcurrentHashMap<>();
@@ -60,6 +80,11 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     // 讨论轮次
     private int discussionRound = 1;
+
+    /**
+     * 线程池，用于并行处理AI推理任务
+     */
+    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     @Override
     public void startDiscussion(Long gameId, List<Long> playerIds, Long dmId, Long judgeId) {
@@ -86,24 +111,16 @@ public class DiscussionServiceImpl implements DiscussionService {
             privateChatInvitations.put(playerId, new ArrayList<>());
         }
 
-        // 通知DM开始讨论
-        DMAgent dmAgent = aiService.getDMAgent(dmId);
-        if (dmAgent != null) {
-            String discussionInfo = "游戏ID: " + gameId + ", 玩家数量: " + playerIds.size() + ", 讨论轮次: " + discussionRound;
-            String response = dmAgent.startDiscussion(discussionInfo);
-            log.info("DM响应: {}", response);
-        }
-
-        // 通知所有玩家讨论开始
+        // 这里需要获取角色ID列表和剧本ID
+        // 实际项目中应该从游戏信息中获取
+        List<Long> characterIds = new ArrayList<>();
         for (Long playerId : playerIds) {
-            PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
-            if (playerAgent != null) {
-                playerAgent.discuss("讨论开始，请准备你的陈述");
-            }
+            characterIds.add(1L); // 示例角色ID，实际项目中应从数据库获取
         }
+        Long scriptId = 1L; // 示例剧本ID，实际项目中应从数据库获取
 
-        // 开始陈述阶段
-        startStatementPhase();
+        // 使用DMModerator启动讨论环节
+        dmModerator.startDiscussion(gameId, playerIds, dmId, characterIds, scriptId);
     }
 
     @Override
@@ -113,11 +130,29 @@ public class DiscussionServiceImpl implements DiscussionService {
         discussionState.put("currentPhase", currentPhase);
         discussionState.put("phaseStartTime", LocalDateTime.now());
 
+        // 切换到陈述阶段
+        turnManager.switchPhase(gameId, TurnManager.PHASE_STATEMENT);
+
         // 通知DM开始陈述阶段
         DMAgent dmAgent = aiService.getDMAgent(dmId);
         if (dmAgent != null) {
             String response = dmAgent.moderateDiscussion("开始陈述阶段，每位玩家有5分钟时间");
             log.info("DM响应: {}", response);
+        }
+
+        // 启动AI玩家的陈述推理
+        for (Long playerId : playerIds) {
+            executorService.submit(() -> {
+                try {
+                    String statement = discussionReasoningManager.processReasoningAndDiscussion(gameId, playerId);
+                    if (!statement.isEmpty()) {
+                        log.info("AI玩家陈述，玩家ID: {}, 内容: {}", playerId, statement);
+                        sendDiscussionMessage(playerId, statement);
+                    }
+                } catch (Exception e) {
+                    log.error("处理AI玩家陈述失败: {}", e.getMessage(), e);
+                }
+            });
         }
 
         // 启动陈述阶段计时器（5分钟/人）
@@ -131,11 +166,36 @@ public class DiscussionServiceImpl implements DiscussionService {
         discussionState.put("currentPhase", currentPhase);
         discussionState.put("phaseStartTime", LocalDateTime.now());
 
+        // 切换到自由讨论阶段
+        turnManager.switchPhase(gameId, TurnManager.PHASE_FREE_DISCUSSION);
+
         // 通知DM开始自由讨论阶段
         DMAgent dmAgent = aiService.getDMAgent(dmId);
         if (dmAgent != null) {
             String response = dmAgent.moderateDiscussion("开始自由讨论阶段，大家可以畅所欲言");
             log.info("DM响应: {}", response);
+        }
+
+        // 启动AI玩家的自由讨论推理
+        for (Long playerId : playerIds) {
+            executorService.submit(() -> {
+                try {
+                    // 异步处理AI玩家的推理和讨论
+                    discussionReasoningManager.processReasoningAsync(gameId, playerId)
+                            .thenAccept(result -> {
+                                if (!result.isEmpty()) {
+                                    log.info("AI玩家自由讨论，玩家ID: {}, 内容: {}", playerId, result);
+                                    sendDiscussionMessage(playerId, result);
+                                }
+                            })
+                            .exceptionally(ex -> {
+                                log.error("处理AI玩家自由讨论失败: {}", ex.getMessage(), ex);
+                                return null;
+                            });
+                } catch (Exception e) {
+                    log.error("启动AI玩家自由讨论失败: {}", e.getMessage(), e);
+                }
+            });
         }
 
         // 启动自由讨论阶段计时器（默认30分钟）
@@ -149,11 +209,30 @@ public class DiscussionServiceImpl implements DiscussionService {
         discussionState.put("currentPhase", currentPhase);
         discussionState.put("phaseStartTime", LocalDateTime.now());
 
+        // 切换到单聊阶段
+        turnManager.switchPhase(gameId, TurnManager.PHASE_PRIVATE_CHAT);
+
         // 通知DM开始单聊阶段
         DMAgent dmAgent = aiService.getDMAgent(dmId);
         if (dmAgent != null) {
             String response = dmAgent.moderateDiscussion("开始单聊阶段，每位玩家有2次单聊机会，每次3分钟");
             log.info("DM响应: {}", response);
+        }
+
+        // 启动AI玩家的单聊决策推理
+        for (Long playerId : playerIds) {
+            executorService.submit(() -> {
+                try {
+                    String decision = discussionReasoningManager.decidePrivateChat(gameId, playerId);
+                    if (!decision.isEmpty()) {
+                        log.info("AI玩家单聊决策，玩家ID: {}, 决策: {}", playerId, decision);
+                        // 这里可以解析决策结果，决定是否发起单聊
+                        // 示例：如果决策包含目标玩家ID，则发起单聊
+                    }
+                } catch (Exception e) {
+                    log.error("处理AI玩家单聊决策失败: {}", e.getMessage(), e);
+                }
+            });
         }
 
         // 启动单聊阶段计时器（默认20分钟）
@@ -166,6 +245,9 @@ public class DiscussionServiceImpl implements DiscussionService {
         currentPhase = "ANSWER";
         discussionState.put("currentPhase", currentPhase);
         discussionState.put("phaseStartTime", LocalDateTime.now());
+
+        // 切换到答题阶段
+        turnManager.switchPhase(gameId, TurnManager.PHASE_ANSWER);
 
         // 通知DM开始答题阶段
         DMAgent dmAgent = aiService.getDMAgent(dmId);
@@ -182,10 +264,10 @@ public class DiscussionServiceImpl implements DiscussionService {
     public void sendPrivateChatInvitation(Long senderId, Long receiverId) {
         log.info("发送单聊邀请，发送者: {}, 接收者: {}", senderId, receiverId);
 
-        // 检查单聊次数
-        Integer count = privateChatCounts.get(senderId);
-        if (count == null || count >= 2) {
-            log.warn("玩家 {} 单聊次数已达上限", senderId);
+        // 使用TurnManager检查单聊请求
+        boolean allowed = turnManager.requestPrivateChat(gameId, senderId, receiverId);
+        if (!allowed) {
+            log.warn("单聊请求被拒绝，发送者: {}", senderId);
             return;
         }
 
@@ -200,7 +282,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         // 记录单聊邀请
         privateChatInvitations.get(senderId).add(receiverId);
-        privateChatCounts.put(senderId, count + 1);
+        privateChatCounts.put(senderId, privateChatCounts.getOrDefault(senderId, 0) + 1);
 
         // 启动单聊计时器（3分钟）
         timerService.startTimer("PRIVATE_CHAT_" + senderId + "_" + receiverId, 180L, () -> {

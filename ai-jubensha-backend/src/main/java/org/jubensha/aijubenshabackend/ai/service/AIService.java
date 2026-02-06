@@ -19,6 +19,7 @@ import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -60,6 +61,12 @@ public class AIService {
     private ChatModel chatModel;
     @Resource
     private ToolManager toolManager;
+    @Resource
+    private org.jubensha.aijubenshabackend.ai.tools.permission.DMAgentToolManager dmAgentToolManager;
+    @Resource
+    private org.jubensha.aijubenshabackend.ai.tools.permission.PlayerAgentToolManager playerAgentToolManager;
+    @Resource
+    private org.jubensha.aijubenshabackend.ai.tools.permission.JudgeAgentToolManager judgeAgentToolManager;
     @Resource
     private PlayerService playerService;
 
@@ -144,7 +151,7 @@ public class AIService {
         return AiServices.builder(DMAgent.class)
                 .chatModel(chatModel)
                 .chatMemory(chatMemory)
-                .tools(toolManager.getAllTools())
+                .tools(dmAgentToolManager.getAvailableTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
                                 "Error: there is no tool called" + toolExecutionRequest.name()))
@@ -166,7 +173,7 @@ public class AIService {
         return AiServices.builder(JudgeAgent.class)
                 .chatModel(chatModel)
                 .chatMemory(chatMemory)
-                .tools(toolManager.getAllTools())
+                .tools(judgeAgentToolManager.getAvailableTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
                                 "Error: there is no tool called" + toolExecutionRequest.name()))
@@ -182,17 +189,17 @@ public class AIService {
         MessageWindowChatMemory chatMemory = MessageWindowChatMemory
                 .builder()
                 .id(playerId)
-                .maxMessages(20)
+                .maxMessages(50) // 增加内存容量，支持更长的对话历史
                 .build();
 
         return AiServices.builder(PlayerAgent.class)
                 .chatModel(chatModel)
                 .chatMemory(chatMemory)
-                .tools(toolManager.getAllTools())
+                .tools(playerAgentToolManager.getAvailableTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
-                                "Error: there is no tool called" + toolExecutionRequest.name()))
-                .maxSequentialToolsInvocations(20)
+                                "Error: there is no tool called " + toolExecutionRequest.name()))
+                .maxSequentialToolsInvocations(30) // 增加最大工具调用次数
                 .build();
     }
 
@@ -218,6 +225,28 @@ public class AIService {
     public PlayerAgent getPlayerAgent(Long playerId) {
         String cacheKey = "player:" + playerId;
         return (PlayerAgent) agentCache.getIfPresent(cacheKey);
+    }
+
+    /**
+     * 批量获取Player Agent
+     */
+    public Map<Long, PlayerAgent> getPlayerAgents(List<Long> playerIds) {
+        Map<Long, PlayerAgent> agents = new HashMap<>();
+        for (Long playerId : playerIds) {
+            PlayerAgent agent = getPlayerAgent(playerId);
+            if (agent != null) {
+                agents.put(playerId, agent);
+            }
+        }
+        return agents;
+    }
+
+    /**
+     * 预创建Player Agent
+     */
+    public void preCreatePlayerAgent(Long playerId, Long characterId) {
+        createPlayerAgentInstance(playerId, characterId);
+        log.info("预创建Player Agent实例，玩家ID: {}, 角色ID: {}", playerId, characterId);
     }
 
     /**

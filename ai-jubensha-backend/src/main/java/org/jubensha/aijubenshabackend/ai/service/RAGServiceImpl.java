@@ -41,17 +41,20 @@ public class RAGServiceImpl implements RAGService {
     private final MilvusCollectionManager collectionManager;
     private final MilvusSchemaConfig schemaConfig;
     private final Gson gson;
+    private final RerankingService rerankingService;
 
     @Autowired
     public RAGServiceImpl(EmbeddingService embeddingService,
                           MilvusClientV2 milvusClientV2,
                           MilvusCollectionManager collectionManager,
-                          MilvusSchemaConfig schemaConfig) {
+                          MilvusSchemaConfig schemaConfig,
+                          RerankingService rerankingService) {
         this.embeddingService = embeddingService;
         this.milvusClientV2 = milvusClientV2;
         this.collectionManager = collectionManager;
         this.schemaConfig = schemaConfig;
         this.gson = new Gson();
+        this.rerankingService = rerankingService;
     }
 
     /**
@@ -62,10 +65,15 @@ public class RAGServiceImpl implements RAGService {
      * @param filter         过滤条件
      * @param topK           返回结果数量
      * @param outputFields   输出字段列表
+     * @param searchType     搜索类型（如"clue", "timeline", "conversation"）
      * @return 搜索请求对象
      */
     private SearchReq buildSearchRequest(String collectionName, List<Float> queryEmbedding,
-                                         String filter, int topK, List<String> outputFields) {
+                                         String filter, int topK, List<String> outputFields, String searchType, int queryLength) {
+        // 动态调整搜索参数
+        int nprobe = getDynamicNProbe(searchType, queryLength);
+        String metricType = getMetricType(searchType);
+        
         // 构建向量搜索请求 - 根据Milvus官方文档更新API调用方式
         // 这是一个过滤搜索，使用了基本ANN搜索并结合标量条件过滤
         return SearchReq.builder()
@@ -78,10 +86,117 @@ public class RAGServiceImpl implements RAGService {
                 .filter(filter)  // 使用布尔表达式作为过滤条件
                 .outputFields(outputFields)  // 指定要返回的标量字段
                 .searchParams(Map.of(
-                        "metric_type", "L2",  // 与创建索引时一致
-                        "params", "{\"nprobe\": 10}"  // 搜索参数，使用JSON字符串
+                        "metric_type", metricType,  // 与创建索引时一致
+                        "params", String.format("{\"nprobe\": %d}", nprobe)  // 动态搜索参数
                 ))
                 .build();
+    }
+
+    /**
+     * 根据搜索类型动态调整nprobe值
+     * nprobe越大，搜索精度越高，但速度越慢
+     *
+     * @param searchType 搜索类型
+     * @return nprobe值
+     */
+    private int getDynamicNProbe(String searchType, int queryLength) {
+        // 根据搜索类型和查询长度动态调整nprobe值
+        int baseNprobe = 16;
+        
+        // 搜索类型调整
+        switch (searchType) {
+            case "clue":
+                baseNprobe = 32;  // 线索搜索需要更精确
+            case "timeline":
+                baseNprobe = 24;  // 时间线搜索需要适中精度
+            case "conversation":
+                baseNprobe = 16;  // 对话搜索速度优先
+            case "global":
+                baseNprobe = 48;  // 全局搜索精度优先
+        }
+        
+        // 查询长度调整
+        if (queryLength > 100) {
+            baseNprobe *= 2;  // 长查询需要更高精度
+        } else if (queryLength < 20) {
+            baseNprobe /= 2;  // 短查询速度优先
+        }
+        
+        return Math.max(8, Math.min(128, baseNprobe));  // 限制范围
+    }
+
+    /**
+     * 根据搜索类型选择合适的距离函数
+     *
+     * @param searchType 搜索类型
+     * @return 距离函数类型
+     */
+    private String getMetricType(String searchType) {
+        // 对于嵌入向量，通常使用Cosine相似度
+        // 但对于某些特定场景，可以根据需要选择其他距离函数
+        switch (searchType) {
+            case "clue":
+            case "timeline":
+            case "conversation":
+            case "global":
+            default:
+                return "COSINE";  // Cosine相似度适用于大多数嵌入向量场景
+        }
+    }
+
+    /**
+     * 根据搜索场景动态调整TopK值
+     *
+     * @param searchType 搜索类型
+     * @param baseTopK   基础TopK值
+     * @return 调整后的TopK值
+     */
+    private int getDynamicTopK(String searchType, int baseTopK) {
+        switch (searchType) {
+            case "clue":
+                return Math.max(15, baseTopK);  // 线索搜索返回更多结果
+            case "timeline":
+                return Math.max(20, baseTopK);  // 时间线搜索返回更多结果
+            case "conversation":
+                return Math.min(25, baseTopK);  // 对话搜索返回适中结果
+            case "global":
+                return Math.max(30, baseTopK);  // 全局搜索返回更多结果
+            default:
+                return baseTopK;  // 默认使用基础值
+        }
+    }
+
+    /**
+     * 动态调整搜索参数
+     *
+     * @param searchType 搜索类型
+     * @param queryLength 查询长度
+     * @return 动态调整的nprobe值
+     */
+    private int getDynamicNprobe(String searchType, int queryLength) {
+        // 根据搜索类型和查询长度动态调整nprobe值
+        int baseNprobe = 16;
+        
+        // 搜索类型调整
+        switch (searchType) {
+            case "clue":
+                baseNprobe = 32;  // 线索搜索需要更精确
+            case "timeline":
+                baseNprobe = 24;  // 时间线搜索需要适中精度
+            case "conversation":
+                baseNprobe = 16;  // 对话搜索速度优先
+            case "global":
+                baseNprobe = 48;  // 全局搜索精度优先
+        }
+        
+        // 查询长度调整
+        if (queryLength > 100) {
+            baseNprobe *= 2;  // 长查询需要更高精度
+        } else if (queryLength < 20) {
+            baseNprobe /= 2;  // 短查询速度优先
+        }
+        
+        return Math.max(8, Math.min(128, baseNprobe));  // 限制范围
     }
 
     @Override
@@ -106,13 +221,18 @@ public class RAGServiceImpl implements RAGService {
             filter = "player_id == " + playerId;
         }
 
+        // 动态调整TopK值
+        int dynamicTopK = getDynamicTopK("conversation", topK);
+
         // 构建向量搜索请求
         SearchReq searchReq = buildSearchRequest(
                 collectionName,
                 queryEmbedding,
                 filter,
-                topK,
-                List.of("id", "player_id", "player_name", "content", "timestamp")
+                dynamicTopK,
+                List.of("id", "player_id", "player_name", "content", "timestamp"),
+                "conversation",
+                query.length()
         );
 
         // 执行搜索，使用官方推荐的方式处理响应
@@ -138,15 +258,18 @@ public class RAGServiceImpl implements RAGService {
                 memory.put("player_name", result.getEntity().get("player_name"));
                 memory.put("content", result.getEntity().get("content"));
                 memory.put("timestamp", result.getEntity().get("timestamp"));
-                // 转换距离为相似度分数（距离越小，相似度越高）
+                // 转换距离为相似度分数（Cosine距离越小，相似度越高）
                 memory.put("score", Math.max(0, 1.0 - result.getScore()));
 
                 results.add(memory);
             }
         }
 
-        log.debug("游戏 {} 对话记忆检索完成，返回 {} 条结果", gameId, results.size());
-        return results;
+        // 对搜索结果进行重排
+        List<Map<String, Object>> rerankedResults = rerankingService.twoStepRetrieval(query, results, topK);
+        
+        log.debug("游戏 {} 对话记忆检索完成，返回 {} 条结果", gameId, rerankedResults.size());
+        return rerankedResults;
     }
 
     /**
@@ -197,13 +320,18 @@ public class RAGServiceImpl implements RAGService {
 
         String filter = filterBuilder.toString();
 
+        // 动态调整TopK值
+        int dynamicTopK = getDynamicTopK("clue", topK);
+
         // 构建向量搜索请求
         SearchReq searchReq = buildSearchRequest(
                 collectionName,
                 queryEmbedding,
                 filter,
-                topK,
-                List.of("id", "script_id", "character_id", "type", "content", "timestamp")
+                dynamicTopK,
+                List.of("id", "script_id", "character_id", "type", "content", "timestamp"),
+                "clue",
+                query.length()
         );
 
         // 执行搜索，使用官方推荐的方式处理响应
@@ -232,15 +360,18 @@ public class RAGServiceImpl implements RAGService {
                 memory.put("type", result.getEntity().get("type"));
                 memory.put("content", result.getEntity().get("content"));
                 memory.put("timestamp", result.getEntity().get("timestamp"));
-                // 转换距离为相似度分数（L2距离越小，相似度越高）
+                // 转换距离为相似度分数（Cosine距离越小，相似度越高）
                 memory.put("score", Math.max(0, 1.0 - result.getScore()));
 
                 results.add(memory);
             }
         }
 
-        log.debug("剧本 {} 全局线索记忆检索完成，返回 {} 条结果", scriptId, results.size());
-        return results;
+        // 对搜索结果进行重排
+        List<Map<String, Object>> rerankedResults = rerankingService.twoStepRetrieval(query, results, topK);
+        
+        log.debug("剧本 {} 全局线索记忆检索完成，返回 {} 条结果", scriptId, rerankedResults.size());
+        return rerankedResults;
     }
 
     @Override
@@ -267,13 +398,18 @@ public class RAGServiceImpl implements RAGService {
 
         String filter = filterBuilder.toString();
 
+        // 动态调整TopK值
+        int dynamicTopK = getDynamicTopK("timeline", topK);
+
         // 构建向量搜索请求
         SearchReq searchReq = buildSearchRequest(
                 collectionName,
                 queryEmbedding,
                 filter,
-                topK,
-                List.of("id", "script_id", "character_id", "type", "content", "timestamp")
+                dynamicTopK,
+                List.of("id", "script_id", "character_id", "type", "content", "timestamp"),
+                "timeline",
+                query.length()
         );
 
         // 执行搜索，使用官方推荐的方式处理响应
@@ -302,15 +438,18 @@ public class RAGServiceImpl implements RAGService {
                 memory.put("type", result.getEntity().get("type"));
                 memory.put("content", result.getEntity().get("content"));
                 memory.put("timestamp", result.getEntity().get("timestamp"));
-                // 转换距离为相似度分数（L2距离越小，相似度越高）
+                // 转换距离为相似度分数（Cosine距离越小，相似度越高）
                 memory.put("score", Math.max(0, 1.0 - result.getScore()));
 
                 results.add(memory);
             }
         }
 
-        log.debug("剧本 {} 全局时间线记忆检索完成，返回 {} 条结果", scriptId, results.size());
-        return results;
+        // 对搜索结果进行重排
+        List<Map<String, Object>> rerankedResults = rerankingService.twoStepRetrieval(query, results, topK);
+        
+        log.debug("剧本 {} 全局时间线记忆检索完成，返回 {} 条结果", scriptId, rerankedResults.size());
+        return rerankedResults;
     }
 
     @Override
@@ -332,10 +471,11 @@ public class RAGServiceImpl implements RAGService {
             return scoreB.compareTo(scoreA);  // 降序排列
         });
 
-        // 限制返回数量
-        return allResults.stream()
-                .limit(topK)
-                .toList();
+        // 对搜索结果进行重排
+        List<Map<String, Object>> rerankedResults = rerankingService.twoStepRetrieval(query, allResults, topK);
+        
+        log.debug("基于已发现线索的检索完成，返回 {} 条结果", rerankedResults.size());
+        return rerankedResults;
     }
 
     @Override
