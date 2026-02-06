@@ -107,6 +107,9 @@ ai:
   embedding-base-url: "https://api.siliconflow.cn/v1"
   embedding-model: "BAAI/bge-large-zh-v1.5"  # Using SiliconFlow embedding model
   embedding-api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
+  reranking-model: "mmi:BAAI/bge-reranker-v2-m3"  # Using SiliconFlow reranking model
+  reranking-base-url: "https://api.siliconflow.cn/v1"
+  reranking-api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
 
 
 
