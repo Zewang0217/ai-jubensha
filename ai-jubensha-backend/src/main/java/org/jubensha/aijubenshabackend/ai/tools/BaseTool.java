@@ -2,6 +2,8 @@ package org.jubensha.aijubenshabackend.ai.tools;
 
 
 import cn.hutool.json.JSONObject;
+import org.jubensha.aijubenshabackend.ai.tools.permission.AgentType;
+import org.jubensha.aijubenshabackend.ai.tools.permission.ToolPermissionLevel;
 
 /**
  * 工具基类（抽象类）
@@ -45,4 +47,34 @@ public abstract class BaseTool {
      * @return 格式化的工具执行结果
      */
     public abstract String generateToolExecutedResult(JSONObject arguments);
+    
+    /**
+     * 检查Agent是否有权限使用此工具
+     *
+     * @param agentType Agent类型
+     * @return 是否有权限
+     */
+    public boolean hasPermission(AgentType agentType) {
+        return getRequiredPermissionLevel(agentType).ordinal() <= agentType.getDefaultPermissionLevel().ordinal();
+    }
+    
+    /**
+     * 获取指定Agent类型使用此工具所需的权限级别
+     *
+     * @param agentType Agent类型
+     * @return 所需权限级别
+     */
+    public abstract ToolPermissionLevel getRequiredPermissionLevel(AgentType agentType);
+    
+    /**
+     * 执行权限检查
+     *
+     * @param agentType Agent类型
+     * @throws SecurityException 无权限时抛出异常
+     */
+    protected void checkPermission(AgentType agentType) throws SecurityException {
+        if (!hasPermission(agentType)) {
+            throw new SecurityException("Agent类型 " + agentType.getName() + " 没有权限使用工具 " + getDisplayName());
+        }
+    }
 }
