@@ -2,6 +2,7 @@ package org.jubensha.aijubenshabackend.ai.service;
 
 
 import dev.langchain4j.service.SystemMessage;
+import reactor.core.publisher.Flux;
 
 /**
  * 生成剧本的接口
@@ -19,6 +20,12 @@ public interface ScriptGenerateService {
      */
     @SystemMessage(fromResource = "prompt/script-generate-system-prompt.txt")
     String generateScript(String userMessage);
+
+    /**
+     * 流式生成剧本
+     */
+    @SystemMessage(fromResource = "prompt/script-generate-system-prompt.txt")
+    Flux<String> generateScriptStream(String userMessage);
 
 
 }
