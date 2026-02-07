@@ -101,10 +101,13 @@ public class PlayerAllocatorNode {
     /**
      * 创建AI玩家
      */
-    private static List<Player> createAIPlayers(AIService aiService, int count) {
+    private static List<Player> createAIPlayers(AIService aiService, int aiPlayerCount) {
         List<Player> aiPlayers = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            Player aiPlayer = aiService.createAIPlayer("AI_" + (i + 1));
+        // 使用时间戳确保用户名唯一性
+        long timestamp = System.currentTimeMillis();
+        for (int i = 0; i < aiPlayerCount; i++) {
+            String uniqueName = "AI_" + timestamp + "_" + (i + 1);
+            Player aiPlayer = aiService.createAIPlayer(uniqueName);
             aiPlayers.add(aiPlayer);
             log.info("创建AI玩家：{}", aiPlayer.getNickname());
         }
