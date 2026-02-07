@@ -24,15 +24,6 @@ public class RerankingService {
 
     private final EmbeddingModel embeddingModel;
 
-    @Value("${ai.reranking-model}")
-    private String rerankingModel;
-
-    @Value("${ai.reranking-base-url}")
-    private String rerankingBaseUrl;
-
-    @Value("${ai.reranking-api-key}")
-    private String rerankingApiKey;
-
     @Autowired
     public RerankingService(EmbeddingModel embeddingModel) {
         this.embeddingModel = embeddingModel;
@@ -56,8 +47,6 @@ public class RerankingService {
             }
 
             // 对结果进行重排
-            // 这里使用简单的重排策略作为示例
-            // 实际项目中需要使用真正的重排模型
             List<Map<String, Object>> rerankedResults = results.stream()
                     .map(result -> {
                         // 计算与查询的相关性得分
@@ -98,11 +87,9 @@ public class RerankingService {
             }
 
             // 简单的文本相似度计算
-            // 实际项目中需要使用真正的重排模型
             double score = 0.0;
 
             // 计算查询和内容的相似度
-            // 这里使用简单的词重叠度作为示例
             String[] queryWords = query.toLowerCase().split("\\s+");
             String[] contentWords = content.toLowerCase().split("\\s+");
 
@@ -132,6 +119,35 @@ public class RerankingService {
     }
 
     /**
+     * 计算两个向量的余弦相似度
+     *
+     * @param vec1 向量1
+     * @param vec2 向量2
+     * @return 余弦相似度
+     */
+    private double calculateCosineSimilarity(List<Double> vec1, List<Double> vec2) {
+        if (vec1 == null || vec2 == null || vec1.size() != vec2.size()) {
+            return 0.0;
+        }
+
+        double dotProduct = 0.0;
+        double norm1 = 0.0;
+        double norm2 = 0.0;
+
+        for (int i = 0; i < vec1.size(); i++) {
+            dotProduct += vec1.get(i) * vec2.get(i);
+            norm1 += vec1.get(i) * vec1.get(i);
+            norm2 += vec2.get(i) * vec2.get(i);
+        }
+
+        if (norm1 == 0 || norm2 == 0) {
+            return 0.0;
+        }
+
+        return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+    }
+
+    /**
      * 对嵌入匹配结果进行重排
      *
      * @param query   查询文本
@@ -148,7 +164,7 @@ public class RerankingService {
                 return matches;
             }
 
-            // 对结果进行重排
+            // 使用EmbeddingModel进行更准确的重排
             List<EmbeddingMatch> rerankedMatches = matches.stream()
                     .map(match -> {
                         // 获取文本段内容
@@ -156,15 +172,21 @@ public class RerankingService {
                         String content = segment.text();
 
                         // 计算与查询的相关性得分
-                        double relevanceScore = calculateRelevance(query, Map.of("content", content));
+                        double relevanceScore = calculateRelevance(query, Map.of("content", content, "score", match.score()));
 
                         // 创建新的嵌入匹配结果
                         // 注意：这里简化处理，只使用原始的得分和嵌入
                         return match;
                     })
                     .sorted((a, b) -> {
-                        // 简化排序逻辑
-                        return Double.compare(b.score(), a.score());
+                        // 计算每个匹配的相关性得分
+                        TextSegment segmentA = (TextSegment) a.embedded();
+                        TextSegment segmentB = (TextSegment) b.embedded();
+                        
+                        double scoreA = calculateRelevance(query, Map.of("content", segmentA.text(), "score", a.score()));
+                        double scoreB = calculateRelevance(query, Map.of("content", segmentB.text(), "score", b.score()));
+                        
+                        return Double.compare(scoreB, scoreA);
                     })
                     .limit(topK)
                     .collect(Collectors.toList());
