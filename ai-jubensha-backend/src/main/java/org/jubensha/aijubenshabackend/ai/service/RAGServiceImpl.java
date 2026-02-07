@@ -41,20 +41,20 @@ public class RAGServiceImpl implements RAGService {
     private final MilvusCollectionManager collectionManager;
     private final MilvusSchemaConfig schemaConfig;
     private final Gson gson;
-    private final RerankingService rerankingService;
+    private final RerankService rerankService;
 
     @Autowired
     public RAGServiceImpl(EmbeddingService embeddingService,
                           MilvusClientV2 milvusClientV2,
                           MilvusCollectionManager collectionManager,
                           MilvusSchemaConfig schemaConfig,
-                          RerankingService rerankingService) {
+                          RerankService rerankService) {
         this.embeddingService = embeddingService;
         this.milvusClientV2 = milvusClientV2;
         this.collectionManager = collectionManager;
         this.schemaConfig = schemaConfig;
         this.gson = new Gson();
-        this.rerankingService = rerankingService;
+        this.rerankService = rerankService;
     }
 
     /**
@@ -266,7 +266,7 @@ public class RAGServiceImpl implements RAGService {
         }
 
         // 对搜索结果进行重排
-        List<Map<String, Object>> rerankedResults = rerankingService.twoStepRetrieval(query, results, topK);
+        List<Map<String, Object>> rerankedResults = rerankService.twoStepRetrieval(query, results, topK);
         
         log.debug("游戏 {} 对话记忆检索完成，返回 {} 条结果", gameId, rerankedResults.size());
         return rerankedResults;
@@ -368,7 +368,7 @@ public class RAGServiceImpl implements RAGService {
         }
 
         // 对搜索结果进行重排
-        List<Map<String, Object>> rerankedResults = rerankingService.twoStepRetrieval(query, results, topK);
+        List<Map<String, Object>> rerankedResults = rerankService.twoStepRetrieval(query, results, topK);
         
         log.debug("剧本 {} 全局线索记忆检索完成，返回 {} 条结果", scriptId, rerankedResults.size());
         return rerankedResults;
@@ -446,7 +446,7 @@ public class RAGServiceImpl implements RAGService {
         }
 
         // 对搜索结果进行重排
-        List<Map<String, Object>> rerankedResults = rerankingService.twoStepRetrieval(query, results, topK);
+        List<Map<String, Object>> rerankedResults = rerankService.twoStepRetrieval(query, results, topK);
         
         log.debug("剧本 {} 全局时间线记忆检索完成，返回 {} 条结果", scriptId, rerankedResults.size());
         return rerankedResults;
@@ -472,7 +472,7 @@ public class RAGServiceImpl implements RAGService {
         });
 
         // 对搜索结果进行重排
-        List<Map<String, Object>> rerankedResults = rerankingService.twoStepRetrieval(query, allResults, topK);
+        List<Map<String, Object>> rerankedResults = rerankService.twoStepRetrieval(query, allResults, topK);
         
         log.debug("基于已发现线索的检索完成，返回 {} 条结果", rerankedResults.size());
         return rerankedResults;
