@@ -132,16 +132,8 @@ public class RAGServiceImpl implements RAGService {
      * @return 距离函数类型
      */
     private String getMetricType(String searchType) {
-        // 对于嵌入向量，通常使用Cosine相似度
-        // 但对于某些特定场景，可以根据需要选择其他距离函数
-        switch (searchType) {
-            case "clue":
-            case "timeline":
-            case "conversation":
-            case "global":
-            default:
-                return "COSINE";  // Cosine相似度适用于大多数嵌入向量场景
-        }
+        // 与创建索引时使用的度量类型保持一致
+        return "L2";
     }
 
     /**
@@ -258,8 +250,12 @@ public class RAGServiceImpl implements RAGService {
                 memory.put("player_name", result.getEntity().get("player_name"));
                 memory.put("content", result.getEntity().get("content"));
                 memory.put("timestamp", result.getEntity().get("timestamp"));
-                // 转换距离为相似度分数（Cosine距离越小，相似度越高）
-                memory.put("score", Math.max(0, 1.0 - result.getScore()));
+                // 转换L2距离为相似度分数（L2距离越小，相似度越高）
+                // 使用指数衰减函数进行归一化，scaleFactor控制衰减速度
+                double distance = result.getScore();
+                double scaleFactor = 0.1; // 可根据实际数据分布调整
+                double similarityScore = Math.exp(-distance * scaleFactor);
+                memory.put("score", similarityScore);
 
                 results.add(memory);
             }
@@ -360,8 +356,12 @@ public class RAGServiceImpl implements RAGService {
                 memory.put("type", result.getEntity().get("type"));
                 memory.put("content", result.getEntity().get("content"));
                 memory.put("timestamp", result.getEntity().get("timestamp"));
-                // 转换距离为相似度分数（Cosine距离越小，相似度越高）
-                memory.put("score", Math.max(0, 1.0 - result.getScore()));
+                // 转换L2距离为相似度分数（L2距离越小，相似度越高）
+                // 使用指数衰减函数进行归一化，scaleFactor控制衰减速度
+                double distance = result.getScore();
+                double scaleFactor = 0.1; // 可根据实际数据分布调整
+                double similarityScore = Math.exp(-distance * scaleFactor);
+                memory.put("score", similarityScore);
 
                 results.add(memory);
             }
@@ -438,8 +438,12 @@ public class RAGServiceImpl implements RAGService {
                 memory.put("type", result.getEntity().get("type"));
                 memory.put("content", result.getEntity().get("content"));
                 memory.put("timestamp", result.getEntity().get("timestamp"));
-                // 转换距离为相似度分数（Cosine距离越小，相似度越高）
-                memory.put("score", Math.max(0, 1.0 - result.getScore()));
+                // 转换L2距离为相似度分数（L2距离越小，相似度越高）
+                // 使用指数衰减函数进行归一化，scaleFactor控制衰减速度
+                double distance = result.getScore();
+                double scaleFactor = 0.1; // 可根据实际数据分布调整
+                double similarityScore = Math.exp(-distance * scaleFactor);
+                memory.put("score", similarityScore);
 
                 results.add(memory);
             }
@@ -522,48 +526,91 @@ public class RAGServiceImpl implements RAGService {
      */
     private List<Float> getClueEmbedding(String collectionName, Long clueId) {
         try {
+            log.debug("获取线索向量，collection: {}, clueId: {}", collectionName, clueId);
+            
             // 构建搜索请求，使用ID过滤条件
+            // 注意：对于精确ID匹配，我们仍然需要提供查询向量
+            // 使用一个随机向量作为查询，因为过滤条件已经确保了精确匹配
+            float[] randomVector = new float[1024];
+            for (int i = 0; i < randomVector.length; i++) {
+                randomVector[i] = (float) Math.random();
+            }
+            
             SearchReq searchReq = SearchReq.builder()
                     .collectionName(collectionName)
                     .annsField("embedding")
                     .topK(1)
-                    .data(List.of(new io.milvus.v2.service.vector.request.data.FloatVec(
-                            new float[1024]))) // 使用零向量作为查询
+                    .data(List.of(new io.milvus.v2.service.vector.request.data.FloatVec(randomVector)))
                     .filter("id == " + clueId + " and type == 'clue'")
-                    .outputFields(List.of("embedding"))
+                    .outputFields(List.of("embedding", "id", "type"))
                     .searchParams(Map.of(
                             "metric_type", "L2",
-                            "params", "{\"nprobe\": 10}" // 使用JSON字符串格式
+                            "params", "{\"nprobe\": 1}" // 对于精确匹配，使用最小的nprobe
                     ))
                     .build();
 
             // 执行搜索
+            log.debug("执行Milvus搜索获取线索向量");
             SearchResp searchResp = milvusClientV2.search(searchReq);
 
             // 处理搜索结果
-            if (searchResp != null && !searchResp.getSearchResults().isEmpty()) {
-                List<SearchResp.SearchResult> results = searchResp.getSearchResults().get(0);
-                if (!results.isEmpty()) {
-                    Map<String, Object> entity = results.get(0).getEntity();
-                    if (entity.containsKey("embedding")) {
-                        // 处理嵌入向量的类型转换
-                        Object embeddingObj = entity.get("embedding");
-                        if (embeddingObj instanceof List) {
-                            List<?> embeddingList = (List<?>) embeddingObj;
-                            List<Float> embedding = new ArrayList<>();
-                            for (Object obj : embeddingList) {
-                                if (obj instanceof Number) {
-                                    embedding.add(((Number) obj).floatValue());
+            if (searchResp != null) {
+                log.debug("搜索响应不为空，结果数量: {}", searchResp.getSearchResults().size());
+                
+                if (!searchResp.getSearchResults().isEmpty()) {
+                    List<SearchResp.SearchResult> results = searchResp.getSearchResults().get(0);
+                    log.debug("第一个查询的结果数量: {}", results.size());
+                    
+                    if (!results.isEmpty()) {
+                        SearchResp.SearchResult result = results.get(0);
+                        Map<String, Object> entity = result.getEntity();
+                        log.debug("获取到实体，包含字段: {}", entity.keySet());
+                        
+                        if (entity.containsKey("embedding")) {
+                            // 处理嵌入向量的类型转换
+                            Object embeddingObj = entity.get("embedding");
+                            log.debug("嵌入向量对象类型: {}", embeddingObj != null ? embeddingObj.getClass().getName() : "null");
+                            
+                            if (embeddingObj instanceof List) {
+                                List<?> embeddingList = (List<?>) embeddingObj;
+                                log.debug("嵌入向量列表长度: {}", embeddingList.size());
+                                
+                                List<Float> embedding = new ArrayList<>();
+                                for (Object obj : embeddingList) {
+                                    if (obj instanceof Number) {
+                                        embedding.add(((Number) obj).floatValue());
+                                    } else if (obj instanceof String) {
+                                        try {
+                                            embedding.add(Float.parseFloat((String) obj));
+                                        } catch (NumberFormatException e) {
+                                            log.warn("嵌入向量元素转换失败: {}", obj);
+                                        }
+                                    }
                                 }
+                                
+                                if (!embedding.isEmpty()) {
+                                    log.debug("成功获取线索向量，长度: {}", embedding.size());
+                                    return embedding;
+                                } else {
+                                    log.warn("嵌入向量为空，clueId: {}", clueId);
+                                }
+                            } else {
+                                log.warn("嵌入向量类型不是List，而是: {}, clueId: {}", 
+                                        embeddingObj != null ? embeddingObj.getClass().getName() : "null", clueId);
                             }
-                            return embedding;
+                        } else {
+                            log.warn("实体不包含embedding字段，clueId: {}", clueId);
                         }
                     }
                 }
+            } else {
+                log.warn("搜索响应为空，clueId: {}", clueId);
             }
         } catch (Exception e) {
             log.error("获取线索向量失败，clueId: {}", clueId, e);
         }
+        
+        log.warn("获取线索 {} 的向量失败", clueId);
         return null;
     }
 
@@ -689,7 +736,17 @@ public class RAGServiceImpl implements RAGService {
             }
 
             JsonObject data = new JsonObject();
-            data.addProperty("player_id", (Long) record.get("playerId"));
+            // 安全的类型转换
+            Object playerIdObj = record.get("playerId");
+            Long playerId;
+            if (playerIdObj instanceof Long) {
+                playerId = (Long) playerIdObj;
+            } else if (playerIdObj instanceof Integer) {
+                playerId = ((Integer) playerIdObj).longValue();
+            } else {
+                playerId = Long.valueOf(playerIdObj.toString());
+            }
+            data.addProperty("player_id", playerId);
             data.addProperty("player_name", (String) record.get("playerName"));
             data.addProperty("content", content);
             data.addProperty("timestamp", System.currentTimeMillis());

@@ -1,6 +1,7 @@
 package org.jubensha.aijubenshabackend.ai.service;
 
 
+import java.util.HashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +39,17 @@ public class AIMindService {
      * 存储AI的思考过程和中间结果
      */
     private final Map<String, ThinkingState> thinkingStateCache = new ConcurrentHashMap<>();
+
+    /**
+     * 反馈数据缓存
+     * 存储检索和分析的反馈数据，用于自适应调整
+     */
+    private final Map<String, FeedbackData> feedbackCache = new ConcurrentHashMap<>();
+
+    /**
+     * 检索策略成功率统计
+     */
+    private final Map<RetrievalStrategy, StrategyStats> strategyStats = new ConcurrentHashMap<>();
 
     /**
      * 构造函数
@@ -180,20 +192,121 @@ public class AIMindService {
     private String buildContextFromThinkingState(ThinkingState thinkingState) {
         StringBuilder contextBuilder = new StringBuilder();
         
-        // 添加任务信息
-        contextBuilder.append("任务: ").append(thinkingState.getTask()).append(" ");
+        // 1. 添加任务信息
+        contextBuilder.append("任务: " + thinkingState.getTask()).append(" ");
         
-        // 添加之前的分析结果
+        // 2. 添加思考轮次信息
+        int currentRound = thinkingState.getCurrentRound();
+        if (currentRound > 0) {
+            contextBuilder.append("当前轮次: " + currentRound).append(" ");
+        }
+        
+        // 3. 添加之前的分析结果
         List<AnalysisResult> analysisResults = thinkingState.getAnalysisResults();
         if (!analysisResults.isEmpty()) {
             AnalysisResult lastResult = analysisResults.get(analysisResults.size() - 1);
             contextBuilder.append("之前的分析: ");
             if (!lastResult.getGaps().isEmpty()) {
                 contextBuilder.append("需要补充: " + String.join(", ", lastResult.getGaps()));
+            } else if (lastResult.isComplete()) {
+                contextBuilder.append("分析完成，信息充足");
+            }
+            contextBuilder.append(" ");
+        }
+        
+        // 4. 添加之前的检索结果摘要
+        List<List<Map<String, Object>>> retrievalResults = thinkingState.getRetrievalResults();
+        if (!retrievalResults.isEmpty()) {
+            List<Map<String, Object>> lastResults = retrievalResults.get(retrievalResults.size() - 1);
+            if (!lastResults.isEmpty()) {
+                contextBuilder.append("已获取信息: " + lastResults.size() + "条结果 ");
+                // 添加最相关结果的摘要
+                Map<String, Object> topResult = lastResults.stream()
+                        .max((a, b) -> {
+                            Double scoreA = (Double) a.getOrDefault("score", 0.0);
+                            Double scoreB = (Double) b.getOrDefault("score", 0.0);
+                            return scoreA.compareTo(scoreB);
+                        })
+                        .orElse(null);
+                if (topResult != null) {
+                    String content = (String) topResult.getOrDefault("content", "");
+                    if (content.length() > 50) {
+                        content = content.substring(0, 50) + "...";
+                    }
+                    contextBuilder.append("最相关信息: " + content).append(" ");
+                }
             }
         }
         
-        return contextBuilder.toString();
+        // 5. 添加任务类型标签
+        String taskType = analyzeTaskType(thinkingState.getTask());
+        contextBuilder.append("任务类型: " + taskType).append(" ");
+        
+        return contextBuilder.toString().trim();
+    }
+
+    /**
+     * 分析任务类型
+     *
+     * @param task 任务文本
+     * @return 任务类型
+     */
+    private String analyzeTaskType(String task) {
+        String taskLower = task.toLowerCase();
+        
+        if (taskLower.contains("凶手") || taskLower.contains("谁是")) {
+            return "凶手识别";
+        } else if (taskLower.contains("动机")) {
+            return "动机分析";
+        } else if (taskLower.contains("时间线")) {
+            return "时间线分析";
+        } else if (taskLower.contains("线索") || taskLower.contains("证据")) {
+            return "线索分析";
+        } else if (taskLower.contains("关系")) {
+            return "关系分析";
+        } else if (taskLower.contains("背景")) {
+            return "背景信息";
+        } else if (taskLower.contains("讨论")) {
+            return "讨论分析";
+        } else if (taskLower.contains("分析")) {
+            return "综合分析";
+        } else {
+            return "通用查询";
+        }
+    }
+
+    /**
+     * 构建增强型上下文
+     *
+     * @param gameId   游戏ID
+     * @param playerId 玩家ID
+     * @param task     任务文本
+     * @param history  历史上下文
+     * @return 增强型上下文
+     */
+    private String buildEnhancedContext(Long gameId, Long playerId, String task, String history) {
+        StringBuilder contextBuilder = new StringBuilder();
+        
+        // 1. 添加游戏和玩家信息
+        contextBuilder.append("游戏ID: " + gameId).append(" ");
+        contextBuilder.append("玩家ID: " + playerId).append(" ");
+        
+        // 2. 添加任务信息
+        contextBuilder.append("当前任务: " + task).append(" ");
+        
+        // 3. 添加历史上下文
+        if (history != null && !history.isEmpty()) {
+            contextBuilder.append("历史上下文: " + history).append(" ");
+        }
+        
+        // 4. 添加任务类型分析
+        String taskType = analyzeTaskType(task);
+        contextBuilder.append("任务类型: " + taskType).append(" ");
+        
+        // 5. 添加时间信息
+        contextBuilder.append("当前时间: " + System.currentTimeMillis()).append(" ");
+        
+        return contextBuilder.toString().trim();
     }
 
     /**
@@ -208,27 +321,192 @@ public class AIMindService {
         List<String> gaps = new ArrayList<>();
         boolean complete = false;
 
+        String task = thinkingState.getTask();
+        
         // 分析检索结果，识别知识 gaps
         if (retrievalResults.isEmpty()) {
             gaps.add("基本信息");
         } else {
-            // 检查结果的相关性和完整性
+            // 1. 检查结果的相关性
             double averageScore = retrievalResults.stream()
                     .mapToDouble(result -> (double) result.getOrDefault("score", 0.0))
                     .average()
                     .orElse(0.0);
 
-            if (averageScore < 0.5) {
+            if (averageScore < 0.4) {
                 gaps.add("相关信息");
+            } else if (averageScore < 0.7) {
+                gaps.add("高质量信息");
             }
 
-            // 检查是否包含足够的信息
-            if (retrievalResults.size() >= 10) {
-                complete = true;
+            // 2. 检查结果的数量和多样性
+            if (retrievalResults.size() < 5) {
+                gaps.add("足够信息");
+            } else if (retrievalResults.size() < 8) {
+                gaps.add("详细信息");
             }
+
+            // 3. 基于任务内容的gap分析
+            gaps.addAll(analyzeTaskSpecificGaps(task, retrievalResults));
+
+            // 4. 检查信息完整性
+            complete = checkInformationCompleteness(task, retrievalResults, averageScore);
         }
 
         return new AnalysisResult(gaps, complete, round);
+    }
+
+    /**
+     * 基于任务内容的gap分析
+     *
+     * @param task              思考任务
+     * @param retrievalResults 检索结果
+     * @return 任务特定的gap列表
+     */
+    private List<String> analyzeTaskSpecificGaps(String task, List<Map<String, Object>> retrievalResults) {
+        List<String> gaps = new ArrayList<>();
+        String taskLower = task.toLowerCase();
+        
+        // 分析结果内容
+        StringBuilder contentBuilder = new StringBuilder();
+        for (Map<String, Object> result : retrievalResults) {
+            String content = (String) result.getOrDefault("content", "");
+            contentBuilder.append(content).append(" ");
+        }
+        String allContent = contentBuilder.toString().toLowerCase();
+        
+        // 根据任务类型分析特定gap
+        if (taskLower.contains("凶手") || taskLower.contains("谁是")) {
+            // 凶手分析任务
+            if (!allContent.contains("动机")) {
+                gaps.add("动机信息");
+            }
+            if (!allContent.contains("时间")) {
+                gaps.add("时间线信息");
+            }
+            if (!allContent.contains("证据")) {
+                gaps.add("证据信息");
+            }
+        } else if (taskLower.contains("动机")) {
+            // 动机分析任务
+            if (!allContent.contains("原因")) {
+                gaps.add("具体原因");
+            }
+            if (!allContent.contains("背景")) {
+                gaps.add("背景信息");
+            }
+        } else if (taskLower.contains("时间线") || taskLower.contains("何时")) {
+            // 时间线分析任务
+            if (!allContent.contains("顺序")) {
+                gaps.add("事件顺序");
+            }
+            if (!allContent.contains("地点")) {
+                gaps.add("地点信息");
+            }
+        } else if (taskLower.contains("线索") || taskLower.contains("证据")) {
+            // 线索分析任务
+            if (!allContent.contains("关联")) {
+                gaps.add("线索关联");
+            }
+            if (!allContent.contains("重要")) {
+                gaps.add("关键线索");
+            }
+        }
+        
+        return gaps;
+    }
+
+    /**
+     * 检查信息完整性
+     *
+     * @param task          思考任务
+     * @param results       检索结果
+     * @param averageScore  平均相似度得分
+     * @return 是否完整
+     */
+    private boolean checkInformationCompleteness(String task, List<Map<String, Object>> results, double averageScore) {
+        // 基于多个维度判断信息完整性
+        
+        // 1. 结果数量阈值
+        int minResultsThreshold = 8;
+        if (results.size() < minResultsThreshold) {
+            return false;
+        }
+        
+        // 2. 平均相似度阈值
+        double minScoreThreshold = 0.6;
+        if (averageScore < minScoreThreshold) {
+            return false;
+        }
+        
+        // 3. 结果多样性检查
+        boolean hasDiverseResults = checkResultDiversity(results);
+        if (!hasDiverseResults) {
+            return false;
+        }
+        
+        // 4. 任务特定的完整性检查
+        return checkTaskSpecificCompleteness(task, results);
+    }
+
+    /**
+     * 检查结果多样性
+     *
+     * @param results 检索结果
+     * @return 是否具有多样性
+     */
+    private boolean checkResultDiversity(List<Map<String, Object>> results) {
+        if (results.size() < 3) {
+            return false;
+        }
+        
+        // 检查内容多样性
+        List<String> contents = new ArrayList<>();
+        for (Map<String, Object> result : results) {
+            String content = (String) result.getOrDefault("content", "");
+            if (!content.isEmpty()) {
+                contents.add(content);
+            }
+        }
+        
+        // 简单的多样性检查：确保至少有3个不同的内容
+        long uniqueContents = contents.stream().distinct().count();
+        return uniqueContents >= 3;
+    }
+
+    /**
+     * 检查任务特定的完整性
+     *
+     * @param task     思考任务
+     * @param results  检索结果
+     * @return 是否完整
+     */
+    private boolean checkTaskSpecificCompleteness(String task, List<Map<String, Object>> results) {
+        String taskLower = task.toLowerCase();
+        StringBuilder contentBuilder = new StringBuilder();
+        
+        for (Map<String, Object> result : results) {
+            String content = (String) result.getOrDefault("content", "");
+            contentBuilder.append(content).append(" ");
+        }
+        String allContent = contentBuilder.toString().toLowerCase();
+        
+        if (taskLower.contains("凶手")) {
+            // 凶手分析需要包含动机、时间线和证据
+            return allContent.contains("动机") && allContent.contains("时间") && allContent.contains("证据");
+        } else if (taskLower.contains("动机")) {
+            // 动机分析需要包含原因和背景
+            return allContent.contains("原因") && allContent.contains("背景");
+        } else if (taskLower.contains("时间线")) {
+            // 时间线分析需要包含顺序和地点
+            return allContent.contains("顺序") && allContent.contains("地点");
+        } else if (taskLower.contains("线索")) {
+            // 线索分析需要包含关联和重要性
+            return allContent.contains("关联") && allContent.contains("重要");
+        }
+        
+        // 通用任务的默认完整性检查
+        return true;
     }
 
     /**
@@ -316,15 +594,29 @@ public class AIMindService {
      * @return 检索策略
      */
     private RetrievalStrategy selectRetrievalStrategy(String task, String context) {
+        String combinedText = (task + " " + context).toLowerCase();
+        
         // 根据任务类型选择检索策略
-        if (task.contains("线索")) {
+        if (combinedText.contains("线索") && combinedText.contains("关联")) {
+            return RetrievalStrategy.EVIDENCE_FOCUS;
+        } else if (combinedText.contains("线索")) {
             return RetrievalStrategy.CLUE_FOCUS;
-        } else if (task.contains("时间线")) {
+        } else if (combinedText.contains("时间线") && combinedText.contains("重建")) {
+            return RetrievalStrategy.TIMELINE_RECONSTRUCTION_FOCUS;
+        } else if (combinedText.contains("时间线")) {
             return RetrievalStrategy.TIMELINE_FOCUS;
-        } else if (task.contains("玩家")) {
+        } else if (combinedText.contains("玩家") && combinedText.contains("关系")) {
+            return RetrievalStrategy.RELATIONSHIP_FOCUS;
+        } else if (combinedText.contains("玩家")) {
             return RetrievalStrategy.PLAYER_FOCUS;
-        } else if (task.contains("讨论")) {
+        } else if (combinedText.contains("讨论")) {
             return RetrievalStrategy.DISCUSSION_FOCUS;
+        } else if (combinedText.contains("动机")) {
+            return RetrievalStrategy.MOTIVE_FOCUS;
+        } else if (combinedText.contains("背景") || combinedText.contains("故事")) {
+            return RetrievalStrategy.BACKGROUND_FOCUS;
+        } else if (combinedText.contains("证据")) {
+            return RetrievalStrategy.EVIDENCE_FOCUS;
         } else {
             return RetrievalStrategy.GLOBAL_SEARCH;
         }
@@ -353,6 +645,21 @@ public class AIMindService {
             case DISCUSSION_FOCUS:
                 // 专注于讨论历史检索
                 return memoryHierarchyService.multiLevelRetrieval(gameId, playerId, "讨论 " + task, 25);
+            case MOTIVE_FOCUS:
+                // 专注于动机分析检索
+                return memoryHierarchyService.multiLevelRetrieval(gameId, playerId, "动机分析 " + task, 25);
+            case EVIDENCE_FOCUS:
+                // 专注于证据分析检索
+                return memoryHierarchyService.multiLevelRetrieval(gameId, playerId, "证据分析 " + task, 25);
+            case RELATIONSHIP_FOCUS:
+                // 专注于关系分析检索
+                return memoryHierarchyService.multiLevelRetrieval(gameId, playerId, "关系分析 " + task, 25);
+            case BACKGROUND_FOCUS:
+                // 专注于背景信息检索
+                return memoryHierarchyService.multiLevelRetrieval(gameId, playerId, "背景信息 " + task, 30);
+            case TIMELINE_RECONSTRUCTION_FOCUS:
+                // 专注于时间线重建检索
+                return memoryHierarchyService.multiLevelRetrieval(gameId, playerId, "时间线重建 " + task, 30);
             case GLOBAL_SEARCH:
             default:
                 // 全局搜索
@@ -374,9 +681,13 @@ public class AIMindService {
 
             ReasoningChain reasoningChain = new ReasoningChain(gameId, playerId, query);
 
+            // 评估问题复杂度，确定推理链深度
+            int maxDepth = evaluateProblemComplexity(query);
+            log.info("评估问题复杂度，确定推理链深度: {}", maxDepth);
+
             // 执行多轮检索，构建推理链
-            for (int step = 1; step <= 3; step++) {
-                String currentQuery = generateChainQuery(query, step);
+            for (int step = 1; step <= maxDepth; step++) {
+                String currentQuery = generateChainQuery(query, step, maxDepth);
                 List<Map<String, Object>> results = executeActiveMemoryRetrieval(gameId, playerId, currentQuery, "推理步骤 " + step);
 
                 if (!results.isEmpty()) {
@@ -395,23 +706,81 @@ public class AIMindService {
     }
 
     /**
+     * 评估问题复杂度
+     *
+     * @param query 查询文本
+     * @return 推理链深度
+     */
+    private int evaluateProblemComplexity(String query) {
+        String queryLower = query.toLowerCase();
+        int complexityScore = 3; // 默认深度
+        
+        // 基于查询长度评估复杂度
+        if (query.length() > 100) {
+            complexityScore += 1;
+        }
+        
+        // 基于查询内容评估复杂度
+        if (queryLower.contains("为什么") || queryLower.contains("原因")) {
+            complexityScore += 1;
+        }
+        if (queryLower.contains("如何") || queryLower.contains("怎样")) {
+            complexityScore += 1;
+        }
+        if (queryLower.contains("所有") || queryLower.contains("全部")) {
+            complexityScore += 1;
+        }
+        if (queryLower.contains("关系") || queryLower.contains("联系")) {
+            complexityScore += 1;
+        }
+        if (queryLower.contains("分析") || queryLower.contains("推理")) {
+            complexityScore += 1;
+        }
+        
+        // 限制深度范围
+        return Math.max(3, Math.min(6, complexityScore));
+    }
+
+    /**
      * 生成推理链查询
      *
      * @param originalQuery 原始查询
      * @param step          推理步骤
+     * @param maxDepth      最大深度
      * @return 查询文本
      */
-    private String generateChainQuery(String originalQuery, int step) {
+    private String generateChainQuery(String originalQuery, int step, int maxDepth) {
         switch (step) {
             case 1:
                 return "关于" + originalQuery + "的基本信息";
             case 2:
                 return "关于" + originalQuery + "的详细分析";
             case 3:
-                return "关于" + originalQuery + "的结论和证据";
+                if (maxDepth <= 3) {
+                    return "关于" + originalQuery + "的结论和证据";
+                } else {
+                    return "关于" + originalQuery + "的深度分析";
+                }
+            case 4:
+                return "关于" + originalQuery + "的关联因素分析";
+            case 5:
+                return "关于" + originalQuery + "的证据链验证";
+            case 6:
+                return "关于" + originalQuery + "的最终结论和完整证据";
             default:
                 return originalQuery;
         }
+    }
+
+    /**
+     * 生成推理链查询（兼容旧方法）
+     *
+     * @param originalQuery 原始查询
+     * @param step          推理步骤
+     * @return 查询文本
+     */
+    private String generateChainQuery(String originalQuery, int step) {
+        return generateChainQuery(originalQuery, step, 3);
     }
 
     /**
@@ -512,7 +881,12 @@ public class AIMindService {
         CLUE_FOCUS,         // 线索专注
         TIMELINE_FOCUS,     // 时间线专注
         PLAYER_FOCUS,       // 玩家专注
-        DISCUSSION_FOCUS    // 讨论专注
+        DISCUSSION_FOCUS,   // 讨论专注
+        MOTIVE_FOCUS,       // 动机分析专注
+        EVIDENCE_FOCUS,     // 证据分析专注
+        RELATIONSHIP_FOCUS, // 关系分析专注
+        BACKGROUND_FOCUS,   // 背景信息专注
+        TIMELINE_RECONSTRUCTION_FOCUS // 时间线重建专注
     }
 
     /**
@@ -558,7 +932,11 @@ public class AIMindService {
         }
 
         public boolean isComplete() {
-            return steps.size() >= 3;
+            // 动态判断推理链是否完整
+            // 对于简单问题，3步即可
+            // 对于复杂问题，需要更多步骤
+            int minSteps = 3;
+            return steps.size() >= minSteps;
         }
     }
 
@@ -587,5 +965,215 @@ public class AIMindService {
         public List<Map<String, Object>> getEvidence() {
             return evidence;
         }
+    }
+
+    /**
+     * 反馈数据类
+     */
+    public static class FeedbackData {
+        private final String task;
+        private final String strategy;
+        private final int successCount;
+        private final int totalCount;
+        private final double averageScore;
+        private final long lastUpdated;
+
+        public FeedbackData(String task, String strategy, int successCount, int totalCount, double averageScore) {
+            this.task = task;
+            this.strategy = strategy;
+            this.successCount = successCount;
+            this.totalCount = totalCount;
+            this.averageScore = averageScore;
+            this.lastUpdated = System.currentTimeMillis();
+        }
+
+        public String getTask() {
+            return task;
+        }
+
+        public String getStrategy() {
+            return strategy;
+        }
+
+        public int getSuccessCount() {
+            return successCount;
+        }
+
+        public int getTotalCount() {
+            return totalCount;
+        }
+
+        public double getAverageScore() {
+            return averageScore;
+        }
+
+        public long getLastUpdated() {
+            return lastUpdated;
+        }
+
+        public double getSuccessRate() {
+            return totalCount > 0 ? (double) successCount / totalCount : 0.0;
+        }
+    }
+
+    /**
+     * 策略统计类
+     */
+    public static class StrategyStats {
+        private int successCount;
+        private int totalCount;
+        private double totalScore;
+        private long lastUsed;
+
+        public StrategyStats() {
+            this.successCount = 0;
+            this.totalCount = 0;
+            this.totalScore = 0.0;
+            this.lastUsed = System.currentTimeMillis();
+        }
+
+        public synchronized void recordAttempt(double score, boolean success) {
+            totalCount++;
+            totalScore += score;
+            if (success) {
+                successCount++;
+            }
+            lastUsed = System.currentTimeMillis();
+        }
+
+        public synchronized double getSuccessRate() {
+            return totalCount > 0 ? (double) successCount / totalCount : 0.0;
+        }
+
+        public synchronized double getAverageScore() {
+            return totalCount > 0 ? totalScore / totalCount : 0.0;
+        }
+
+        public synchronized int getTotalCount() {
+            return totalCount;
+        }
+
+        public long getLastUsed() {
+            return lastUsed;
+        }
+    }
+
+    /**
+     * 记录检索反馈
+     *
+     * @param task     任务文本
+     * @param strategy 检索策略
+     * @param score    平均相似度分数
+     * @param success  是否成功
+     */
+    public void recordRetrievalFeedback(String task, RetrievalStrategy strategy, double score, boolean success) {
+        try {
+            // 记录策略统计
+            StrategyStats stats = strategyStats.computeIfAbsent(strategy, k -> new StrategyStats());
+            stats.recordAttempt(score, success);
+
+            // 记录任务级别的反馈
+            String feedbackKey = generateFeedbackKey(task, strategy.name());
+            FeedbackData existingData = feedbackCache.get(feedbackKey);
+
+            if (existingData != null) {
+                int newSuccessCount = existingData.getSuccessCount() + (success ? 1 : 0);
+                int newTotalCount = existingData.getTotalCount() + 1;
+                double newAverageScore = (existingData.getAverageScore() * existingData.getTotalCount() + score) / newTotalCount;
+
+                FeedbackData newData = new FeedbackData(
+                        task,
+                        strategy.name(),
+                        newSuccessCount,
+                        newTotalCount,
+                        newAverageScore
+                );
+                feedbackCache.put(feedbackKey, newData);
+            } else {
+                FeedbackData newData = new FeedbackData(
+                        task,
+                        strategy.name(),
+                        success ? 1 : 0,
+                        1,
+                        score
+                );
+                feedbackCache.put(feedbackKey, newData);
+            }
+
+            log.debug("记录检索反馈，任务: {}, 策略: {}, 分数: {}, 成功: {}", task, strategy, score, success);
+        } catch (Exception e) {
+            log.error("记录检索反馈失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 生成反馈键
+     *
+     * @param task     任务文本
+     * @param strategy 策略名称
+     * @return 反馈键
+     */
+    private String generateFeedbackKey(String task, String strategy) {
+        return "feedback:" + task.hashCode() + ":" + strategy;
+    }
+
+    /**
+     * 自适应调整检索策略
+     *
+     * @param task 当前任务
+     * @return 调整后的检索策略
+     */
+    private RetrievalStrategy adaptRetrievalStrategy(String task) {
+        // 基于历史反馈数据选择最优策略
+        double bestScore = 0.0;
+        RetrievalStrategy bestStrategy = null;
+
+        for (RetrievalStrategy strategy : RetrievalStrategy.values()) {
+            String feedbackKey = generateFeedbackKey(task, strategy.name());
+            FeedbackData feedbackData = feedbackCache.get(feedbackKey);
+
+            if (feedbackData != null) {
+                double successRate = feedbackData.getSuccessRate();
+                double averageScore = feedbackData.getAverageScore();
+                double combinedScore = successRate * 0.7 + averageScore * 0.3;
+
+                if (combinedScore > bestScore) {
+                    bestScore = combinedScore;
+                    bestStrategy = strategy;
+                }
+            }
+        }
+
+        // 如果没有历史数据，使用默认策略选择
+        if (bestStrategy == null) {
+            return selectRetrievalStrategy(task, "");
+        }
+
+        log.debug("自适应选择检索策略: {}, 得分: {}", bestStrategy, bestScore);
+        return bestStrategy;
+    }
+
+    /**
+     * 获取策略统计信息
+     *
+     * @return 策略统计信息
+     */
+    public Map<String, Object> getStrategyStats() {
+        Map<String, Object> statsMap = new HashMap<>();
+
+        for (Map.Entry<RetrievalStrategy, StrategyStats> entry : strategyStats.entrySet()) {
+            RetrievalStrategy strategy = entry.getKey();
+            StrategyStats stats = entry.getValue();
+
+            Map<String, Object> strategyStatsMap = new HashMap<>();
+            strategyStatsMap.put("successRate", stats.getSuccessRate());
+            strategyStatsMap.put("averageScore", stats.getAverageScore());
+            strategyStatsMap.put("totalCount", stats.getTotalCount());
+            strategyStatsMap.put("lastUsed", stats.getLastUsed());
+
+            statsMap.put(strategy.name(), strategyStatsMap);
+        }
+
+        return statsMap;
     }
 }
