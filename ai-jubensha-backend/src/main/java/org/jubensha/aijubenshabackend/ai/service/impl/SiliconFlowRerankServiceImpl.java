@@ -209,7 +209,15 @@ public class SiliconFlowRerankServiceImpl implements RerankService {
             // 根据响应中的索引和分数重新排序原始结果
             for (Map<String, Object> result : results) {
                 int index = (Integer) result.get("index");
-                double score = (Double) result.get("score");
+                double score = 0.0;
+                
+                // 尝试获取relevance_score字段（SiliconFlow API返回的字段名）
+                if (result.containsKey("relevance_score")) {
+                    score = (Double) result.get("relevance_score");
+                } else if (result.containsKey("score")) {
+                    // 兼容其他API可能返回的score字段
+                    score = (Double) result.get("score");
+                }
                 
                 if (index >= 0 && index < originalResults.size()) {
                     Map<String, Object> originalResult = originalResults.get(index);
