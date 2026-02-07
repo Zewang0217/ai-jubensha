@@ -388,16 +388,19 @@ public class ScriptController {
             
             // 用于收集完整剧本内容
             AtomicReference<String> fullScript = new AtomicReference<>("");
-            // 调整批量大小，减少临时存储操作频率
-            final int BATCH_SIZE = 2000; // 每2000个字符保存一次
+            // 调整批量大小，增加存储频率，确保即使在流式输出被截断的情况下，也能保存尽可能多的内容
+            final int BATCH_SIZE = 500; // 每500个字符保存一次
+            final int MAX_BATCH_SIZE = 5000; // 最大批量大小
             
             // 转换为ServerSentEvent
             return scriptStream.map(content -> {
                 // 收集完整剧本内容
                 fullScript.updateAndGet(current -> current + content);
                 // 每生成一定量的内容，进行一次临时保存
-                if (fullScript.get().length() % BATCH_SIZE == 0) {
+                int currentLength = fullScript.get().length();
+                if (currentLength % BATCH_SIZE == 0 || currentLength >= MAX_BATCH_SIZE) {
                     tempStorageService.storeTempScript(tempScriptId, fullScript.get());
+                    System.out.println("临时保存剧本内容，长度: " + currentLength);
                 }
                 // 返回ServerSentEvent
                 return ServerSentEvent.<String>builder()
@@ -405,12 +408,19 @@ public class ScriptController {
                         .build();
             })
             .doOnComplete(() -> {
-                // 流式输出完成后，将剧本保存到数据库
+                // 流式输出完成后，再次保存完整内容到临时存储
+                tempStorageService.storeTempScript(tempScriptId, fullScript.get());
+                System.out.println("流式输出完成，保存完整内容到临时存储，长度: " + fullScript.get().length());
+                // 将剧本保存到数据库
                 saveScriptToDatabase(fullScript.get(), tempScriptId, tempStorageService);
             })
             .onErrorResume(error -> {
-                // 流式输出出错时，记录错误信息
+                // 流式输出出错时，记录错误信息，并保存当前已生成的内容到临时存储
                 System.err.println("流式生成剧本失败: " + error.getMessage());
+                if (!fullScript.get().isEmpty()) {
+                    tempStorageService.storeTempScript(tempScriptId, fullScript.get());
+                    System.out.println("流式输出出错，保存已生成的内容到临时存储，长度: " + fullScript.get().length());
+                }
                 return Flux.just(ServerSentEvent.<String>builder()
                         .data("Error: " + error.getMessage())
                         .build());
@@ -429,6 +439,13 @@ public class ScriptController {
     private void saveScriptToDatabase(String scriptJson, Long tempScriptId, ScriptTempStorageService tempStorageService) {
         try {
             System.out.println("开始将剧本保存到数据库...");
+            
+            // 尝试从临时存储中获取完整的剧本内容
+            String tempScriptContent = tempStorageService.getTempScript(tempScriptId);
+            if (tempScriptContent != null && !tempScriptContent.isEmpty() && tempScriptContent.length() > scriptJson.length()) {
+                System.out.println("从临时存储中获取到更长的剧本内容，使用临时存储中的内容进行解析");
+                scriptJson = tempScriptContent;
+            }
             
             // 预处理JSON，移除代码块标记并修复不完整的JSON
             String cleanedJson = preprocessJson(scriptJson);
@@ -502,6 +519,7 @@ public class ScriptController {
         } catch (Exception e) {
             System.err.println("解析和保存剧本失败: " + e.getMessage());
             // 生成失败后，保留临时存储，以便后续恢复
+            System.out.println("保留临时存储，以便后续恢复: " + tempScriptId);
         }
     }
 
@@ -650,11 +668,41 @@ public class ScriptController {
                 System.out.println("JSON在字符串中间被截断，已截断到最后一个有效引号");
             }
             
-            // 2. 清理无效的尾部字符
+            // 2. 处理字段名中间被截断的情况
+            // 查找最后一个有效的字段名结束位置
+            int lastValidFieldEnd = json.lastIndexOf(':');
+            if (lastValidFieldEnd != -1) {
+                // 从最后一个冒号开始，查找下一个有效的值结束位置
+                int valueEnd = lastValidFieldEnd + 1;
+                boolean inValue = false;
+                boolean valueEscaped = false;
+                
+                while (valueEnd < json.length()) {
+                    char c = json.charAt(valueEnd);
+                    if (valueEscaped) {
+                        valueEscaped = false;
+                    } else if (c == '\\') {
+                        valueEscaped = true;
+                    } else if (c == '"') {
+                        inValue = !inValue;
+                    } else if (!inValue && (c == ',' || c == '}' || c == ']')) {
+                        break;
+                    }
+                    valueEnd++;
+                }
+                
+                // 如果找到了有效的值结束位置，截断到该位置
+                if (valueEnd < json.length()) {
+                    json = json.substring(0, valueEnd);
+                    System.out.println("JSON字段名中间被截断，已修复到最后一个有效字段");
+                }
+            }
+            
+            // 3. 清理无效的尾部字符
             // 移除尾部可能的不完整单词或字符
             json = json.replaceAll("[,\s}]*$", "");
             
-            // 3. 补充缺失的闭合括号
+            // 4. 补充缺失的闭合括号
             int openBraces = 0;
             int closeBraces = 0;
             int openBrackets = 0;
@@ -696,12 +744,12 @@ public class ScriptController {
             json = sb.toString();
             System.out.println("修复后的JSON长度: " + json.length());
             
-            // 4. 再次尝试解析，如果仍然失败，尝试更激进的修复
+            // 5. 再次尝试解析，如果仍然失败，尝试更激进的修复
             try {
                 objectMapper.readTree(json);
                 return json;
             } catch (Exception e2) {
-                System.out.println("修复后的JSON仍然无法解析，尝试更激进的修复");
+                System.out.println("修复后的JSON仍然无法解析，尝试更激进的修复: " + e2.getMessage());
                 
                 // 尝试找到最后一个有效的JSON结构
                 int lastValidJsonEnd = json.lastIndexOf('}');
@@ -713,6 +761,21 @@ public class ScriptController {
                         return partialJson;
                     } catch (Exception e3) {
                         // 继续尝试
+                        System.out.println("部分JSON结构仍然无法解析: " + e3.getMessage());
+                    }
+                }
+                
+                // 尝试找到最后一个有效的数组结构
+                int lastValidArrayEnd = json.lastIndexOf(']');
+                if (lastValidArrayEnd != -1) {
+                    String partialJson = json.substring(0, lastValidArrayEnd + 1);
+                    try {
+                        objectMapper.readTree(partialJson);
+                        System.out.println("使用部分有效的数组结构");
+                        return partialJson;
+                    } catch (Exception e3) {
+                        // 继续尝试
+                        System.out.println("部分数组结构仍然无法解析: " + e3.getMessage());
                     }
                 }
                 

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -167,19 +168,24 @@ public class RAGController {
             @RequestParam int topK) {
         try {
             List<Map<String, Object>> results = ragService.searchConversationMemory(gameId, playerId, query, topK);
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "gameId", gameId,
-                    "playerId", playerId,
-                    "query", query,
-                    "topK", topK,
-                    "resultsCount", results.size(),
-                    "results", results
-            ));
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("gameId", gameId);
+            if (playerId != null) {
+                response.put("playerId", playerId);
+            }
+            response.put("query", query);
+            response.put("topK", topK);
+            response.put("resultsCount", results.size());
+            response.put("results", results);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("搜索对话记忆失败: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "搜索失败");
+            errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "未知错误");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "搜索失败", "message", e.getMessage()));
+                    .body(errorResponse);
         }
     }
 
@@ -341,19 +347,24 @@ public class RAGController {
             @RequestParam int topK) {
         try {
             List<Map<String, Object>> results = ragService.searchGlobalClueMemory(scriptId, characterId, query, topK);
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "scriptId", scriptId,
-                    "characterId", characterId,
-                    "query", query,
-                    "topK", topK,
-                    "resultsCount", results.size(),
-                    "results", results
-            ));
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("scriptId", scriptId);
+            if (characterId != null) {
+                response.put("characterId", characterId);
+            }
+            response.put("query", query);
+            response.put("topK", topK);
+            response.put("resultsCount", results.size());
+            response.put("results", results);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("搜索全局线索记忆失败: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "搜索失败");
+            errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "未知错误");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "搜索失败", "message", e.getMessage()));
+                    .body(errorResponse);
         }
     }
 
@@ -374,19 +385,24 @@ public class RAGController {
             @RequestParam int topK) {
         try {
             List<Map<String, Object>> results = ragService.searchGlobalTimelineMemory(scriptId, characterId, query, topK);
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "scriptId", scriptId,
-                    "characterId", characterId,
-                    "query", query,
-                    "topK", topK,
-                    "resultsCount", results.size(),
-                    "results", results
-            ));
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("scriptId", scriptId);
+            if (characterId != null) {
+                response.put("characterId", characterId);
+            }
+            response.put("query", query);
+            response.put("topK", topK);
+            response.put("resultsCount", results.size());
+            response.put("results", results);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("搜索全局时间线记忆失败: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "搜索失败");
+            errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "未知错误");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "搜索失败", "message", e.getMessage()));
+                    .body(errorResponse);
         }
     }
 
