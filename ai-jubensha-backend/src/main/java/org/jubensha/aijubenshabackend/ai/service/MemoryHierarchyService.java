@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,15 +24,30 @@ public class MemoryHierarchyService {
 
     /**
      * 短期记忆缓存
-     * 缓存最近5分钟的对话和搜索结果
-     * 最大缓存1000条记录
+     * 缓存最近15分钟的对话和搜索结果
+     * 最大缓存5000条记录
      */
     private final Cache<String, List<Map<String, Object>>> shortTermMemoryCache = Caffeine.newBuilder()
-            .maximumSize(1000)
-            .expireAfterWrite(Duration.ofMinutes(5))
-            .expireAfterAccess(Duration.ofMinutes(1))
+            .maximumSize(5000)
+            .expireAfterWrite(Duration.ofMinutes(15))
+            .expireAfterAccess(Duration.ofMinutes(5))
+            .recordStats()
             .removalListener((key, value, cause) -> {
                 log.debug("短期记忆被移除，缓存键: {}, 原因: {}", key, cause);
+            })
+            .build();
+
+    /**
+     * 重要记忆缓存
+     * 缓存关键信息，过期时间更长
+     */
+    private final Cache<String, List<Map<String, Object>>> importantMemoryCache = Caffeine.newBuilder()
+            .maximumSize(1000)
+            .expireAfterWrite(Duration.ofMinutes(30))
+            .expireAfterAccess(Duration.ofMinutes(15))
+            .recordStats()
+            .removalListener((key, value, cause) -> {
+                log.debug("重要记忆被移除，缓存键: {}, 原因: {}", key, cause);
             })
             .build();
 
@@ -75,6 +91,21 @@ public class MemoryHierarchyService {
     }
 
     /**
+     * 存储重要记忆
+     *
+     * @param key     缓存键
+     * @param memory  记忆内容
+     */
+    public void storeImportantMemory(String key, List<Map<String, Object>> memory) {
+        try {
+            importantMemoryCache.put(key, memory);
+            log.debug("存储重要记忆，缓存键: {}, 记忆数量: {}", key, memory.size());
+        } catch (Exception e) {
+            log.error("存储重要记忆失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
      * 获取短期记忆
      *
      * @param key 缓存键
@@ -85,14 +116,51 @@ public class MemoryHierarchyService {
             List<Map<String, Object>> memory = shortTermMemoryCache.getIfPresent(key);
             if (memory != null) {
                 log.debug("获取短期记忆，缓存键: {}, 记忆数量: {}", key, memory.size());
-            } else {
-                log.debug("短期记忆不存在，缓存键: {}", key);
+                return memory;
             }
-            return memory != null ? memory : new ArrayList<>();
+            
+            // 尝试从重要记忆中获取
+            memory = importantMemoryCache.getIfPresent(key);
+            if (memory != null) {
+                log.debug("获取重要记忆，缓存键: {}, 记忆数量: {}", key, memory.size());
+                return memory;
+            }
+            
+            log.debug("记忆不存在，缓存键: {}", key);
+            return new ArrayList<>();
         } catch (Exception e) {
-            log.error("获取短期记忆失败: {}", e.getMessage(), e);
+            log.error("获取记忆失败: {}", e.getMessage(), e);
             return new ArrayList<>();
         }
+    }
+
+    /**
+     * 检查记忆是否重要，需要更长时间的缓存
+     *
+     * @param results 检索结果
+     * @return 是否为重要记忆
+     */
+    private boolean isImportantMemory(List<Map<String, Object>> results) {
+        if (results.isEmpty()) {
+            return false;
+        }
+        
+        // 检查结果质量
+        double averageScore = results.stream()
+                .mapToDouble(result -> (Double) result.getOrDefault("score", 0.0))
+                .average()
+                .orElse(0.0);
+        
+        // 检查是否包含关键信息
+        boolean containsKeyInfo = results.stream()
+                .anyMatch(result -> {
+                    String content = (String) result.getOrDefault("content", "");
+                    return content.contains("凶手") || content.contains("动机") || 
+                           content.contains("时间线") || content.contains("线索") ||
+                           content.contains("证据") || content.contains("真相");
+                });
+        
+        return averageScore > 0.7 || containsKeyInfo;
     }
 
     /**
@@ -210,9 +278,15 @@ public class MemoryHierarchyService {
             // 3. 整合结果，去重并排序
             List<Map<String, Object>> mergedResults = mergeAndDeduplicateResults(allResults);
             
-            // 4. 将检索结果存储到短期记忆
+            // 4. 根据记忆重要性选择存储策略
             if (!mergedResults.isEmpty()) {
-                storeShortTermMemory(shortTermKey, mergedResults);
+                if (isImportantMemory(mergedResults)) {
+                    storeImportantMemory(shortTermKey, mergedResults);
+                    log.debug("结果被识别为重要记忆，存储到长期缓存");
+                } else {
+                    storeShortTermMemory(shortTermKey, mergedResults);
+                    log.debug("结果存储到短期缓存");
+                }
             }
 
             log.info("多级记忆检索完成，返回 {} 条结果", mergedResults.size());
@@ -452,20 +526,214 @@ public class MemoryHierarchyService {
         try {
             log.info("开始记忆整合，游戏ID: {}, 玩家ID: {}, 查询: {}", gameId, playerId, query);
 
-            // 1. 执行多级检索
-            List<Map<String, Object>> multiLevelResults = multiLevelRetrieval(gameId, playerId, query, topK * 2);
+            // 1. 分析查询类型，确定整合策略
+            IntegrationStrategy strategy = determineIntegrationStrategy(query);
+            log.info("确定整合策略: {}", strategy);
 
-            // 2. 整合结果
-            // 这里可以添加更复杂的整合逻辑
+            // 2. 从多个来源获取信息
+            List<Map<String, Object>> allResults = new ArrayList<>();
+            
+            // 2.1 从对话记忆获取信息
+            List<Map<String, Object>> conversationResults = ragService.searchConversationMemory(gameId, playerId, query, topK);
+            allResults.addAll(conversationResults);
+            
+            // 2.2 从线索记忆获取信息
+            List<Map<String, Object>> clueResults = ragService.searchGlobalClueMemory(null, playerId, query, topK);
+            allResults.addAll(clueResults);
+            
+            // 2.3 从时间线记忆获取信息
+            List<Map<String, Object>> timelineResults = ragService.searchGlobalTimelineMemory(null, playerId, query, topK);
+            allResults.addAll(timelineResults);
 
-            log.info("记忆整合完成，返回 {} 条结果", multiLevelResults.size());
-            return multiLevelResults.stream()
+            // 3. 智能整合结果
+            List<Map<String, Object>> integratedResults = intelligentIntegration(allResults, strategy);
+
+            // 4. 基于整合策略的结果优化
+            List<Map<String, Object>> optimizedResults = optimizeResultsByStrategy(integratedResults, strategy);
+
+            log.info("记忆整合完成，返回 {} 条结果", optimizedResults.size());
+            return optimizedResults.stream()
                     .limit(topK)
                     .toList();
 
         } catch (Exception e) {
             log.error("记忆整合失败: {}", e.getMessage(), e);
             return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 整合策略枚举
+     */
+    private enum IntegrationStrategy {
+        COMPREHENSIVE,    // 综合整合
+        CLUE_CENTRIC,     // 线索中心
+        TIMELINE_CENTRIC, // 时间线中心
+        MOTIVE_CENTRIC,   // 动机中心
+        RELATIONSHIP_CENTRIC // 关系中心
+    }
+
+    /**
+     * 确定整合策略
+     *
+     * @param query 查询文本
+     * @return 整合策略
+     */
+    private IntegrationStrategy determineIntegrationStrategy(String query) {
+        String queryLower = query.toLowerCase();
+        
+        if (queryLower.contains("线索") || queryLower.contains("证据")) {
+            return IntegrationStrategy.CLUE_CENTRIC;
+        } else if (queryLower.contains("时间线")) {
+            return IntegrationStrategy.TIMELINE_CENTRIC;
+        } else if (queryLower.contains("动机")) {
+            return IntegrationStrategy.MOTIVE_CENTRIC;
+        } else if (queryLower.contains("关系")) {
+            return IntegrationStrategy.RELATIONSHIP_CENTRIC;
+        } else {
+            return IntegrationStrategy.COMPREHENSIVE;
+        }
+    }
+
+    /**
+     * 智能整合结果
+     *
+     * @param allResults 所有结果
+     * @param strategy   整合策略
+     * @return 整合后的结果
+     */
+    private List<Map<String, Object>> intelligentIntegration(List<Map<String, Object>> allResults, IntegrationStrategy strategy) {
+        // 1. 去重和基础排序
+        List<Map<String, Object>> deduplicatedResults = mergeAndDeduplicateResults(allResults);
+        
+        // 2. 基于策略的加权排序
+        List<Map<String, Object>> weightedResults = applyStrategyWeighting(deduplicatedResults, strategy);
+        
+        return weightedResults;
+    }
+
+    /**
+     * 应用策略加权
+     *
+     * @param results 结果列表
+     * @param strategy 整合策略
+     * @return 加权后的结果
+     */
+    private List<Map<String, Object>> applyStrategyWeighting(List<Map<String, Object>> results, IntegrationStrategy strategy) {
+        // 为结果添加策略权重
+        for (Map<String, Object> result : results) {
+            double baseScore = (double) result.getOrDefault("score", 0.0);
+            double weight = calculateStrategyWeight(result, strategy);
+            double weightedScore = baseScore * weight;
+            result.put("weighted_score", weightedScore);
+        }
+        
+        // 按加权分数排序
+        results.sort((a, b) -> {
+            Double scoreA = (Double) a.getOrDefault("weighted_score", a.getOrDefault("score", 0.0));
+            Double scoreB = (Double) b.getOrDefault("weighted_score", b.getOrDefault("score", 0.0));
+            return scoreB.compareTo(scoreA);
+        });
+        
+        return results;
+    }
+
+    /**
+     * 计算策略权重
+     *
+     * @param result   结果
+     * @param strategy 整合策略
+     * @return 权重
+     */
+    private double calculateStrategyWeight(Map<String, Object> result, IntegrationStrategy strategy) {
+        double weight = 1.0;
+        String content = (String) result.getOrDefault("content", "").toString().toLowerCase();
+        
+        switch (strategy) {
+            case CLUE_CENTRIC:
+                if (content.contains("线索") || content.contains("证据")) {
+                    weight = 1.5;
+                }
+                break;
+            case TIMELINE_CENTRIC:
+                if (content.contains("时间") || content.contains("何时")) {
+                    weight = 1.5;
+                }
+                break;
+            case MOTIVE_CENTRIC:
+                if (content.contains("动机") || content.contains("原因")) {
+                    weight = 1.5;
+                }
+                break;
+            case RELATIONSHIP_CENTRIC:
+                if (content.contains("关系") || content.contains("联系")) {
+                    weight = 1.5;
+                }
+                break;
+            case COMPREHENSIVE:
+            default:
+                weight = 1.0;
+                break;
+        }
+        
+        return weight;
+    }
+
+    /**
+     * 基于策略优化结果
+     *
+     * @param results 结果列表
+     * @param strategy 整合策略
+     * @return 优化后的结果
+     */
+    private List<Map<String, Object>> optimizeResultsByStrategy(List<Map<String, Object>> results, IntegrationStrategy strategy) {
+        List<Map<String, Object>> optimizedResults = new ArrayList<>();
+        
+        // 确保包含不同类型的信息
+        Map<String, Map<String, Object>> typeMap = new HashMap<>();
+        
+        for (Map<String, Object> result : results) {
+            String content = (String) result.getOrDefault("content", "");
+            String type = classifyResultType(content);
+            
+            if (!typeMap.containsKey(type)) {
+                typeMap.put(type, result);
+                optimizedResults.add(result);
+            }
+        }
+        
+        // 补充其他相关结果
+        for (Map<String, Object> result : results) {
+            if (optimizedResults.size() >= 10) break;
+            if (!optimizedResults.contains(result)) {
+                optimizedResults.add(result);
+            }
+        }
+        
+        return optimizedResults;
+    }
+
+    /**
+     * 分类结果类型
+     *
+     * @param content 内容
+     * @return 类型
+     */
+    private String classifyResultType(String content) {
+        String contentLower = content.toLowerCase();
+        
+        if (contentLower.contains("线索") || contentLower.contains("证据")) {
+            return "线索";        
+        } else if (contentLower.contains("时间") || contentLower.contains("何时")) {
+            return "时间线";
+        } else if (contentLower.contains("动机") || contentLower.contains("原因")) {
+            return "动机";
+        } else if (contentLower.contains("关系") || contentLower.contains("联系")) {
+            return "关系";
+        } else if (contentLower.contains("背景") || contentLower.contains("故事")) {
+            return "背景";
+        } else {
+            return "其他";
         }
     }
 }
