@@ -8,6 +8,7 @@ import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
 import jakarta.annotation.Resource;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.agent.DMAgent;
 import org.jubensha.aijubenshabackend.ai.service.agent.PlayerAgent;
@@ -88,14 +89,27 @@ public class AIService {
      * 创建DM Agent
      */
     public Player createDMAgent() {
-        // 创建DM玩家
+        // 检查是否已存在DM玩家
+        Optional<Player> existingDM = playerService.getPlayerByUsername("DM");
+        if (existingDM.isPresent()) {
+            Player dm = existingDM.get();
+            log.info("使用已存在的DM玩家，ID: {}", dm.getId());
+            
+            // 确保DM Agent实例存在
+            String cacheKey = "dm:" + dm.getId();
+            agentCache.get(cacheKey, key -> createDMAgentInstance(dm.getId()));
+            
+            return dm;
+        }
+        
+        // 创建新的DM玩家
         Player dm = new Player();
         dm.setNickname("DM");
         dm.setUsername("DM");
         dm.setEmail("DM@example.com");
         dm.setPassword("123456");
         dm.setStatus(org.jubensha.aijubenshabackend.models.enums.PlayerStatus.ONLINE);
-        dm.setRole(org.jubensha.aijubenshabackend.models.enums.PlayerRole.USER);
+        dm.setRole(org.jubensha.aijubenshabackend.models.enums.PlayerRole.DM);
         Player savedDM = playerService.createPlayer(dm);
 
         // 创建DM Agent实例
@@ -110,7 +124,20 @@ public class AIService {
      * 创建Judge Agent
      */
     public Player createJudgeAgent() {
-        // 创建Judge玩家
+        // 检查是否已存在Judge玩家
+        Optional<Player> existingJudge = playerService.getPlayerByUsername("Judge");
+        if (existingJudge.isPresent()) {
+            Player judge = existingJudge.get();
+            log.info("使用已存在的Judge玩家，ID: {}", judge.getId());
+            
+            // 确保Judge Agent实例存在
+            String cacheKey = "judge:" + judge.getId();
+            agentCache.get(cacheKey, key -> createJudgeAgentInstance(judge.getId()));
+            
+            return judge;
+        }
+        
+        // 创建新的Judge玩家
         Player judge = new Player();
         judge.setNickname("Judge");
         judge.setUsername("Judge");
