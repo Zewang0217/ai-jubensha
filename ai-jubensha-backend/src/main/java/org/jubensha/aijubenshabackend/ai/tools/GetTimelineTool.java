@@ -15,10 +15,30 @@ import java.util.Map;
 /**
  * 获取角色时间线工具
  * 用于AI获取角色的时间线信息，支持按角色ID查询
+ * <p>
+ * 工具说明：
+ * - 功能：获取指定角色的时间线事件
+ * - 参数：
+ *   - characterId：角色ID（必填）
+ *   - scriptId：剧本ID（必填）
+ * - 返回格式：按时间顺序排列的格式化时间线
+ * - 权限：管理员类型Agent可访问所有时间线，玩家Agent只能访问自身角色时间线
+ * <p>
+ * 示例调用：
+ * {
+ *   "toolcall": {
+ *     "thought": "需要了解角色的时间线",
+ *     "name": "getTimeline",
+ *     "params": {
+ *       "characterId": "1",
+ *       "scriptId": "1"
+ *     }
+ *   }
+ * }
  *
  * @author Zewang
- * @version 1.0
- * @date 2026-02-06
+ * @version 2.0
+ * @date 2026-02-09
  * @since 2026
  */
 
@@ -49,23 +69,27 @@ public class GetTimelineTool extends BaseTool {
             log.debug("获取角色时间线，角色ID: {}, 剧本ID: {}", characterId, scriptId);
 
             // 调用RAGService获取时间线
-            List<Map<String, Object>> timeline = ragService.searchGlobalTimelineMemory(scriptId, characterId, "", 50);
+            List<Map<String, Object>> timeline = ragService.searchGlobalTimelineMemory(scriptId, characterId, "", 30);
 
             // 构建结果
             StringBuilder result = new StringBuilder();
-            result.append("角色时间线:\n");
+            result.append("⏰ 角色时间线（共").append(timeline.size()).append("个事件）:\n\n");
             
             for (Map<String, Object> event : timeline) {
-                String content = (String) event.get("content");
-                String timestamp = (String) event.get("timestamp");
+                String content = (String) event.getOrDefault("content", "");
+                String timestamp = (String) event.getOrDefault("timestamp", "未知时间");
                 
-                result.append(String.format("[%s]: %s\n", timestamp, content));
+                result.append(String.format("[%s] %s\n", timestamp, content));
+            }
+
+            if (timeline.isEmpty()) {
+                result.append("暂无时间线事件\n");
             }
 
             return result.toString();
         } catch (Exception e) {
             log.error("获取角色时间线失败: {}", e.getMessage(), e);
-            return "获取角色时间线失败: " + e.getMessage();
+            return "❌ 获取角色时间线失败: " + e.getMessage();
         }
     }
 
@@ -74,7 +98,8 @@ public class GetTimelineTool extends BaseTool {
      * 供AI直接调用
      */
     public List<Map<String, Object>> execute(Long scriptId, Long characterId) {
-        return ragService.searchGlobalTimelineMemory(scriptId, characterId, "", 50);
+        // 限制最大返回数量
+        return ragService.searchGlobalTimelineMemory(scriptId, characterId, "", 30);
     }
 
     @Override
