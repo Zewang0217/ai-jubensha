@@ -86,6 +86,14 @@ public class WorkflowContext implements Serializable {
      * 角色数量
      */
     private Integer characterCount;
+    /**
+     * 是否创建新剧本
+     */
+    private Boolean createNewScript;
+    /**
+     * 现有剧本ID
+     */
+    private Long existingScriptId;
 
     // ====== 游戏流程相关字段 ======
     /**

@@ -4,12 +4,15 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
 @Entity
 @Table(name = "scenes")
-public class Scene {
+public class Scene implements Serializable {
+    
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,5 +41,10 @@ public class Scene {
     @PrePersist
     protected void onCreate() {
         createTime = LocalDateTime.now();
+    }
+    
+    @Override
+    public String toString() {
+        return "Scene{id=" + id + ", name='" + name + "', scriptId=" + scriptId + '}';
     }
 }

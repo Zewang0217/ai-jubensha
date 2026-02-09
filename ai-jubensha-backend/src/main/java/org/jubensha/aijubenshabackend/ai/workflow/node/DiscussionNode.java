@@ -5,12 +5,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.jubensha.aijubenshabackend.ai.service.AIService;
+import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 
@@ -60,17 +63,34 @@ public class DiscussionNode {
      * 获取玩家ID列表
      */
     private static List<Long> getPlayerIds(WorkflowContext context) {
-        // 这里需要从上下文中获取玩家ID列表
-        // 暂时返回空列表，后续需要根据实际情况实现
-        return List.of();
+        List<Long> playerIds = new ArrayList<>();
+        
+        // 从playerAssignments中提取玩家ID
+        List<Map<String, Object>> playerAssignments = context.getPlayerAssignments();
+        if (playerAssignments != null && !playerAssignments.isEmpty()) {
+            for (Map<String, Object> assignment : playerAssignments) {
+                Object playerIdObj = assignment.get("playerId");
+                if (playerIdObj instanceof Long) {
+                    playerIds.add((Long) playerIdObj);
+                } else if (playerIdObj instanceof Integer) {
+                    playerIds.add(((Integer) playerIdObj).longValue());
+                }
+            }
+        }
+        
+        return playerIds;
     }
 
     /**
      * 启动讨论服务
      */
     private static void startDiscussionService(Long gameId, List<Long> playerIds, Long dmId, Long judgeId) {
-        // 这里需要初始化讨论服务
-        // 后续将由DiscussionService实现
+        // 获取DiscussionService实例
+        DiscussionService discussionService = SpringContextUtil.getBean(DiscussionService.class);
+        
+        // 启动讨论服务
+        discussionService.startDiscussion(gameId, playerIds, dmId, judgeId);
+        
         log.info("启动讨论服务，游戏ID: {}, 玩家数量: {}", gameId, playerIds.size());
     }
 }

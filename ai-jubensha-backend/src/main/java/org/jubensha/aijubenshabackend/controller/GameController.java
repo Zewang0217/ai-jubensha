@@ -279,31 +279,53 @@ public class GameController {
      * @return 工作流执行结果
      */
     @PostMapping("/start-workflow")
-    public ResponseEntity<?> startWorkflow(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> startWorkflow(@RequestBody Map<String, Object> request) {
         try {
-            String originalPrompt = request.get("originalPrompt");
+            String originalPrompt = (String) request.get("originalPrompt");
             if (originalPrompt == null || originalPrompt.isEmpty()) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error", "originalPrompt is required"));
             }
 
-            WorkflowContext result = workflow.executeWorkflow(originalPrompt);
+            // 获取剧本选择参数
+            Boolean createNewScript = (Boolean) request.getOrDefault("createNewScript", true);
+            Long scriptId = null;
+            if (!createNewScript) {
+                Object scriptIdObj = request.get("scriptId");
+                if (scriptIdObj == null) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error", "scriptId is required when createNewScript is false"));
+                }
+                scriptId = scriptIdObj instanceof Number ? ((Number) scriptIdObj).longValue() : Long.parseLong(scriptIdObj.toString());
+            }
+            
+            // 获取流式生成参数
+            Boolean useStreaming = (Boolean) request.getOrDefault("useStreaming", false);
+            log.info("使用流式生成: {}", useStreaming);
+
+            WorkflowContext result = workflow.executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming);
 
             // 构建响应
-            Map<String, Object> response = Map.of(
-                    "success", true,
-                    "scriptId", result.getScriptId(),
-                    "scriptName", result.getScriptName(),
-                    "currentStep", result.getCurrentStep(),
-                    "playerAssignments", result.getPlayerAssignments(),
-                    "dmId", result.getDmId(),
-                    "judgeId", result.getJudgeId(),
-                    "realPlayerCount", result.getRealPlayerCount(),
-                    "aiPlayerCount", result.getAiPlayerCount(),
-                    "totalPlayerCount", result.getTotalPlayerCount()
-            );
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("success", true);
+            response.put("scriptId", result.getScriptId());
+            response.put("scriptName", result.getScriptName());
+            response.put("currentStep", result.getCurrentStep());
+            response.put("playerAssignments", result.getPlayerAssignments());
+            response.put("dmId", result.getDmId());
+            response.put("judgeId", result.getJudgeId());
+            response.put("realPlayerCount", result.getRealPlayerCount());
+            response.put("aiPlayerCount", result.getAiPlayerCount());
+            response.put("totalPlayerCount", result.getTotalPlayerCount());
+            response.put("createNewScript", result.getCreateNewScript());
+            response.put("existingScriptId", result.getExistingScriptId());
+            response.put("useStreaming", useStreaming);
 
             return ResponseEntity.ok(response);
+        } catch (NumberFormatException e) {
+            log.error("剧本ID格式错误: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Invalid scriptId format", "message", e.getMessage()));
         } catch (Exception e) {
             log.error("启动工作流失败: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
