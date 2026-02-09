@@ -82,7 +82,8 @@ public class FirstInvestigationNode {
 
                     // 存储场景线索到RAGService
                     for (Clue clue : sceneClues) {
-                        ragService.insertGlobalClueMemory(context.getScriptId(), null, clue.getDescription());
+                        // 使用默认character_id为0，因为场景线索不属于特定角色
+                        ragService.insertGlobalClueMemory(context.getScriptId(), 0L, clue.getDescription());
                     }
 
                     Map<String, Object> sceneInfo = Map.of(
@@ -105,13 +106,8 @@ public class FirstInvestigationNode {
                     if ("AI".equals(playerType)) {
                         // 通知AI玩家开始搜证
                         aiService.notifyAIPlayerStartInvestigation(playerId, investigationScenes);
-                        // 为AI玩家存储初始线索信息
-                        for (Map<String, Object> sceneInfo : investigationScenes) {
-                            List<Clue> sceneClues = (List<Clue>) sceneInfo.get("clues");
-                            for (Clue clue : sceneClues) {
-                                ragService.insertConversationMemory(context.getGameId(), playerId, "clue", clue.getDescription());
-                            }
-                        }
+                        // 线索信息已经存储到global_memory中，不需要再存储到对话记忆
+                        // 对话记忆应该只存储玩家的对话内容，而不是线索信息
                         log.info("通知AI玩家 {} (角色: {}) 开始第一轮搜证", playerId, characterName);
                     } else {
                         // 通知真人玩家开始搜证
