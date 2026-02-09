@@ -226,7 +226,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     String decision = discussionReasoningManager.decidePrivateChat(gameId, playerId);
                     if (!decision.isEmpty()) {
                         log.info("AI玩家单聊决策，玩家ID: {}, 决策: {}", playerId, decision);
-                        // 这里可以解析决策结果，决定是否发起单聊
+                        // TODO:这里可以解析决策结果，决定是否发起单聊
                         // 示例：如果决策包含目标玩家ID，则发起单聊
                     }
                 } catch (Exception e) {
@@ -262,18 +262,20 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public void sendPrivateChatInvitation(Long senderId, Long receiverId) {
-        log.info("发送单聊邀请，发送者: {}, 接收者: {}", senderId, receiverId);
+        String senderName = "AI玩家" + senderId;
+        String receiverName = "AI玩家" + receiverId;
+        log.info("AI玩家{}向AI玩家{}发起单聊申请", senderName, receiverName);
 
         // 使用TurnManager检查单聊请求
         boolean allowed = turnManager.requestPrivateChat(gameId, senderId, receiverId);
         if (!allowed) {
-            log.warn("单聊请求被拒绝，发送者: {}", senderId);
+            log.warn("单聊请求被拒绝，发送者: {}", senderName);
             return;
         }
 
         // 检查接收者是否存在
         if (!playerIds.contains(receiverId)) {
-            log.warn("接收者 {} 不存在", receiverId);
+            log.warn("接收者 {} 不存在", receiverName);
             return;
         }
 
@@ -286,7 +288,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         // 启动单聊计时器（3分钟）
         timerService.startTimer("PRIVATE_CHAT_" + senderId + "_" + receiverId, 180L, () -> {
-            log.info("单聊结束，发送者: {}, 接收者: {}", senderId, receiverId);
+            log.info("单聊结束，发送者: {}, 接收者: {}", senderName, receiverName);
         });
     }
 
@@ -342,7 +344,9 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public void sendDiscussionMessage(Long playerId, String message) {
-        log.info("玩家 {} 发送讨论消息: {}", playerId, message);
+        // 获取玩家名称（这里简化处理，实际应该从数据库或缓存中获取）
+        String playerName = "AI玩家" + playerId;
+        log.info("AI玩家{}发言: {}", playerName, message);
 
         // 发送消息到所有玩家
         messageQueueService.sendDiscussionMessage(message, playerIds);
@@ -359,7 +363,9 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public void sendPrivateChatMessage(Long senderId, Long receiverId, String message) {
-        log.info("玩家 {} 向玩家 {} 发送单聊消息: {}", senderId, receiverId, message);
+        String senderName = "AI玩家" + senderId;
+        String receiverName = "AI玩家" + receiverId;
+        log.info("AI玩家{}向AI玩家{}发送单聊消息: 单聊内容为{}", senderName, receiverName, message);
         messageQueueService.sendPrivateChatMessage(message, senderId, receiverId);
     }
 
