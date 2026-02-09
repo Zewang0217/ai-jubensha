@@ -1,5 +1,6 @@
 package org.jubensha.aijubenshabackend.service.clue;
 
+import org.jubensha.aijubenshabackend.core.exception.BusinessException;
 import org.jubensha.aijubenshabackend.models.entity.Clue;
 import org.jubensha.aijubenshabackend.models.entity.Script;
 import org.jubensha.aijubenshabackend.models.enums.ClueType;
@@ -9,9 +10,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+
+import static org.jubensha.aijubenshabackend.core.exception.enums.ErrorCodeEnum.CLUE_NOT_FOUND;
 
 @Service
 public class ClueServiceImpl implements ClueService {
@@ -102,6 +106,9 @@ public class ClueServiceImpl implements ClueService {
             if (clue.getScene() != null) {
                 updatedClue.setScene(clue.getScene());
             }
+            if (clue.getImageUrl() != null) {
+                updatedClue.setImageUrl(clue.getImageUrl());
+            }
             if (clue.getImportance() != null) {
                 updatedClue.setImportance(clue.getImportance());
             }
@@ -116,5 +123,27 @@ public class ClueServiceImpl implements ClueService {
     public void deleteClue(Long id) {
         logger.info("Deleting clue: {}", id);
         clueRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public String updateClueImage(Long id, String url) {
+        logger.info("Updating clue image for id: {}", id);
+
+        try {
+            Optional<Clue> clue = clueRepository.findById(id);
+            if (clue.isPresent()) {
+                clue.get().setImageUrl(url);
+                clueRepository.save(clue.get());
+                logger.info("Successfully updated clue image for id: {}, new url: {}", id, url);
+                return url;
+            } else {
+                logger.warn("Clue not found for id: {}", id);
+                throw new BusinessException(CLUE_NOT_FOUND);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to update clue image for id: {}", id, e);
+            throw new BusinessException("更新线索图片失败: " + e.getMessage());
+        }
     }
 }
