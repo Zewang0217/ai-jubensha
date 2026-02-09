@@ -52,7 +52,20 @@ public class PlayerServiceImpl implements PlayerService {
     @Override
     public Optional<Player> getPlayerByUsername(String username) {
         logger.info("Getting player by username: {}", username);
-        return playerRepository.findByUsername(username);
+        try {
+            return playerRepository.findByUsername(username);
+        } catch (Exception e) {
+            logger.error("Error getting player by username: {}", username, e);
+            // 尝试获取所有玩家并手动过滤
+            List<Player> players = playerRepository.findAll();
+            for (Player player : players) {
+                if (player.getUsername().equals(username)) {
+                    logger.warn("Found multiple players with username '{}', returning first one", username);
+                    return Optional.of(player);
+                }
+            }
+            return Optional.empty();
+        }
     }
 
     @Override

@@ -49,25 +49,16 @@ public class MemoryServiceImpl implements MemoryService {
 
     @Override
     public void storeCharacterMemory(Long gameId, Long playerId, Long characterId, Map<String, String> characterInfo) {
-        for (Map.Entry<String, String> entry : characterInfo.entrySet()) {
-            String fieldName = entry.getKey();
-            String content = entry.getValue();
-
-            if (content == null || content.isEmpty()) {
-                continue;
-            }
-
-            // 使用RAGService存储对话记忆
-            ragService.insertConversationMemory(gameId, playerId, fieldName, content);
-        }
-
-        log.info("存储角色记忆，游戏ID: {}, 玩家ID: {}, 角色ID: {}, 信息数量: {}", gameId, playerId, characterId, characterInfo.size());
+        // 角色记忆暂时不存储，因为需要确定正确的存储位置
+        // 后续可以根据业务需求实现存储逻辑
+//        log.info("存储角色记忆，游戏ID: {}, 玩家ID: {}, 角色ID: {}, 信息数量: {}", gameId, playerId, characterId, characterInfo.size());
     }
 
     @Override
     public List<Map<String, Object>> retrieveCharacterMemory(Long gameId, Long playerId, String query, int topK) {
-        // 使用RAGService检索对话记忆
-        return ragService.searchConversationMemory(gameId, playerId, query, topK);
+        // 角色记忆暂时返回空列表，后续可以根据业务需求实现检索逻辑
+
+        return new ArrayList<>();
     }
 
     @Override
@@ -85,15 +76,16 @@ public class MemoryServiceImpl implements MemoryService {
 
     @Override
     public void storeClueMemory(Long gameId, Long playerId, Long clueId, String content, String discoveredBy) {
-        // 使用RAGService存储线索记忆
-        ragService.insertConversationMemory(gameId, playerId, "clue", content);
+        // 线索应该存储到全局记忆中，而不是对话记忆中
+        ragService.insertGlobalClueMemory(gameId, clueId, content);
         log.info("存储线索记忆，游戏ID: {}, 玩家ID: {}, 线索ID: {}", gameId, playerId, clueId);
     }
 
     @Override
     public List<Map<String, Object>> retrieveClueMemory(Long gameId, Long playerId, String query, int topK) {
-        // 使用RAGService检索线索记忆
-        return ragService.searchConversationMemory(gameId, playerId, query, topK);
+        log.info("检索线索记忆，游戏ID: {}, 玩家ID: {}", gameId, playerId);
+        List<Map<String, Object>> result = ragService.searchGlobalClueMemory(gameId, playerId, query, topK);
+        return result;
     }
 
     @Override
