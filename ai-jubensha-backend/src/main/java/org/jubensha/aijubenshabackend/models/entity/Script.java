@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jubensha.aijubenshabackend.models.enums.DifficultyLevel;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,7 +16,9 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Script {
+public class Script implements Serializable {
+    
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,5 +57,10 @@ public class Script {
     @PreUpdate
     protected void onUpdate() {
         updateTime = LocalDateTime.now();
+    }
+    
+    @Override
+    public String toString() {
+        return "Script{id=" + id + ", name='" + name + "', author='" + author + "'}";
     }
 }

@@ -88,6 +88,7 @@ public class DiscussionReasoningManager {
 
     /**
      * 处理AI玩家的推理和讨论
+     * 采用工具驱动的推理方案，只传递基本上下文
      *
      * @param gameId   游戏ID
      * @param playerId 玩家ID
@@ -110,17 +111,6 @@ public class DiscussionReasoningManager {
             // 获取当前讨论阶段
             String currentPhase = turnManager.getCurrentPhase(gameId);
 
-            // 使用记忆分层服务获取讨论历史和相关记忆
-            List<Map<String, Object>> memoryResults = memoryHierarchyService.multiLevelRetrieval(gameId, playerId, "讨论历史", 50);
-
-            // 构建讨论历史文本
-            String discussionHistory = buildDiscussionHistoryFromMemory(memoryResults);
-            if (discussionHistory.isEmpty()) {
-                //  fallback to original method if memory retrieval fails
-                List<Map<String, Object>> history = getDiscussionHistoryTool.execute(gameId, 50);
-                discussionHistory = buildDiscussionHistoryFromMemory(history);
-            }
-
             // 获取Player Agent
             PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
             if (playerAgent == null) {
@@ -128,12 +118,11 @@ public class DiscussionReasoningManager {
                 return "无法获取AI玩家实例";
             }
 
-            // 调用推理方法生成讨论内容
+            // 调用推理方法生成讨论内容（只传递基本上下文）
             String result = playerAgent.reasonAndDiscuss(
                     gameId.toString(),
                     playerId.toString(),
-                    currentPhase,
-                    discussionHistory
+                    currentPhase
             );
 
             // 缓存推理结果
@@ -174,6 +163,7 @@ public class DiscussionReasoningManager {
 
     /**
      * 分析特定讨论话题
+     * 采用工具驱动的推理方案
      *
      * @param gameId   游戏ID
      * @param playerId 玩家ID
@@ -194,12 +184,6 @@ public class DiscussionReasoningManager {
 
             log.info("分析讨论话题，游戏ID: {}, 玩家ID: {}, 话题: {}", gameId, playerId, topic);
 
-            // 使用记忆分层服务获取与话题相关的记忆
-            List<Map<String, Object>> memoryResults = memoryHierarchyService.multiLevelRetrieval(gameId, playerId, topic, 30);
-
-            // 构建话题相关信息文本
-            String topicInfo = buildTopicInfoFromMemory(memoryResults, topic);
-
             // 获取Player Agent
             PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
             if (playerAgent == null) {
@@ -207,7 +191,7 @@ public class DiscussionReasoningManager {
                 return "无法获取AI玩家实例";
             }
 
-            // 调用分析方法
+            // 调用分析方法（只传递基本信息，让AI通过工具获取详细内容）
             String result = playerAgent.analyzeTopic(
                     gameId.toString(),
                     playerId.toString(),
@@ -257,6 +241,7 @@ public class DiscussionReasoningManager {
 
     /**
      * 决定是否发起单聊
+     * 采用工具驱动的推理方案
      *
      * @param gameId   游戏ID
      * @param playerId 玩家ID
@@ -285,12 +270,6 @@ public class DiscussionReasoningManager {
                 return "当前阶段或次数限制不允许发起单聊";
             }
 
-            // 使用记忆分层服务获取与其他玩家相关的记忆
-            List<Map<String, Object>> memoryResults = memoryHierarchyService.multiLevelRetrieval(gameId, playerId, "其他玩家", 30);
-
-            // 构建玩家相关信息文本
-            String playerInfo = buildPlayerInfoFromMemory(memoryResults);
-
             // 获取Player Agent
             PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
             if (playerAgent == null) {
@@ -298,7 +277,7 @@ public class DiscussionReasoningManager {
                 return "无法获取AI玩家实例";
             }
 
-            // 调用决策方法
+            // 调用决策方法（只传递基本信息，让AI通过工具获取详细内容）
             String result = playerAgent.decidePrivateChat(
                     gameId.toString(),
                     playerId.toString()
