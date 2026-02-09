@@ -108,8 +108,8 @@ ai:
   embedding-model: "BAAI/bge-large-zh-v1.5"  # Using SiliconFlow embedding model
   embedding-api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
 
-
-
+pexels:
+  api-key: Mpb0VvYO65aSOLAxFczBELv738mXR27mAIEDpTo7TgQ4PNXXqo2gFCbH
 
 # 游戏配置
 game:
