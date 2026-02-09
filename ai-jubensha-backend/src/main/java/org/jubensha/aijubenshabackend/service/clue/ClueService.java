@@ -66,4 +66,6 @@ public interface ClueService {
      * 删除线索
      */
     void deleteClue(Long id);
+
+    String updateClueImage(Long id, String url);
 }
