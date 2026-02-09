@@ -118,8 +118,8 @@ ai:
   reranking-base-url: "https://api.siliconflow.cn/v1"
   reranking-api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
 
-
-
+pexels:
+  api-key: Mpb0VvYO65aSOLAxFczBELv738mXR27mAIEDpTo7TgQ4PNXXqo2gFCbH
 
 # 游戏配置
 game:
