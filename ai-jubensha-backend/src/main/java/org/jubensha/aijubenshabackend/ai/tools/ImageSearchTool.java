@@ -9,6 +9,7 @@ import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.models.ImageResource;
 import org.jubensha.aijubenshabackend.core.exception.BusinessException;
+import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
@@ -21,6 +22,7 @@ import static org.jubensha.aijubenshabackend.core.exception.enums.ErrorCodeEnum.
  * @date 2026/2/9
  */
 @Slf4j
+@Component
 public class ImageSearchTool extends BaseTool {
     private static final String PEXELS_API_URL = "https://api.pexels.com/v1/search";
 
@@ -40,7 +42,7 @@ public class ImageSearchTool extends BaseTool {
     }
 
     @Tool("根据关键词搜索图片")
-    ImageResource searchImage(@P("搜索关键词") String keyword) {
+    public ImageResource searchImage(@P("搜索关键词") String keyword) {
         ImageResource imageResource;
         try {
             JSONObject body = JSONUtil.parseObj(
