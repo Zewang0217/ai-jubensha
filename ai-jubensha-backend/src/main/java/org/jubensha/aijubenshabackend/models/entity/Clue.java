@@ -42,6 +42,8 @@ public class Clue implements Serializable {
 
     private String scene;
 
+    private String imageUrl;
+
     // 面向DM用于控场
     private Integer importance;
 

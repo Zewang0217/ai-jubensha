@@ -20,6 +20,7 @@ public class ClueResponseDTO {
     private ClueType type;
     private ClueVisibility visibility;
     private String scene;
+    private String imageUrl;
     private Integer importance;
     private LocalDateTime createTime;
 
@@ -38,6 +39,7 @@ public class ClueResponseDTO {
         dto.setType(clue.getType());
         dto.setVisibility(clue.getVisibility());
         dto.setScene(clue.getScene());
+        dto.setImageUrl(clue.getImageUrl());
         dto.setImportance(clue.getImportance());
         dto.setCreateTime(clue.getCreateTime());
         return dto;
