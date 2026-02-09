@@ -19,11 +19,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     database-platform: org.hibernate.dialect.MySQLDialect
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
   
   # Redis配置
   data:
@@ -93,6 +93,13 @@ logging:
   level:
     root: info
     org.jubensha: debug
+    # Hibernate SQL 相关日志控制
+    org.hibernate.SQL: off
+    org.hibernate.type.descriptor.sql.BasicBinder: off
+    org.hibernate.engine.jdbc.spi.SqlStatementLogger: off
+    org.hibernate.engine.QueryParameters: off
+    # 完全关闭 Hibernate 日志（如果需要更严格控制）
+    org.hibernate: warn
 
 # 系统配置
 system:
