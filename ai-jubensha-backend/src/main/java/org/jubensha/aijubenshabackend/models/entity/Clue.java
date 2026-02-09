@@ -6,12 +6,15 @@ import lombok.Data;
 import org.jubensha.aijubenshabackend.models.enums.ClueType;
 import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
 @Entity
 @Table(name = "clues")
-public class Clue {
+public class Clue implements Serializable {
+    
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,5 +50,10 @@ public class Clue {
     @PrePersist
     protected void onCreate() {
         createTime = LocalDateTime.now();
+    }
+    
+    @Override
+    public String toString() {
+        return "Clue{id=" + id + ", name='" + name + "', scriptId=" + scriptId + '}';
     }
 }
