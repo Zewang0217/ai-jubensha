@@ -2,6 +2,7 @@ package org.jubensha.aijubenshabackend.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.AIMindService;
+import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
 import org.jubensha.aijubenshabackend.ai.service.MemoryHierarchyService;
 import org.jubensha.aijubenshabackend.ai.service.MessageQueueService;
 import org.jubensha.aijubenshabackend.ai.service.RerankingService;
@@ -30,15 +31,17 @@ public class AIController {
     private final RerankingService rerankingService;
     private final RAGService ragService;
     private final MessageQueueService messageQueueService;
+    private final DiscussionService discussionService;
 
     public AIController(AIMindService aiMindService, MemoryHierarchyService memoryHierarchyService,
                        RerankingService rerankingService, RAGService ragService,
-                       MessageQueueService messageQueueService) {
+                       MessageQueueService messageQueueService, DiscussionService discussionService) {
         this.aiMindService = aiMindService;
         this.memoryHierarchyService = memoryHierarchyService;
         this.rerankingService = rerankingService;
         this.ragService = ragService;
         this.messageQueueService = messageQueueService;
+        this.discussionService = discussionService;
     }
 
     /**
@@ -414,4 +417,115 @@ public class AIController {
                     .body(Map.of("error", "测试失败", "message", e.getMessage()));
         }
     }
+
+    /**
+     * 测试讨论节点功能
+     *
+     * @param request 包含gameId、playerIds、dmId和judgeId的请求
+     * @return 讨论测试结果
+     */
+    @PostMapping("/test-discussion")
+    public ResponseEntity<?> testDiscussion(@RequestBody Map<String, Object> request) {
+        try {
+            // 解析请求参数
+            Long gameId = Long.parseLong(request.get("gameId").toString());
+            List<Long> playerIds = ((List<?>) request.get("playerIds")).stream()
+                    .map(id -> Long.parseLong(id.toString()))
+                    .collect(Collectors.toList());
+            Long dmId = Long.parseLong(request.get("dmId").toString());
+            Long judgeId = Long.parseLong(request.get("judgeId").toString());
+
+            log.info("测试讨论节点，游戏ID: {}, 玩家数量: {}, DM ID: {}, Judge ID: {}", 
+                    gameId, playerIds.size(), dmId, judgeId);
+
+            // 验证参数有效性
+            if (playerIds.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "playerIds cannot be empty"));
+            }
+
+            // 启动讨论服务
+            discussionService.startDiscussion(gameId, playerIds, dmId, judgeId);
+
+            // 启动陈述阶段
+            discussionService.startStatementPhase();
+
+            // 获取讨论状态
+            Map<String, Object> discussionState = discussionService.getDiscussionState();
+
+            // 构建响应
+            Map<String, Object> response = Map.of(
+                    "success", true,
+                    "message", "讨论节点测试成功启动",
+                    "gameId", gameId,
+                    "playerIds", playerIds,
+                    "dmId", dmId,
+                    "judgeId", judgeId,
+                    "discussionState", discussionState
+            );
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("测试讨论节点失败: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "测试失败", "message", e.getMessage()));
+        }
     }
+
+    /**
+     * 继续讨论流程
+     *
+     * @param request 包含gameId和phase的请求
+     * @return 讨论流程结果
+     */
+    @PostMapping("/continue-discussion")
+    public ResponseEntity<?> continueDiscussion(@RequestBody Map<String, Object> request) {
+        try {
+            Long gameId = Long.parseLong(request.get("gameId").toString());
+            String phase = (String) request.get("phase");
+
+            log.info("继续讨论流程，游戏ID: {}, 阶段: {}", gameId, phase);
+
+            // 根据阶段继续讨论流程
+            switch (phase) {
+                case "FREE_DISCUSSION":
+                    discussionService.startFreeDiscussionPhase();
+                    break;
+                case "PRIVATE_CHAT":
+                    discussionService.startPrivateChatPhase();
+                    break;
+                case "ANSWER":
+                    discussionService.startAnswerPhase();
+                    break;
+                case "END":
+                    Map<String, Object> endResult = discussionService.endDiscussion();
+                    return ResponseEntity.ok(Map.of(
+                            "success", true,
+                            "message", "讨论已结束",
+                            "endResult", endResult
+                    ));
+                default:
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error", "Invalid phase: " + phase));
+            }
+
+            // 获取讨论状态
+            Map<String, Object> discussionState = discussionService.getDiscussionState();
+
+            // 构建响应
+            Map<String, Object> response = Map.of(
+                    "success", true,
+                    "message", "讨论流程已继续",
+                    "gameId", gameId,
+                    "phase", phase,
+                    "discussionState", discussionState
+            );
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("继续讨论流程失败: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "操作失败", "message", e.getMessage()));
+        }
+    }
+} 
