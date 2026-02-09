@@ -48,16 +48,20 @@ public class MessageQueueServiceImpl implements MessageQueueService {
 
         // 发送到讨论交换机
         rabbitTemplate.convertAndSend(DISCUSSION_EXCHANGE, DISCUSSION_ROUTING_KEY_PREFIX + "all", messageContent);
+        log.info("讨论消息已发送到所有接收者");
 
         // 也可以发送到每个接收者的队列
-        for (Long recipientId : recipientIds) {
-            rabbitTemplate.convertAndSend(DISCUSSION_EXCHANGE, DISCUSSION_ROUTING_KEY_PREFIX + recipientId, messageContent);
-        }
+//        for (Long recipientId : recipientIds) {
+//            rabbitTemplate.convertAndSend(DISCUSSION_EXCHANGE, DISCUSSION_ROUTING_KEY_PREFIX + recipientId, messageContent);
+//            log.debug("讨论消息已发送到接收者: {}", recipientId);
+//        }
     }
 
     @Override
     public void sendPrivateChatMessage(String message, Long senderId, Long receiverId) {
-        log.info("发送单聊消息: {}, 发送者: {}, 接收者: {}", message, senderId, receiverId);
+        String senderName = "AI玩家" + senderId;
+        String receiverName = "AI玩家" + receiverId;
+        log.info("发送单聊消息: 发送者: {}, 接收者: {}, 内容: {}", senderName, receiverName, message);
 
         // 构建消息内容
         Map<String, Object> messageContent = Map.of(
@@ -70,6 +74,7 @@ public class MessageQueueServiceImpl implements MessageQueueService {
 
         // 发送到单聊交换机
         rabbitTemplate.convertAndSend(PRIVATE_EXCHANGE, PRIVATE_ROUTING_KEY_PREFIX + receiverId, messageContent);
+        log.info("单聊消息已发送成功");
     }
 
     @Override

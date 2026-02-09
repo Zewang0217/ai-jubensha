@@ -14,6 +14,7 @@ import io.milvus.v2.service.vector.response.InsertResp;
 import io.milvus.v2.service.vector.response.SearchResp;
 import io.milvus.v2.service.vector.response.UpsertResp;
 import lombok.extern.slf4j.Slf4j;
+import org.jubensha.aijubenshabackend.ai.service.util.MessageChunker;
 import org.jubensha.aijubenshabackend.core.config.ai.MilvusSchemaConfig;
 import org.jubensha.aijubenshabackend.memory.MilvusCollectionManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,19 +43,22 @@ public class RAGServiceImpl implements RAGService {
     private final MilvusSchemaConfig schemaConfig;
     private final Gson gson;
     private final RerankService rerankService;
+    private final MessageChunker messageChunker;
 
     @Autowired
     public RAGServiceImpl(EmbeddingService embeddingService,
                           MilvusClientV2 milvusClientV2,
                           MilvusCollectionManager collectionManager,
                           MilvusSchemaConfig schemaConfig,
-                          RerankService rerankService) {
+                          RerankService rerankService,
+                          MessageChunker messageChunker) {
         this.embeddingService = embeddingService;
         this.milvusClientV2 = milvusClientV2;
         this.collectionManager = collectionManager;
         this.schemaConfig = schemaConfig;
         this.gson = new Gson();
         this.rerankService = rerankService;
+        this.messageChunker = messageChunker;
     }
 
     /**
@@ -667,47 +671,88 @@ public class RAGServiceImpl implements RAGService {
             log.info("创建游戏 {} 的对话记忆集合", gameId);
         }
 
-        // 生成嵌入向量
-        List<Float> embedding = embeddingService.generateEmbedding(content);
-        if (embedding == null || embedding.isEmpty()) {
-            log.warn("生成嵌入向量失败，内容: {}", content);
+        // 识别消息类型
+        MessageChunker.MessageType messageType = messageChunker.identifyMessageType(content, playerName);
+        log.debug("识别消息类型: {}, 发送者: {}", messageType, playerName);
+
+        // 检查是否需要存储
+        if (!messageChunker.shouldStoreToVectorDB(messageType)) {
+            log.debug("消息类型不需要存储到向量数据库: {}", messageType);
             return null;
         }
 
-        // 构建插入数据
-        JsonObject data = new JsonObject();
-        data.addProperty("player_id", playerId);
-        data.addProperty("player_name", playerName);
-        data.addProperty("content", content);
-        data.addProperty("timestamp", System.currentTimeMillis());
-        // 直接将向量作为JSON数组添加
-        com.google.gson.JsonArray embeddingArray = new com.google.gson.JsonArray();
-        for (Float value : embedding) {
-            embeddingArray.add(value);
+        // 优化消息存储
+        List<String> optimizedMessages = messageChunker.optimizeMessageForStorage(content, messageType);
+        if (optimizedMessages.isEmpty()) {
+            log.debug("没有需要存储的消息块");
+            return null;
         }
-        data.add("embedding", embeddingArray);
 
-        // 构建插入请求
-        InsertReq insertReq = InsertReq.builder()
-                .collectionName(collectionName)
-                .data(List.of(data))
-                .build();
+        log.debug("消息分块完成，总块数: {}", optimizedMessages.size());
 
-        // 执行插入
-        try {
-            InsertResp insertResp = milvusClientV2.insert(insertReq);
-            if (insertResp != null && !insertResp.getPrimaryKeys().isEmpty()) {
-                // 处理类型转换，确保返回Long类型
-                Object idObj = insertResp.getPrimaryKeys().get(0);
-                Long id = idObj instanceof Long ? (Long) idObj : Long.valueOf(idObj.toString());
-                log.debug("插入对话记忆成功，游戏ID: {}, 记录ID: {}", gameId, id);
-                return id;
+        Long firstId = null;
+        int successCount = 0;
+
+        // 逐个存储消息块
+        for (int i = 0; i < optimizedMessages.size(); i++) {
+            String chunk = optimizedMessages.get(i);
+            log.debug("存储消息块 {}，大小: {}", i + 1, chunk.length());
+
+            try {
+                // 生成嵌入向量
+                List<Float> embedding = embeddingService.generateEmbedding(chunk);
+                if (embedding == null || embedding.isEmpty()) {
+                    log.warn("生成嵌入向量失败，跳过存储，块大小: {}", chunk.length());
+                    continue;
+                }
+
+                // 构建插入数据
+                JsonObject data = new JsonObject();
+                data.addProperty("player_id", playerId);
+                data.addProperty("player_name", playerName);
+                data.addProperty("content", chunk);
+                data.addProperty("timestamp", System.currentTimeMillis());
+                data.addProperty("chunk_index", i);
+                data.addProperty("total_chunks", optimizedMessages.size());
+                data.addProperty("message_type", messageType.name());
+                
+                // 直接将向量作为JSON数组添加
+                com.google.gson.JsonArray embeddingArray = new com.google.gson.JsonArray();
+                for (Float value : embedding) {
+                    embeddingArray.add(value);
+                }
+                data.add("embedding", embeddingArray);
+
+                // 构建插入请求
+                InsertReq insertReq = InsertReq.builder()
+                        .collectionName(collectionName)
+                        .data(List.of(data))
+                        .build();
+
+                // 执行插入
+                InsertResp insertResp = milvusClientV2.insert(insertReq);
+                if (insertResp != null && !insertResp.getPrimaryKeys().isEmpty()) {
+                    // 处理类型转换，确保返回Long类型
+                    Object idObj = insertResp.getPrimaryKeys().get(0);
+                    Long id = idObj instanceof Long ? (Long) idObj : Long.valueOf(idObj.toString());
+                    log.debug("插入对话记忆块成功，游戏ID: {}, 块索引: {}, 记录ID: {}", gameId, i, id);
+                    
+                    if (firstId == null) {
+                        firstId = id;
+                    }
+                    successCount++;
+                }
+            } catch (Exception e) {
+                log.error("存储消息块失败: {}", e.getMessage(), e);
+                // 继续处理下一个块
+                continue;
             }
-        } catch (Exception e) {
-            log.error("插入对话记忆失败，游戏ID: {}", gameId, e);
         }
 
-        return null;
+        log.info("消息存储完成，总块数: {}, 成功: {}, 失败: {}", 
+                optimizedMessages.size(), successCount, optimizedMessages.size() - successCount);
+
+        return firstId;
     }
 
     @Override
