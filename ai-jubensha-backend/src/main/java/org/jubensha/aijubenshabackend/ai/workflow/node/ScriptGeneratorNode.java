@@ -185,6 +185,7 @@ public class ScriptGeneratorNode {
      */
     private static List<Clue> parseClues(JsonNode rootNode, Long scriptId) {
         List<Clue> clues = new ArrayList<>();
+        String emptyString = "";
         JsonNode cluesNode = rootNode.path("clues");
         if (cluesNode.isArray()) {
             for (JsonNode clueNode : cluesNode) {
@@ -195,14 +196,17 @@ public class ScriptGeneratorNode {
                 try {
                     clue.setType(ClueType.valueOf(clueNode.path("type").asText().toUpperCase()));
                 } catch (Exception e) {
-                    clue.setType(ClueType.PHYSICAL); // 默认类型
+                    // 默认类型
+                    clue.setType(ClueType.PHYSICAL);
                 }
                 try {
                     clue.setVisibility(ClueVisibility.valueOf(clueNode.path("visibility").asText().toUpperCase()));
                 } catch (Exception e) {
-                    clue.setVisibility(ClueVisibility.PUBLIC); // 默认可见性
+                    // 默认可见性
+                    clue.setVisibility(ClueVisibility.PUBLIC);
                 }
                 clue.setScene(clueNode.path("scene").asText());
+                clue.setImageUrl(emptyString);
                 clue.setImportance(clueNode.path("importance").asInt(1));
                 clue.setCreateTime(LocalDateTime.now());
                 clues.add(clue);
