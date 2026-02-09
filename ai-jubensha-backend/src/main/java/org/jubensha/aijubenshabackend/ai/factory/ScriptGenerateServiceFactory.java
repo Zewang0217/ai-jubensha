@@ -7,6 +7,7 @@ import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +51,7 @@ public class ScriptGenerateServiceFactory {
     //    @Resource
 //    private RedisChatMemoryStore redisChatMemoryStore;
     @Resource(name = "openAiChatModel")
-    private ChatModel chatModel;
+    private OpenAiChatModel chatModel;
     @Resource(name = "streamingChatModel")
     private StreamingChatModel streamingChatModel;
     @Resource
@@ -93,16 +94,27 @@ public class ScriptGenerateServiceFactory {
 
         // 检查 streamingChatModel 是否为 null
         if (streamingChatModel == null) {
-            log.warn("streamingChatModel 为 null，使用 chatModel 作为替代");
-            // 由于类型不匹配，我们需要创建一个新的服务实例，使用非流式方法
+            log.warn("streamingChatModel 为 null，尝试使用 chatModel 作为替代");
+            // 检查 chatModel 是否为 null
+            if (chatModel == null) {
+                log.error("chatModel 也为 null，无法创建剧本生成服务");
+                log.error("请检查 AI 配置：");
+                log.error("1. 确保 application.yml 中的 ai.api-key 和 ai.base-url 配置正确");
+                log.error("2. 确保 AIConfig 类中的 openAiChatModel 和 streamingChatModel bean 能够正常创建");
+                log.error("3. 检查依赖是否正确加载");
+                throw new IllegalArgumentException("Both streamingChatModel and chatModel are null. Please check AI configuration in application.yml");
+            }
+            // 使用非流式方法
+            log.info("使用 chatModel 创建非流式服务作为替代");
             return createNonStreamingScriptGenerateService(scriptId);
         }
 
         log.info("使用 streamingChatModel 创建流式服务");
 
         return AiServices.builder(ScriptGenerateService.class)
-                .streamingChatModel(streamingChatModel)
+                .chatModel(chatModel)
 //            .chatMemoryProvider(memoryId -> chatMemory)
+            .streamingChatModel(streamingChatModel)
                 .tools(toolManager.getAllTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
@@ -124,10 +136,21 @@ public class ScriptGenerateServiceFactory {
                 .maxMessages(10)
                 .build();
 
+        // 检查 chatModel 是否为 null
+        if (chatModel == null) {
+            log.error("chatModel 为 null，无法创建非流式剧本生成服务");
+            log.error("请检查 AI 配置：");
+            log.error("1. 确保 application.yml 中的 ai.api-key 和 ai.base-url 配置正确");
+            log.error("2. 确保 AIConfig 类中的 openAiChatModel bean 能够正常创建");
+            log.error("3. 检查依赖是否正确加载");
+            throw new IllegalArgumentException("chatModel cannot be null. Please check AI configuration in application.yml");
+        }
+
         log.info("使用 chatModel 创建非流式服务");
 
         return AiServices.builder(ScriptGenerateService.class)
                 .chatModel(chatModel)
+                .streamingChatModel(streamingChatModel)
 //            .chatMemoryProvider(memoryId -> chatMemory)
                 .tools(toolManager.getAllTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
