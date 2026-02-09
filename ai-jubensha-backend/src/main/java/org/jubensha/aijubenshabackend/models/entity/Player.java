@@ -28,6 +28,7 @@ public class Player {
     private String avatarUrl;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 20)
     private PlayerRole role;
 
     @Enumerated(EnumType.STRING)
