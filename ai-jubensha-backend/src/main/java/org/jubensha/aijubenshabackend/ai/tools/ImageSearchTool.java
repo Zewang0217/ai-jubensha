@@ -9,6 +9,8 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.models.ImageResource;
+import org.jubensha.aijubenshabackend.ai.tools.permission.AgentType;
+import org.jubensha.aijubenshabackend.ai.tools.permission.ToolPermissionLevel;
 import org.jubensha.aijubenshabackend.core.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -42,6 +44,11 @@ public class ImageSearchTool extends BaseTool {
     @Override
     public String generateToolExecutedResult(JSONObject arguments) {
         return "\n\n[图片获取成功]\n\n";
+    }
+
+    @Override
+    public ToolPermissionLevel getRequiredPermissionLevel(AgentType agentType) {
+        return ToolPermissionLevel.NONE;
     }
 
     @Tool("根据关键词搜索图片")
