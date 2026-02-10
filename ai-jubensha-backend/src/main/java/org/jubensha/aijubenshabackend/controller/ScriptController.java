@@ -390,7 +390,7 @@ public class ScriptController {
             AtomicReference<String> fullScript = new AtomicReference<>("");
             // 调整批量大小，增加存储频率，确保即使在流式输出被截断的情况下，也能保存尽可能多的内容
             final int BATCH_SIZE = 500; // 每500个字符保存一次
-            final int MAX_BATCH_SIZE = 5000; // 最大批量大小
+            final int MAX_BATCH_SIZE = 15000; // 最大批量大小
             
             // 转换为ServerSentEvent
             return scriptStream.map(content -> {
