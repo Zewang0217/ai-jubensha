@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -95,7 +94,7 @@ public class WebSocketService {
      * // TODO: 待完善
      * 通知玩家开始搜证
      */
-    public void notifyPlayerStartInvestigation(Long playerId, List<Map<String, Object>> investigationScenes) {
+    public void notifyPlayerStartInvestigation(Long playerId, Map<String, Object> investigationScenes) {
         WebSocketMessage message = new WebSocketMessage();
         message.setType("START_INVESTIGATION");
         message.setPayload(investigationScenes);

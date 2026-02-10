@@ -17,6 +17,7 @@ import java.util.Map;
  * 工作流上下文
  *
  * @author zewan
+ * @author luobo
  * @version 1.0
  * @date 2026-01-30 16:25
  * @since 2026
@@ -179,6 +180,20 @@ public class WorkflowContext implements Serializable {
      */
     private Map<Long, Integer> privateChatCounts;
 
+    // ====== 搜证相关字段 ======
+    /**
+     * 默认搜证次数限制（每个玩家每轮可搜证次数）
+     */
+    public static final int DEFAULT_INVESTIGATION_LIMIT = 3;
+    /**
+     * 玩家搜证次数限制 key: playerId, value: 剩余次数
+     */
+    private Map<Long, Integer> playerInvestigationCounts;
+    /**
+     * 玩家搜证历史记录 key: playerId, value: 搜证历史列表
+     */
+    private Map<Long, List<Map<String, Object>>> playerInvestigationHistories;
+
     // ====== 上下文操作方法 ======
 
     /**
@@ -193,5 +208,111 @@ public class WorkflowContext implements Serializable {
      */
     public static Map<String, Object> saveContext(WorkflowContext context) {
         return Map.of(WORKFLOW_CONTEXT_KEY, context);
+    }
+
+    // ====== 搜证相关方法 ======
+
+    /**
+     * 初始化玩家搜证次数
+     * 在游戏进入搜证阶段时调用，为每个玩家分配默认的搜证次数
+     *
+     * @param playerIds 玩家ID列表
+     */
+    public void initInvestigationCounts(List<Long> playerIds) {
+        if (this.playerInvestigationCounts == null) {
+            this.playerInvestigationCounts = new java.util.HashMap<>();
+        }
+        if (this.playerInvestigationHistories == null) {
+            this.playerInvestigationHistories = new java.util.HashMap<>();
+        }
+        for (Long playerId : playerIds) {
+            this.playerInvestigationCounts.put(playerId, DEFAULT_INVESTIGATION_LIMIT);
+            this.playerInvestigationHistories.put(playerId, new java.util.ArrayList<>());
+        }
+    }
+
+    /**
+     * 获取玩家的剩余搜证次数
+     *
+     * @param playerId 玩家ID
+     * @return 剩余次数，如果未找到则返回0
+     */
+    public int getRemainingInvestigationCount(Long playerId) {
+        if (this.playerInvestigationCounts == null) {
+            return 0;
+        }
+        return this.playerInvestigationCounts.getOrDefault(playerId, 0);
+    }
+
+    /**
+     * 检查玩家是否还有搜证次数
+     *
+     * @param playerId 玩家ID
+     * @return true 如果还有剩余次数，false 否则
+     */
+    public boolean hasInvestigationChance(Long playerId) {
+        return getRemainingInvestigationCount(playerId) > 0;
+    }
+
+    /**
+     * 消耗一次搜证次数
+     * 如果玩家还有剩余次数，则扣减一次并返回true；否则返回false
+     *
+     * @param playerId 玩家ID
+     * @return true 如果成功扣减次数，false 如果没有剩余次数
+     */
+    public boolean consumeInvestigationChance(Long playerId) {
+        if (!hasInvestigationChance(playerId)) {
+            return false;
+        }
+        int remaining = this.playerInvestigationCounts.get(playerId);
+        this.playerInvestigationCounts.put(playerId, remaining - 1);
+        return true;
+    }
+
+    /**
+     * 记录玩家的搜证历史
+     *
+     * @param playerId 玩家ID
+     * @param sceneId  场景ID
+     * @param clueId   线索ID
+     * @param clueName 线索名称
+     */
+    public void recordInvestigationHistory(Long playerId, Long sceneId, Long clueId, String clueName) {
+        if (this.playerInvestigationHistories == null) {
+            this.playerInvestigationHistories = new java.util.HashMap<>();
+        }
+        List<Map<String, Object>> history = this.playerInvestigationHistories.computeIfAbsent(playerId, k -> new java.util.ArrayList<>());
+        Map<String, Object> record = new java.util.HashMap<>();
+        record.put("sceneId", sceneId);
+        record.put("clueId", clueId);
+        record.put("clueName", clueName);
+        record.put("investigateTime", LocalDateTime.now());
+        history.add(record);
+    }
+
+    /**
+     * 获取玩家的搜证历史
+     *
+     * @param playerId 玩家ID
+     * @return 搜证历史列表
+     */
+    public List<Map<String, Object>> getInvestigationHistory(Long playerId) {
+        if (this.playerInvestigationHistories == null) {
+            return new java.util.ArrayList<>();
+        }
+        return this.playerInvestigationHistories.getOrDefault(playerId, new java.util.ArrayList<>());
+    }
+
+    /**
+     * 获取所有玩家的搜证次数信息
+     *
+     * @return 玩家ID到剩余次数的映射
+     */
+    public Map<Long, Integer> getAllInvestigationCounts() {
+        if (this.playerInvestigationCounts == null) {
+            return new java.util.HashMap<>();
+        }
+        return new java.util.HashMap<>(this.playerInvestigationCounts);
     }
 }
