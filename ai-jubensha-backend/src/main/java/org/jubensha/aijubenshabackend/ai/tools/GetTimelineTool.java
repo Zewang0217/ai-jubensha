@@ -2,6 +2,8 @@ package org.jubensha.aijubenshabackend.ai.tools;
 
 
 import cn.hutool.json.JSONObject;
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.tools.permission.AgentType;
@@ -69,7 +71,9 @@ public class GetTimelineTool extends BaseTool {
             log.debug("获取角色时间线，角色ID: {}, 剧本ID: {}", characterId, scriptId);
 
             // 调用RAGService获取时间线
-            List<Map<String, Object>> timeline = ragService.searchGlobalTimelineMemory(scriptId, characterId, "", 30);
+            // 提供默认查询文本，避免空字符串导致向量生成失败
+            String query = "获取角色时间线"; // 默认查询文本
+            List<Map<String, Object>> timeline = ragService.searchGlobalTimelineMemory(scriptId, characterId, query, 30);
 
             // 构建结果
             StringBuilder result = new StringBuilder();
@@ -97,9 +101,14 @@ public class GetTimelineTool extends BaseTool {
      * 工具执行方法
      * 供AI直接调用
      */
-    public List<Map<String, Object>> execute(Long scriptId, Long characterId) {
-        // 限制最大返回数量
-        return ragService.searchGlobalTimelineMemory(scriptId, characterId, "", 30);
+    @Tool("获取角色时间线")
+    public String executeGetTimeline(@P("剧本ID") Long scriptId, @P("角色ID") Long characterId) {
+        // 创建参数对象
+        JSONObject arguments = new JSONObject();
+        arguments.put("scriptId", scriptId);
+        arguments.put("characterId", characterId);
+        // 调用核心逻辑方法
+        return generateToolExecutedResult(arguments);
     }
 
     @Override
