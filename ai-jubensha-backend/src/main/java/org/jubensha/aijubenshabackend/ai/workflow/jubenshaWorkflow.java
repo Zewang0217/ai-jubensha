@@ -15,9 +15,15 @@ import org.jubensha.aijubenshabackend.ai.workflow.node.*;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
+import org.jubensha.aijubenshabackend.models.entity.Game;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.service.game.GameService;
 
 /**
  * 剧本杀的工作流
@@ -92,12 +98,37 @@ public class jubenshaWorkflow {
      */
     public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming) {
         CompiledGraph<MessagesState<String>> workflow = createWorkflow(useStreaming);
-        // 生成唯一的游戏ID
-        Long gameId = System.currentTimeMillis();
+        
+        // 启动工作流时就创建游戏，使用数据库自增ID
+        Long gameId = null;
+        try {
+            // 获取游戏服务
+            GameService gameService = SpringContextUtil.getBean(GameService.class);
+            
+            // 创建新游戏
+            Game newGame = new Game();
+            // 如果使用现有剧本，设置剧本ID
+            if (!createNewScript && scriptId != null) {
+                newGame.setScriptId(scriptId);
+            }
+            newGame.setStatus(GameStatus.CREATED);
+            newGame.setGameCode("123");
+            newGame.setCurrentPhase(GamePhase.INTRODUCTION);
+            newGame.setStartTime(LocalDateTime.now());
+            newGame.setScriptId(1L);
+
+            newGame = gameService.createGame(newGame);
+            gameId = newGame.getId();
+            log.info("工作流启动时创建游戏成功，游戏ID: {}", gameId);
+        } catch (Exception e) {
+            log.error("工作流启动时创建游戏失败：{}", e.getMessage(), e);
+        }
+
+        // 使用数据库自增的游戏ID
         WorkflowContext initialContext = WorkflowContext.builder()
             .originalPrompt(originalPrompt)
             .currentStep("初始化")
-            .gameId(gameId)
+            .gameId(gameId) // 使用数据库自增的游戏ID
             .createNewScript(createNewScript)
             .existingScriptId(createNewScript ? null : scriptId)
             .build();
@@ -112,7 +143,6 @@ public class jubenshaWorkflow {
         GraphRepresentation graph = workflow.getGraph(Type.MERMAID);
         log.info("并发工作流图：\n{}", graph.content());
         log.info("开始执行并发工作流...");
-        log.info("游戏ID: {}", gameId);
         log.info("剧本选择: {}", createNewScript ? "创建新剧本" : "使用现有剧本");
         if (!createNewScript) {
             log.info("现有剧本ID: {}", scriptId);
@@ -136,16 +166,16 @@ public class jubenshaWorkflow {
             WorkflowContext currentContext = WorkflowContext.getContext(step.state());
             if (currentContext != null) {
                 finalContext = currentContext;
-                // 确保gameId在整个工作流中传递
-                if (finalContext.getGameId() == null) {
-                    finalContext.setGameId(gameId);
-                }
                 // 确保剧本选择参数在整个工作流中传递
                 if (finalContext.getCreateNewScript() == null) {
                     finalContext.setCreateNewScript(createNewScript);
                 }
                 if (finalContext.getExistingScriptId() == null && !createNewScript) {
                     finalContext.setExistingScriptId(scriptId);
+                }
+                // 记录当前游戏ID（如果已设置）
+                if (finalContext.getGameId() != null) {
+                    log.info("当前游戏ID: {}", finalContext.getGameId());
                 }
 //                log.info("当前上下文：{}", currentContext);
             }
