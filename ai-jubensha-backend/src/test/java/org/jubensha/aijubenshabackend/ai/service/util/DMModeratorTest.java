@@ -92,7 +92,7 @@ public class DMModeratorTest {
         // 验证行为
         verify(turnManager).initializeGameTurn(gameId, playerIds, dmId);
         verify(dmAgent).startDiscussion(anyString());
-        verify(sendDiscussionMessageTool).execute("讨论开始消息", gameId, dmId, playerIds);
+        verify(sendDiscussionMessageTool).executeSendDiscussionMessage("讨论开始消息", gameId, dmId, playerIds);
         
         // 验证阶段转换（由于是异步执行，只验证初始化和第一个阶段切换）
         verify(turnManager).switchPhase(gameId, TurnManager.PHASE_STATEMENT);
@@ -111,7 +111,7 @@ public class DMModeratorTest {
 
         // 验证行为
         verify(turnManager).initializeGameTurn(gameId, playerIds, dmId);
-        verify(sendDiscussionMessageTool, never()).execute(anyString(), anyLong(), anyLong(), anyList());
+        verify(sendDiscussionMessageTool, never()).executeSendDiscussionMessage(anyString(), anyLong(), anyLong(), anyList());
     }
 
     @Test

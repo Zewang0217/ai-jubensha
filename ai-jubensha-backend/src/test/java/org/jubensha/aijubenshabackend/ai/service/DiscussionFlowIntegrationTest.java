@@ -103,11 +103,11 @@ public class DiscussionFlowIntegrationTest {
         when(judgeAgent.summarizeDiscussion(anyString())).thenReturn("讨论总结");
 
         // 模拟Player行为
-        when(playerAgent1.reasonAndDiscuss(anyString(), anyString(), anyString(), anyString()))
+        when(playerAgent1.reasonAndDiscuss(anyString(), anyString(), anyString()))
                 .thenReturn("玩家1的陈述");
-        when(playerAgent2.reasonAndDiscuss(anyString(), anyString(), anyString(), anyString()))
+        when(playerAgent2.reasonAndDiscuss(anyString(), anyString(), anyString()))
                 .thenReturn("玩家2的陈述");
-        when(playerAgent3.reasonAndDiscuss(anyString(), anyString(), anyString(), anyString()))
+        when(playerAgent3.reasonAndDiscuss(anyString(), anyString(), anyString()))
                 .thenReturn("玩家3的陈述");
 
         when(playerAgent1.decidePrivateChat(anyString(), anyString()))

@@ -2,6 +2,8 @@ package org.jubensha.aijubenshabackend.ai.tools;
 
 
 import cn.hutool.json.JSONObject;
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.tools.permission.AgentType;
 import org.jubensha.aijubenshabackend.ai.tools.permission.ToolPermissionLevel;
@@ -13,10 +15,34 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 获取角色秘密工具
  * 用于AI获取角色的秘密信息，支持按角色ID查询
+ * <p>
+ * 工具说明：
+ * - 功能：获取指定角色的秘密信息
+ * - 参数：
+ *   - characterId：角色ID（必填）
+ * - 返回格式：角色秘密的文本内容
+ * - 权限：管理员类型Agent可访问所有角色秘密，玩家Agent只能访问自身角色秘密
+ * <p>
+ * 调用时机：
+ * 1. 陈述阶段准备角色信息时，了解角色的隐藏背景
+ * 2. 分析案件动机时，获取角色可能的犯罪动机
+ * 3. 制定游戏策略时，了解角色需要隐藏的信息
+ * 4. 与其他玩家互动时，基于角色秘密调整交流策略
+ * <p>
+ * 示例调用：
+ * {
+ *   "toolcall": {
+ *     "thought": "需要了解角色的隐藏信息",
+ *     "name": "getSecret",
+ *     "params": {
+ *       "characterId": "1"
+ *     }
+ *   }
+ * }
  *
  * @author Zewang
- * @version 1.0
- * @date 2026-02-06
+ * @version 2.0
+ * @date 2026-02-10
  * @since 2026
  */
 
@@ -82,8 +108,13 @@ public class GetSecretTool extends BaseTool {
      * 工具执行方法
      * 供AI直接调用
      */
-    public String execute(Long characterId) {
-        return getCharacterSecret(characterId);
+    @Tool("获取角色秘密")
+    public String executeGetSecret(@P("角色ID") Long characterId) {
+        // 创建参数对象
+        JSONObject arguments = new JSONObject();
+        arguments.put("characterId", characterId);
+        // 调用核心逻辑方法
+        return generateToolExecutedResult(arguments);
     }
 
     @Override
