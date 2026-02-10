@@ -49,7 +49,7 @@ public class SceneLoaderNode {
     public static AsyncNodeAction<MessagesState<String>> create() {
         return node_async(state -> {
             WorkflowContext context = WorkflowContext.getContext(state);
-            log.debug("SceneLoaderNode: {}", context);
+//            log.debug("SceneLoaderNode: {}", context);
             log.info("执行节点：场景加载");
 
             // 获取游戏ID和剧本ID
