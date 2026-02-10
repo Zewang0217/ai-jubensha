@@ -1,7 +1,6 @@
 package org.jubensha.aijubenshabackend.websocket.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.jubensha.aijubenshabackend.websocket.message.WebSocketMessage;
@@ -16,14 +15,13 @@ import java.util.Optional;
 @Service
 public class WebSocketService {
 
-    //    private static final Logger logger = LoggerFactory.getLogger(WebSocketService.class);
-    PlayerService playerService = SpringContextUtil.getBean(PlayerService.class);
-
     private final SimpMessagingTemplate messagingTemplate;
+    private final PlayerService playerService;
 
     @Autowired
-    public WebSocketService(SimpMessagingTemplate messagingTemplate) {
+    public WebSocketService(SimpMessagingTemplate messagingTemplate, PlayerService playerService) {
         this.messagingTemplate = messagingTemplate;
+        this.playerService = playerService;
     }
 
     /**
