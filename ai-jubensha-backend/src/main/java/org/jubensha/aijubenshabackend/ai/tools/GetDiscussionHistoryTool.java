@@ -2,6 +2,8 @@ package org.jubensha.aijubenshabackend.ai.tools;
 
 
 import cn.hutool.json.JSONObject;
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.tools.permission.AgentType;
@@ -82,7 +84,9 @@ public class GetDiscussionHistoryTool extends BaseTool {
             log.debug("获取讨论历史，游戏ID: {}, 限制: {}", gameId, limit);
 
             // 调用RAGService获取讨论历史
-            List<Map<String, Object>> history = ragService.searchConversationMemory(gameId, null, "", limit);
+            // 提供默认查询文本，避免空字符串导致向量生成失败
+            String query = "获取讨论历史"; // 默认查询文本
+            List<Map<String, Object>> history = ragService.searchConversationMemory(gameId, null, query, limit);
 
             // 构建结果
             StringBuilder result = new StringBuilder();
@@ -112,12 +116,14 @@ public class GetDiscussionHistoryTool extends BaseTool {
      * 工具执行方法
      * 供AI直接调用
      */
-    public List<Map<String, Object>> execute(Long gameId, int limit) {
-        // 限制最大返回数量
-        if (limit > 30) {
-            limit = 30;
-        }
-        return ragService.searchConversationMemory(gameId, null, "", limit);
+    @Tool("获取讨论历史")
+    public String executeGetDiscussionHistory(@P("游戏ID") Long gameId, @P("返回消息数量限制") int limit) {
+        // 创建参数对象
+        JSONObject arguments = new JSONObject();
+        arguments.put("gameId", gameId);
+        arguments.put("limit", limit);
+        // 调用核心逻辑方法
+        return generateToolExecutedResult(arguments);
     }
 
     @Override
