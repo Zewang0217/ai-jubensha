@@ -9,6 +9,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.models.ImageResource;
+import org.jubensha.aijubenshabackend.ai.tools.permission.ToolPermissionLevel;
 import org.jubensha.aijubenshabackend.core.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -89,5 +90,10 @@ public class ImageSearchTool extends BaseTool {
             log.error("Pexels API 调用失败: {}", e.getMessage(), e);
             throw new BusinessException(THIRD_PARTY_SERVICE_ERROR);
         }
+    }
+
+    @Override
+    public org.jubensha.aijubenshabackend.ai.tools.permission.ToolPermissionLevel getRequiredPermissionLevel(org.jubensha.aijubenshabackend.ai.tools.permission.AgentType agentType) {
+        return ToolPermissionLevel.NONE;
     }
 }
