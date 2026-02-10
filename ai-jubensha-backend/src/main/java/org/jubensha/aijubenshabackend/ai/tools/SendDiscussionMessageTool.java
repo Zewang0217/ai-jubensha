@@ -2,6 +2,8 @@ package org.jubensha.aijubenshabackend.ai.tools;
 
 
 import cn.hutool.json.JSONObject;
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.MessageQueueService;
 import org.jubensha.aijubenshabackend.ai.service.RAGService;
@@ -19,11 +21,42 @@ import java.util.Optional;
 
 /**
  * 发送讨论消息工具
- * 用于AI发送讨论消息，支持向所有玩家广播消息
+ * 用于AI发送讨论消息，支持向指定玩家广播消息
+ * <p>
+ * 工具说明：
+ * - 功能：发送讨论消息到指定玩家，自动处理消息长度，存储消息到向量数据库
+ * - 参数：
+ *   - message：消息内容（必填）
+ *   - gameId：游戏ID（必填）
+ *   - playerId：发送者ID（必填）
+ *   - recipientIds：接收者ID列表（必填）
+ * - 返回格式：消息发送结果
+ * - 权限：DM和Player可以发送讨论消息，Judge和Summary不应该发送讨论消息
+ * <p>
+ * 调用时机：
+ * 1. 陈述阶段，玩家进行角色背景陈述时
+ * 2. 自由讨论阶段，玩家发表对案件的分析时
+ * 3. 线索讨论阶段，玩家针对线索发表见解时
+ * 4. 单聊结束后，玩家分享重要信息时
+ * 5. 答题阶段，玩家提交最终答案时
+ * <p>
+ * 示例调用：
+ * {
+ *   "toolcall": {
+ *     "thought": "需要向其他玩家分享我的分析",
+ *     "name": "sendDiscussionMessage",
+ *     "params": {
+ *       "message": "根据我的分析，凶手应该是...",
+ *       "gameId": "1",
+ *       "playerId": "2",
+ *       "recipientIds": [1, 2, 3, 4, 5]
+ *     }
+ *   }
+ * }
  *
  * @author Zewang
- * @version 1.0
- * @date 2026-02-06
+ * @version 2.0
+ * @date 2026-02-10
  * @since 2026
  */
 
@@ -93,30 +126,16 @@ public class SendDiscussionMessageTool extends BaseTool {
      * 工具执行方法
      * 供AI直接调用
      */
-    public boolean execute(String message, Long gameId, Long playerId, List<Long> recipientIds) {
-        try {
-            // 获取发送者信息
-            Optional<Player> playerOpt = playerService.getPlayerById(playerId);
-            Player player = playerOpt.orElseThrow(() -> new RuntimeException("玩家不存在"));
-            String playerName = player.getNickname();
-
-            // 智能处理消息
-            String processedMessage = processMessage(message, playerName);
-
-            log.debug("执行讨论消息发送，玩家ID: {}, 游戏ID: {}, 接收者数量: {}, 消息长度: {}", 
-                    playerId, gameId, recipientIds.size(), processedMessage.length());
-
-            // 发送消息到消息队列
-            messageQueueService.sendDiscussionMessage(processedMessage, recipientIds);
-
-            // 存储消息到向量数据库
-            ragService.insertConversationMemory(gameId, playerId, playerName, processedMessage);
-
-            return true;
-        } catch (Exception e) {
-            log.error("发送讨论消息失败: {}, 消息内容:{}", e.getMessage(), message, e);
-            return false;
-        }
+    @Tool("发送讨论消息")
+    public String executeSendDiscussionMessage(@P("消息内容") String message, @P("游戏ID") Long gameId, @P("玩家ID") Long playerId, @P("接收者ID列表") List<Long> recipientIds) {
+        // 创建参数对象
+        JSONObject arguments = new JSONObject();
+        arguments.put("message", message);
+        arguments.put("gameId", gameId);
+        arguments.put("playerId", playerId);
+        arguments.put("recipientIds", recipientIds);
+        // 调用核心逻辑方法
+        return generateToolExecutedResult(arguments);
     }
 
     /**
