@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.jubensha.aijubenshabackend.ai.models.ImageResource;
+import org.jubensha.aijubenshabackend.ai.service.util.ResponseUtils;
 import org.jubensha.aijubenshabackend.ai.tools.ImageSearchTool;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.exception.BusinessException;
@@ -85,10 +86,13 @@ public class SceneLoaderNode {
 
                     // 如果数据库中没有场景，尝试从JSON解析
                     if (scenes == null || scenes.isEmpty()) {
-                        String scriptJson = context.getModelOutput();
-                        if (scriptJson != null && !scriptJson.isEmpty()) {
+                        String scriptAiOutPut = context.getModelOutput();
+                        // 戛然而止
+                        log.debug("AI生成剧本原输出:\n\n" + scriptAiOutPut + "\n\n");
+                        if (scriptAiOutPut != null && !scriptAiOutPut.isEmpty()) {
                             log.info("数据库中无场景，尝试从JSON解析");
-                            JsonNode rootNode = objectMapper.readTree(scriptJson);
+//                            JsonNode rootNode = objectMapper.readTree(scriptAiOutPut);
+                            JsonNode rootNode = ResponseUtils.extractJson(scriptAiOutPut);
                             scenes = parseScenes(rootNode, scriptId);
 
                             // 保存场景到数据库
