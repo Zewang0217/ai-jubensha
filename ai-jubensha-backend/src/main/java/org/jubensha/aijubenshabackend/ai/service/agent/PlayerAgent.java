@@ -41,4 +41,6 @@ public interface PlayerAgent {
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请通过调用工具分析当前讨论情况和其他玩家状态，决定是否需要发起单聊，并选择合适的目标玩家。")
     String decidePrivateChat(String gameId, String playerId);
+
+    // TODO: 添加startInvestigation接口用于Agent启动搜证
 }
