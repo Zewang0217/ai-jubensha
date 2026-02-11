@@ -121,6 +121,7 @@ public class AssemblyNode {
                 context.setScriptId(scriptId);
                 context.setScriptName(title);
                 context.setSuccess(true);
+                WorkflowContext.saveContext(context);
                 log.info("最终剧本 ID 已保存到状态: {}", scriptId);
                 
             } catch (Exception e) {

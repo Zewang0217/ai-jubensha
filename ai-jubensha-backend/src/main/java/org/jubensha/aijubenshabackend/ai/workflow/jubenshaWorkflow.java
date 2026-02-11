@@ -116,7 +116,7 @@ public class jubenshaWorkflow {
      * 执行并发工作流
      */
     public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming, Long gameId) {
-        return executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, false, gameId);
+        return executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, true, gameId);
     }
     
     /**
@@ -256,8 +256,10 @@ public class jubenshaWorkflow {
             newGame.setScriptId(scriptId);
         }
         newGame.setStatus(GameStatus.CREATED);
-        // 生成随机游戏码
-        newGame.setGameCode(generateGameCode());
+        // 如果 gameCode 为空，则生成随机游戏码
+        if (newGame.getGameCode() == null || newGame.getGameCode().isEmpty()) {
+            newGame.setGameCode(generateGameCode());
+        }
         newGame.setCurrentPhase(GamePhase.INTRODUCTION);
         newGame.setStartTime(LocalDateTime.now());
 
