@@ -25,6 +25,7 @@ public class Game {
     @Column(name = "script_id", nullable = true)
     private Long scriptId;
 
+    @Column(name = "game_code", nullable = true, unique = true)
     private String gameCode;
 
     @Enumerated(EnumType.STRING)
