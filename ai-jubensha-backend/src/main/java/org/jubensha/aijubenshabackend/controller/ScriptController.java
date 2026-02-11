@@ -3,8 +3,11 @@ package org.jubensha.aijubenshabackend.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.factory.ScriptGenerateServiceFactory;
 import org.jubensha.aijubenshabackend.ai.service.ScriptGenerateService;
+import org.jubensha.aijubenshabackend.ai.workflow.ScriptCreationWorkflow;
+import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.dto.ScriptCreateDTO;
 import org.jubensha.aijubenshabackend.models.dto.ScriptResponseDTO;
@@ -29,7 +32,8 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -43,6 +47,7 @@ import java.util.stream.Collectors;
  * 剧本控制器
  */
 @RestController
+@Slf4j
 @RequestMapping("/api/scripts")
 public class ScriptController {
 
@@ -783,6 +788,123 @@ public class ScriptController {
                 System.out.println("无法修复JSON，返回基本结构");
                 return "{\"scriptName\": \"未完成的剧本\", \"scriptIntro\": \"剧本生成过程中出现错误\", \"characters\": [], \"scenes\": [], \"clues\": []}";
             }
+        }
+    }
+    
+    /**
+     * 使用新的剧本生成工作流生成剧本
+     *
+     * @param prompt 用户需求
+     * @return 流式响应
+     */
+    @GetMapping(value = "/generate/new", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> generateScriptNew(@RequestParam String prompt) {
+        try {
+            log.info("使用新的剧本生成工作流，提示词: {}", prompt);
+            
+            // 创建工作流实例
+            ScriptCreationWorkflow scriptCreationWorkflow = SpringContextUtil.getBean(ScriptCreationWorkflow.class);
+            
+            // 构建并编译工作流
+            var workflow = scriptCreationWorkflow.buildGraph().compile();
+            
+            // 创建初始上下文
+            WorkflowContext initialContext = WorkflowContext.builder()
+                    .originalPrompt(prompt)
+                    .createNewScript(true)
+                    .currentStep("初始化新剧本生成")
+                    .build();
+            
+            // 用于收集流式输出
+            AtomicReference<String> outputBuilder = new AtomicReference<>("");
+            
+            // 执行工作流
+            return Flux.create(sink -> {
+                try {
+                    // 启动心跳线程，每30秒发送一次心跳，保持连接活跃
+                    Thread heartbeatThread = new Thread(() -> {
+                        try {
+                            while (!sink.isCancelled()) {
+                                Thread.sleep(30000); // 30秒发送一次心跳
+                                if (!sink.isCancelled()) {
+                                    sink.next(ServerSentEvent.<String>builder()
+                                            .event("heartbeat")
+                                            .data("")
+                                            .build());
+                                }
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    });
+                    heartbeatThread.setDaemon(true);
+                    heartbeatThread.start();
+                    
+                    // 执行工作流并处理每个步骤的输出
+                    WorkflowContext finalContext = null;
+                    for (var step : workflow.stream(
+                            WorkflowContext.saveContext(initialContext)
+                    )) {
+                        WorkflowContext currentContext = WorkflowContext.getContext(step.state());
+                        finalContext = currentContext; // 保存最后一个上下文
+                        
+                        // 发送当前步骤信息
+                        String stepInfo = "步骤: " + step.node() + "，状态: " + (currentContext.getSuccess() != null && currentContext.getSuccess() ? "成功" : "失败");
+                        sink.next(ServerSentEvent.<String>builder()
+                                .event("step")
+                                .data(stepInfo)
+                                .build());
+                        
+                        // 如果有错误信息，发送错误
+                        if (currentContext.getErrorMessage() != null) {
+                            sink.next(ServerSentEvent.<String>builder()
+                                    .event("error")
+                                    .data("错误: " + currentContext.getErrorMessage())
+                                    .build());
+                        }
+                        
+                        // 累积输出
+                        outputBuilder.updateAndGet(current -> current + stepInfo + "\n");
+                    }
+                    
+                    // 工作流执行完成，使用最后获取的上下文
+                    
+                    // 发送最终结果
+                    if (finalContext != null && finalContext.getSuccess() != null && finalContext.getSuccess()) {
+                        Long scriptId = finalContext.getScriptId();
+                        String scriptName = finalContext.getScriptName();
+                        
+                        String finalResult = "剧本生成完成！剧本ID: " + scriptId + "，剧本名称: " + scriptName;
+                        sink.next(ServerSentEvent.<String>builder()
+                                .event("complete")
+                                .data(finalResult)
+                                .build());
+                    } else {
+                        String errorMessage = finalContext != null && finalContext.getErrorMessage() != null ? finalContext.getErrorMessage() : "未知错误";
+                        sink.next(ServerSentEvent.<String>builder()
+                                .event("error")
+                                .data("剧本生成失败: " + errorMessage)
+                                .build());
+                    }
+                    
+                    sink.complete();
+                    
+                } catch (Exception e) {
+                    log.error("执行新剧本生成工作流失败: {}", e.getMessage(), e);
+                    sink.next(ServerSentEvent.<String>builder()
+                            .event("error")
+                            .data("执行工作流失败: " + e.getMessage())
+                            .build());
+                    sink.complete();
+                }
+            }); // 移除timeout设置，避免类型不兼容问题
+            
+        } catch (Exception e) {
+            log.error("初始化新剧本生成工作流失败: {}", e.getMessage(), e);
+            return Flux.just(ServerSentEvent.<String>builder()
+                    .event("error")
+                    .data("初始化失败: " + e.getMessage())
+                    .build());
         }
     }
 }
