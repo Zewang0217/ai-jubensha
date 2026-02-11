@@ -3,17 +3,13 @@ package org.jubensha.aijubenshabackend.ai.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.agent.DMAgent;
-import org.jubensha.aijubenshabackend.ai.service.agent.JudgeAgent;
 import org.jubensha.aijubenshabackend.ai.service.agent.PlayerAgent;
 import org.jubensha.aijubenshabackend.ai.service.util.DMModerator;
-import org.jubensha.aijubenshabackend.ai.service.util.DiscussionHelper;
 import org.jubensha.aijubenshabackend.ai.service.util.DiscussionReasoningManager;
 import org.jubensha.aijubenshabackend.ai.service.util.MessageAccumulator;
 import org.jubensha.aijubenshabackend.ai.service.util.TurnManager;
-import org.jubensha.aijubenshabackend.ai.workflow.node.DiscussionNode;
 import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
-import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
 import org.springframework.stereotype.Service;
 
@@ -59,16 +55,10 @@ public class DiscussionServiceImpl implements DiscussionService {
     private TurnManager turnManager;
 
     @Resource
-    private DiscussionHelper discussionHelper;
-
-    @Resource
     private DMModerator dmModerator;
 
     @Resource
     private DiscussionReasoningManager discussionReasoningManager;
-
-    @Resource            
-    private CharacterService characterService;
 
     @Resource
     private GamePlayerService gamePlayerService;
@@ -80,7 +70,6 @@ public class DiscussionServiceImpl implements DiscussionService {
     private Long gameId;
     private List<Long> playerIds;
     private Long dmId;
-    private Long judgeId;
 
     // 讨论阶段
     private String currentPhase;
@@ -115,19 +104,17 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public void startDiscussion(Long gameId, List<Long> playerIds, Long dmId, Long judgeId) {
-        log.info("开始讨论，游戏ID: {}, 玩家数量: {}, DM ID: {}, Judge ID: {}", gameId, playerIds.size(), dmId, judgeId);
+        log.info("开始讨论，游戏ID: {}, 玩家数量: {}, DM ID: {}", gameId, playerIds.size(), dmId);
 
         this.gameId = gameId;
         this.playerIds = playerIds;
         this.dmId = dmId;
-        this.judgeId = judgeId;
 
         // 初始化讨论状态
         discussionState.clear();
         discussionState.put("gameId", gameId);
         discussionState.put("playerIds", playerIds);
         discussionState.put("dmId", dmId);
-        discussionState.put("judgeId", judgeId);
         discussionState.put("discussionRound", discussionRound);
         discussionState.put("startTime", LocalDateTime.now());
         discussionState.put("currentPhase", "INITIALIZED");
@@ -200,58 +187,22 @@ public class DiscussionServiceImpl implements DiscussionService {
         for (Long playerId : playerIds) {
             executorService.submit(() -> {
                 try {
-                    // 获取Player Agent
-                    PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
-                    if (playerAgent != null) {
-                        // 使用AIMindService进行多轮思考
-                        String thinkingId = aiMindService.startThinking(gameId, playerId, "请生成一个针对当前案件的陈述");
-                        if (thinkingId != null) {
-                            aiMindService.executeMultiRoundThinking(thinkingId, 3);
-                            AIMindService.ReasoningChain reasoningChain = aiMindService.buildReasoningChain(gameId, playerId, "分析案件并生成陈述");
-                        }
+                    // 执行思考并生成陈述
+                    String statement = executeThinkingAndGenerateResponse(
+                            playerId, "请生成一个针对当前案件的陈述"
+                    );
 
-                        // 生成陈述内容
-                        // 获取角色信息
-                        Optional<GamePlayer> gamePlayerOpt = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
-                        if (gamePlayerOpt.isPresent()) {
-                            GamePlayer gamePlayer = gamePlayerOpt.get();
-                            Character character = gamePlayer.getCharacter();
-                            if (character != null) {
-                                // 调用PlayerAgent的generateStatement方法
-                                String statement = playerAgent.generateStatement(
-                                        gameId.toString(),
-                                        playerId.toString(),
-                                        character.getId().toString(),
-                                        character.getName()
-                                );
-                                
-                                // 发送陈述消息
-                                if (statement != null && !statement.isEmpty()) {
-                                    log.info("AI玩家陈述，玩家ID: {}, 角色: {}, 内容: {}", playerId, character.getName(), statement);
-                                    sendDiscussionMessage(playerId, statement);
-                                }
-                            } else {
-                                // 备用方案：使用讨论推理管理器
-                                String statement = discussionReasoningManager.processReasoningAndDiscussion(gameId, playerId);
-                                if (!statement.isEmpty()) {
-                                    log.info("AI玩家陈述，玩家ID: {}, 内容: {}", playerId, statement);
-                                    sendDiscussionMessage(playerId, statement);
-                                }
-                            }
-                        } else {
-                            // 备用方案：使用讨论推理管理器
-                            String statement = discussionReasoningManager.processReasoningAndDiscussion(gameId, playerId);
-                            if (!statement.isEmpty()) {
-                                log.info("AI玩家陈述，玩家ID: {}, 内容: {}", playerId, statement);
-                                sendDiscussionMessage(playerId, statement);
-                            }
-                        }
+                    // 发送陈述消息
+                    if (statement != null && !statement.isEmpty()) {
+                        String characterName = getCharacterName(playerId);
+                        log.info("AI玩家陈述，玩家ID: {}, 角色: {}, 内容: {}", playerId, characterName, statement);
+                        sendDiscussionMessage(playerId, statement);
                     } else {
                         // 备用方案：使用讨论推理管理器
-                        String statement = discussionReasoningManager.processReasoningAndDiscussion(gameId, playerId);
-                        if (!statement.isEmpty()) {
-                            log.info("AI玩家陈述，玩家ID: {}, 内容: {}", playerId, statement);
-                            sendDiscussionMessage(playerId, statement);
+                        String backupStatement = discussionReasoningManager.processReasoningAndDiscussion(gameId, playerId);
+                        if (!backupStatement.isEmpty()) {
+                            log.info("AI玩家陈述（备用方案），玩家ID: {}, 内容: {}", playerId, backupStatement);
+                            sendDiscussionMessage(playerId, backupStatement);
                         }
                     }
                 } catch (Exception e) {
@@ -285,39 +236,28 @@ public class DiscussionServiceImpl implements DiscussionService {
         for (Long playerId : playerIds) {
             executorService.submit(() -> {
                 try {
-                    // 获取Player Agent
-                    PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
-                    if (playerAgent != null) {
-                        // 进行多轮讨论
-                        for (int round = 1; round <= 3; round++) {
-                            // 随机等待一段时间
-                            Thread.sleep((long) (Math.random() * 8000) + 2000);
+                    // 进行多轮讨论
+                    for (int round = 1; round <= 3; round++) {
+                        // 随机等待一段时间
+                        Thread.sleep((long) (Math.random() * 8000) + 2000);
 
-                            // 使用AIMindService进行多轮思考
-                            String thinkingId = aiMindService.startThinking(gameId, playerId, "分析当前讨论并生成回应");
-                            if (thinkingId != null) {
-                                aiMindService.executeMultiRoundThinking(thinkingId, 2);
-                            }
+                        // 执行思考并生成讨论内容
+                        String discussionContent = executeThinkingAndGenerateResponse(
+                                playerId, "分析当前讨论并生成回应"
+                        );
 
-                            // 生成讨论内容
-                            // 使用PlayerAgent的现有方法
-                            String discussionContent = "关于这个问题，我认为...";
+                        // 发送讨论消息
+                        if (discussionContent != null && !discussionContent.isEmpty()) {
                             log.info("AI玩家自由讨论，玩家ID: {}, 轮次: {}, 内容: {}", playerId, round, discussionContent);
                             sendDiscussionMessage(playerId, discussionContent);
+                        } else {
+                            // 备用方案：使用讨论推理管理器
+                            String backupContent = discussionReasoningManager.processReasoningAndDiscussion(gameId, playerId);
+                            if (!backupContent.isEmpty()) {
+                                log.info("AI玩家自由讨论（备用方案），玩家ID: {}, 轮次: {}, 内容: {}", playerId, round, backupContent);
+                                sendDiscussionMessage(playerId, backupContent);
+                            }
                         }
-                    } else {
-                        // 备用方案：使用讨论推理管理器
-                        discussionReasoningManager.processReasoningAsync(gameId, playerId)
-                                .thenAccept(result -> {
-                                    if (!result.isEmpty()) {
-                                        log.info("AI玩家自由讨论，玩家ID: {}, 内容: {}", playerId, result);
-                                        sendDiscussionMessage(playerId, result);
-                                    }
-                                })
-                                .exceptionally(ex -> {
-                                    log.error("处理AI玩家自由讨论失败: {}", ex.getMessage(), ex);
-                                    return null;
-                                });
                     }
                 } catch (Exception e) {
                     log.error("启动AI玩家自由讨论失败: {}", e.getMessage(), e);
@@ -353,9 +293,17 @@ public class DiscussionServiceImpl implements DiscussionService {
                     // 获取Player Agent
                     PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
                     if (playerAgent != null) {
-                        // 生成单聊决策
-                        // 使用PlayerAgent的现有方法，传递正确的参数
-                        String decision = "我想和其他玩家进行单聊";
+                        // 使用AIMindService获取思考结果
+                        String thinkingResult = aiMindService.getComprehensiveThinkingResult(
+                                gameId, playerId, "分析当前局势并决定是否需要发起单聊"
+                        );
+
+                        // 调用PlayerAgent的decidePrivateChat方法
+                        String decision = playerAgent.decidePrivateChat(
+                                gameId.toString(),
+                                playerId.toString()
+                        );
+
                         log.info("AI玩家单聊决策，玩家ID: {}, 决策: {}", playerId, decision);
                         // 解析决策结果，决定是否发起单聊
                         parsePrivateChatDecision(playerId, decision);
@@ -363,7 +311,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                         // 备用方案：使用讨论推理管理器
                         String decision = discussionReasoningManager.decidePrivateChat(gameId, playerId);
                         if (!decision.isEmpty()) {
-                            log.info("AI玩家单聊决策，玩家ID: {}, 决策: {}", playerId, decision);
+                            log.info("AI玩家单聊决策（备用方案），玩家ID: {}, 决策: {}", playerId, decision);
                             // 解析决策结果，决定是否发起单聊
                             parsePrivateChatDecision(playerId, decision);
                         }
@@ -399,19 +347,13 @@ public class DiscussionServiceImpl implements DiscussionService {
         for (Long playerId : playerIds) {
             executorService.submit(() -> {
                 try {
-                    // 获取Player Agent
-                    PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
-                    if (playerAgent != null) {
-                        // 使用AIMindService进行多轮思考
-                        String thinkingId = aiMindService.startThinking(gameId, playerId, "分析所有信息并确定凶手");
-                        if (thinkingId != null) {
-                            aiMindService.executeMultiRoundThinking(thinkingId, 4);
-                            AIMindService.ReasoningChain reasoningChain = aiMindService.buildReasoningChain(gameId, playerId, "分析谁是凶手的关键证据");
-                        }
+                    // 执行思考并生成答案
+                    String answer = executeThinkingAndGenerateResponse(
+                            playerId, "分析所有信息并确定凶手"
+                    );
 
-                        // 生成答案
-                        // 使用PlayerAgent的现有方法
-                        String answer = "根据我的分析，凶手是... 我的理由是...";
+                    // 提交答案
+                    if (answer != null && !answer.isEmpty()) {
                         log.info("AI玩家答题，玩家ID: {}, 答案: {}", playerId, answer);
                         submitAnswer(playerId, answer);
                     }
@@ -491,14 +433,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             discussionState.put("scoreResponse", response);
         }
 
-        // 通知Judge总结讨论
-        JudgeAgent judgeAgent = aiService.getJudgeAgent(judgeId);
-        if (judgeAgent != null) {
-            String discussionContent = "讨论内容摘要...";
-            String summary = judgeAgent.summarizeDiscussion(discussionContent);
-            log.info("Judge总结: {}", summary);
-            discussionState.put("judgeSummary", summary);
-        }
+        // 讨论总结由DM负责
+        discussionState.put("judgeSummary", "讨论已完成，详细内容请参考讨论记录");
 
         // 通知回调
         if (completionCallback != null) {
@@ -544,15 +480,6 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         // 发送消息到所有玩家
         messageQueueService.sendDiscussionMessage(message, playerIds);
-
-        // 通知Judge监控讨论
-        JudgeAgent judgeAgent = aiService.getJudgeAgent(judgeId);
-        if (judgeAgent != null) {
-            boolean valid = judgeAgent.monitorDiscussion(message);
-            if (!valid) {
-                log.warn("Judge认为消息无效: {}", message);
-            }
-        }
     }
 
     @Override
@@ -621,6 +548,52 @@ public class DiscussionServiceImpl implements DiscussionService {
             // 结束所有讨论
             endDiscussion();
         }
+    }
+
+    /**
+     * 获取角色名称
+     *
+     * @param playerId 玩家ID
+     * @return 角色名称
+     */
+    private String getCharacterName(Long playerId) {
+        try {
+            Optional<GamePlayer> gamePlayerOpt = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
+            if (gamePlayerOpt.isPresent() && gamePlayerOpt.get().getCharacter() != null) {
+                return gamePlayerOpt.get().getCharacter().getName();
+            }
+        } catch (Exception e) {
+            log.warn("获取角色名称失败: {}", e.getMessage());
+        }
+        return "AI玩家" + playerId;
+    }
+
+    /**
+     * 执行思考并生成发言
+     *
+     * @param playerId     玩家ID
+     * @param thinkingTask 思考任务
+     * @return 发言内容
+     */
+    private String executeThinkingAndGenerateResponse(Long playerId, String thinkingTask) {
+        try {
+            PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
+            if (playerAgent != null) {
+                String characterName = getCharacterName(playerId);
+                String thinkingResult = aiMindService.getComprehensiveThinkingResult(
+                        gameId, playerId, thinkingTask
+                );
+                return playerAgent.speakWithReasoning(
+                        gameId.toString(),
+                        playerId.toString(),
+                        thinkingResult,
+                        characterName
+                );
+            }
+        } catch (Exception e) {
+            log.error("执行思考并生成发言失败: {}", e.getMessage(), e);
+        }
+        return null;
     }
 
     /**
