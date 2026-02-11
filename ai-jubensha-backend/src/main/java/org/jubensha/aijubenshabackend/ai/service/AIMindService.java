@@ -1176,4 +1176,149 @@ public class AIMindService {
 
         return statsMap;
     }
+
+    /**
+     * 获取思考结果并转换为字符串
+     *
+     * @param thinkingId 思考过程ID
+     * @return 思考结果字符串
+     */
+    public String getThinkingResultAsString(String thinkingId) {
+        ThinkingState thinkingState = thinkingStateCache.get(thinkingId);
+        if (thinkingState == null) {
+            return "未找到思考过程";
+        }
+
+        StringBuilder resultBuilder = new StringBuilder();
+        resultBuilder.append("# 思考过程\n\n");
+        resultBuilder.append("## 任务: " + thinkingState.getTask() + "\n\n");
+        resultBuilder.append("## 轮次: " + thinkingState.getCurrentRound() + "\n\n");
+
+        // 添加分析结果
+        List<AnalysisResult> analysisResults = thinkingState.getAnalysisResults();
+        if (!analysisResults.isEmpty()) {
+            resultBuilder.append("## 分析结果\n\n");
+            for (int i = 0; i < analysisResults.size(); i++) {
+                AnalysisResult result = analysisResults.get(i);
+                resultBuilder.append("### 轮次 " + (i + 1) + "\n");
+                resultBuilder.append("- 完整性: " + (result.isComplete() ? "完整" : "不完整") + "\n");
+                if (!result.getGaps().isEmpty()) {
+                    resultBuilder.append("- 知识缺口: " + String.join(", ", result.getGaps()) + "\n");
+                }
+                resultBuilder.append("\n");
+            }
+        }
+
+        // 添加检索结果摘要
+        List<List<Map<String, Object>>> retrievalResults = thinkingState.getRetrievalResults();
+        if (!retrievalResults.isEmpty()) {
+            resultBuilder.append("## 检索结果摘要\n\n");
+            for (int i = 0; i < retrievalResults.size(); i++) {
+                List<Map<String, Object>> roundResults = retrievalResults.get(i);
+                resultBuilder.append("### 轮次 " + (i + 1) + "\n");
+                resultBuilder.append("- 结果数量: " + roundResults.size() + "\n");
+                if (!roundResults.isEmpty()) {
+                    // 找到最相关的结果
+                    Map<String, Object> topResult = roundResults.stream()
+                            .max((a, b) -> {
+                                Double scoreA = (Double) a.getOrDefault("score", 0.0);
+                                Double scoreB = (Double) b.getOrDefault("score", 0.0);
+                                return scoreA.compareTo(scoreB);
+                            })
+                            .orElse(null);
+                    if (topResult != null) {
+                        String content = (String) topResult.getOrDefault("content", "");
+                        if (content.length() > 100) {
+                            content = content.substring(0, 100) + "...";
+                        }
+                        Double score = (Double) topResult.getOrDefault("score", 0.0);
+                        resultBuilder.append("- 最相关结果: " + content + " (相似度: " + String.format("%.2f", score) + ")\n");
+                    }
+                }
+                resultBuilder.append("\n");
+            }
+        }
+
+        return resultBuilder.toString();
+    }
+
+    /**
+     * 获取推理链并转换为字符串
+     *
+     * @param reasoningChain 推理链
+     * @return 推理链字符串
+     */
+    public String getReasoningChainAsString(ReasoningChain reasoningChain) {
+        if (reasoningChain == null) {
+            return "未找到推理链";
+        }
+
+        StringBuilder resultBuilder = new StringBuilder();
+        resultBuilder.append("# 推理链分析\n\n");
+        resultBuilder.append("## 原始查询: " + reasoningChain.getQuery() + "\n\n");
+        resultBuilder.append("## 推理步骤\n\n");
+
+        List<ReasoningStep> steps = reasoningChain.getSteps();
+        for (ReasoningStep step : steps) {
+            resultBuilder.append("### 步骤 " + step.getStep() + "\n");
+            resultBuilder.append("- 查询: " + step.getQuery() + "\n");
+            List<Map<String, Object>> evidence = step.getEvidence();
+            if (!evidence.isEmpty()) {
+                resultBuilder.append("- 证据数量: " + evidence.size() + "\n");
+                // 找到最相关的证据
+                Map<String, Object> topEvidence = evidence.stream()
+                        .max((a, b) -> {
+                            Double scoreA = (Double) a.getOrDefault("score", 0.0);
+                            Double scoreB = (Double) b.getOrDefault("score", 0.0);
+                            return scoreA.compareTo(scoreB);
+                        })
+                        .orElse(null);
+                if (topEvidence != null) {
+                    String content = (String) topEvidence.getOrDefault("content", "");
+                    if (content.length() > 100) {
+                        content = content.substring(0, 100) + "...";
+                    }
+                    resultBuilder.append("- 关键证据: " + content + "\n");
+                }
+            }
+            resultBuilder.append("\n");
+        }
+
+        resultBuilder.append("## 推理完整性: " + (reasoningChain.isComplete() ? "完整" : "不完整") + "\n");
+
+        return resultBuilder.toString();
+    }
+
+    /**
+     * 获取综合思考结果
+     *
+     * @param gameId   游戏ID
+     * @param playerId 玩家ID
+     * @param task     思考任务
+     * @return 综合思考结果字符串
+     */
+    public String getComprehensiveThinkingResult(Long gameId, Long playerId, String task) {
+        // 开始思考
+        String thinkingId = startThinking(gameId, playerId, task);
+        if (thinkingId == null) {
+            return "思考过程启动失败";
+        }
+
+        // 执行多轮思考
+        executeMultiRoundThinking(thinkingId, 3);
+
+        // 构建推理链
+        ReasoningChain reasoningChain = buildReasoningChain(gameId, playerId, task);
+
+        // 组合结果
+        StringBuilder resultBuilder = new StringBuilder();
+        resultBuilder.append(getThinkingResultAsString(thinkingId));
+        resultBuilder.append("\n" + "=" .repeat(50) + "\n\n");
+        resultBuilder.append(getReasoningChainAsString(reasoningChain));
+
+        // 清理思考状态
+        cleanupThinkingState(thinkingId);
+
+        return resultBuilder.toString();
+    }
 }
