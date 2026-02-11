@@ -22,7 +22,7 @@ public class Game {
     @JsonIgnore
     private Script script;
 
-    @Column(name = "script_id", nullable = false)
+    @Column(name = "script_id", nullable = true)
     private Long scriptId;
 
     private String gameCode;
