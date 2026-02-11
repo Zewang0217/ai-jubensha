@@ -304,6 +304,11 @@ public class GameController {
             Object gameIdObj = request.get("gameId");
             if (gameIdObj != null) {
                 gameId = gameIdObj instanceof Number ? ((Number) gameIdObj).longValue() : Long.parseLong(gameIdObj.toString());
+            } else {
+                // 创建新游戏，gameCode 可以为 null，由系统自动生成
+                Game newGame = new Game();
+                // 不设置 gameCode，让系统根据需要自动生成
+                gameId = gameService.createGame(newGame).getId();
             }
             
             // 获取流式生成参数
