@@ -48,4 +48,20 @@ public interface PlayerAgent {
                            @V("playerId") String playerId,
                            @V("characterId") String characterId,
                            @V("characterName") String characterName);
+
+    @UserMessage("""
+        游戏ID：{{gameId}}
+                玩家ID：{{playerId}}
+               \s
+                【你的内心深层思考】
+                {{reasoningResult}}
+               \s
+                请基于以上你的深度思考结果，结合当前局势,可以适当调用工具，生成对外的发言或行动。
+        """)
+    String speakWithReasoning(
+        @V("gameId") String gameId,
+        @V("playerId") String playerId,
+        @V("reasoningResult") String reasoningResult,
+        @V("characterName") String characterName
+    );
 }
