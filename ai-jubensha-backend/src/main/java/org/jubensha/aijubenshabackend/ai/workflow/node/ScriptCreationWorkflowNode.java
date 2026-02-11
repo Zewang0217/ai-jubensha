@@ -18,7 +18,7 @@ public class ScriptCreationWorkflowNode {
     public static AsyncNodeAction<MessagesState<String>> create() {
         return node_async(state -> {
             log.info("执行节点：新剧本生成工作流");
-            
+            WorkflowContext finalContext = null;
             try {
                 // 获取现有上下文
                 WorkflowContext context = WorkflowContext.getContext(state);
@@ -37,7 +37,7 @@ public class ScriptCreationWorkflowNode {
                 var workflow = scriptCreationWorkflow.buildGraph().compile();
                 
                 // 执行工作流并跟踪最终上下文
-                WorkflowContext finalContext = null;
+                finalContext = null;
                 for (var step : workflow.stream(
                         WorkflowContext.saveContext(context)
                 )) {
@@ -52,6 +52,7 @@ public class ScriptCreationWorkflowNode {
                 // 检查最终上下文
                 if (finalContext != null && finalContext.getSuccess() != null && finalContext.getSuccess()) {
                     log.info("新剧本生成工作流执行成功，剧本ID: {}", finalContext.getScriptId());
+                    WorkflowContext.saveContext(finalContext);
                 } else {
                     throw new RuntimeException("新剧本生成工作流执行失败");
                 }
@@ -65,7 +66,7 @@ public class ScriptCreationWorkflowNode {
                 }
             }
             
-            return WorkflowContext.saveContext(WorkflowContext.getContext(state));
+            return WorkflowContext.saveContext(finalContext);
         });
     }
 }
