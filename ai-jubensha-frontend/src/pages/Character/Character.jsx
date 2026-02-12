@@ -169,7 +169,7 @@ function Character() {
                                         </p>
                                     </div>
                                 </div>
-              </div>
+                            </div>
                         )) || (
                             <div className="col-span-2 text-center py-4 text-[var(--color-secondary-500)]">
                                 暂无人物关系信息

@@ -1,5 +1,5 @@
-import {BrowserRouter as Router, Routes, Route, Navigate} from 'react-router-dom'
-import {Suspense, lazy} from 'react'
+import {BrowserRouter as Router, Navigate, Route, Routes} from 'react-router-dom'
+import {lazy, Suspense} from 'react'
 import MainLayout from '../components/layout/MainLayout'
 import Loading from '../components/common/Loading'
 
