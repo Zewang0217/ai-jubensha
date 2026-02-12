@@ -6,7 +6,6 @@ class ErrorBoundary extends Component {
         this.state = {hasError: false, error: null, errorInfo: null}
     }
 
-    // eslint-disable-next-line no-unused-vars
     static getDerivedStateFromError(error) {
         return {hasError: true}
     }
@@ -23,37 +22,16 @@ class ErrorBoundary extends Component {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="min-h-screen flex items-center justify-center bg-(--color-secondary-50) p-4">
-                    <div className="card max-w-lg w-full text-center">
-                        <div className="text-6xl mb-4">😵</div>
-                        <h2 className="text-2xl font-bold text-(--color-secondary-800) mb-2">
-                            出错了
-                        </h2>
-                        <p className="text-(--color-secondary-600) mb-6">
-                            应用程序遇到了意外错误，请刷新页面重试。
-                        </p>
-                        {this.state.error && (
-                            <div className="bg-(--color-secondary-100) rounded-lg p-4 mb-6 text-left">
-                                <p className="text-sm font-mono text-(--color-error)">
-                                    {this.state.error.toString()}
-                                </p>
-                            </div>
-                        )}
-                        <div className="flex justify-center space-x-4">
-                            <button
-                                onClick={this.handleReset}
-                                className="btn-secondary"
-                            >
-                                重试
-                            </button>
-                            <button
-                                onClick={() => window.location.reload()}
-                                className="btn-primary"
-                            >
-                                刷新页面
-                            </button>
+                <div>
+                    <h2>出错了</h2>
+                    <p>应用程序遇到了意外错误，请刷新页面重试。</p>
+                    {this.state.error && (
+                        <div>
+                            <p>{this.state.error.toString()}</p>
                         </div>
-                    </div>
+                    )}
+                    <button onClick={this.handleReset}>重试</button>
+                    <button onClick={() => window.location.reload()}>刷新页面</button>
                 </div>
             )
         }
