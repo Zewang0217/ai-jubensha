@@ -47,10 +47,10 @@ function GameList() {
         return (
             <div className="card text-center py-12">
                 <div className="text-4xl mb-4">😵</div>
-                <h3 className="text-lg font-semibold text-[var(--color-secondary-800)] mb-2">
+                <h3 className="text-lg font-semibold text-(--color-secondary-800) mb-2">
                     加载失败
                 </h3>
-                <p className="text-[var(--color-secondary-600)]">
+                <p className="text-(--color-secondary-600)">
                     无法获取游戏列表，请稍后重试
                 </p>
             </div>
@@ -62,10 +62,10 @@ function GameList() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-[var(--color-secondary-800)]">
+                    <h1 className="text-2xl font-bold text-(--color-secondary-800)">
                         游戏大厅
                     </h1>
-                    <p className="text-[var(--color-secondary-600)]">
+                    <p className="text-(--color-secondary-600)">
                         选择房间加入或创建新游戏
                     </p>
                 </div>
@@ -89,13 +89,13 @@ function GameList() {
                         onClick={() => setFilter(f.key)}
                         className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                             filter === f.key
-                                ? 'bg-[var(--color-primary-100)] text-[var(--color-primary-700)]'
-                                : 'bg-white text-[var(--color-secondary-600)] hover:bg-[var(--color-secondary-100)]'
+                                ? 'bg-(--color-primary-100) text-(--color-primary-700)'
+                                : 'bg-white text-(--color-secondary-600) hover:bg-(--color-secondary-100)'
                         }`}
                     >
                         <span className="mr-2">{f.icon}</span>
                         {f.label}
-          </button>
+                    </button>
                 ))}
             </div>
 
@@ -114,10 +114,10 @@ function GameList() {
                         >
                             <div className="flex items-start justify-between mb-4">
                                 <div>
-                                    <h3 className="font-semibold text-[var(--color-secondary-800)] group-hover:text-[var(--color-primary-600)] transition-colors">
+                                    <h3 className="font-semibold text-(--color-secondary-800) group-hover:text-(--color-primary-600) transition-colors">
                                         {game.name || `游戏房间 #${game.id}`}
                                     </h3>
-                                    <p className="text-sm text-[var(--color-secondary-500)]">
+                                    <p className="text-sm text-(--color-secondary-500)">
                                         {game.scriptName || '未选择剧本'}
                                     </p>
                                 </div>
@@ -131,7 +131,7 @@ function GameList() {
                             </div>
 
                             <div
-                                className="flex items-center justify-between text-sm text-[var(--color-secondary-600)]">
+                                className="flex items-center justify-between text-sm text-(--color-secondary-600)">
                                 <div className="flex items-center space-x-4">
                   <span>
                     <span className="mr-1">👥</span>
@@ -145,8 +145,8 @@ function GameList() {
                             </div>
 
                             {game.status === 'waiting' && (
-                                <div className="mt-4 pt-4 border-t border-[var(--color-secondary-200)]">
-                  <span className="text-sm text-[var(--color-accent-600)] font-medium">
+                                <div className="mt-4 pt-4 border-t border-(--color-secondary-200)">
+                  <span className="text-sm text-(--color-accent-600) font-medium">
                     点击加入游戏 →
                   </span>
                                 </div>
@@ -160,10 +160,10 @@ function GameList() {
             {(!games?.data || games.data.length === 0) && (
                 <div className="card text-center py-12">
                     <div className="text-4xl mb-4">🎭</div>
-                    <h3 className="text-lg font-semibold text-[var(--color-secondary-800)] mb-2">
+                    <h3 className="text-lg font-semibold text-(--color-secondary-800) mb-2">
                         暂无游戏房间
                     </h3>
-                    <p className="text-[var(--color-secondary-600)] mb-4">
+                    <p className="text-(--color-secondary-600) mb-4">
                         当前没有符合条件的游戏房间
                     </p>
                     <button
@@ -175,7 +175,7 @@ function GameList() {
                     >
                         创建第一个房间
                     </button>
-        </div>
+                </div>
             )}
         </div>
     )

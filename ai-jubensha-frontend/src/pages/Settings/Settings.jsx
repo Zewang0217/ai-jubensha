@@ -2,25 +2,25 @@ import {useState} from 'react'
 import {motion} from 'framer-motion'
 
 function Settings() {
-  const [settings, setSettings] = useState({
-      // 音频设置
-      soundEnabled: true,
-      soundVolume: 80,
-      musicEnabled: true,
-      musicVolume: 50,
+    const [settings, setSettings] = useState({
+        // 音频设置
+        soundEnabled: true,
+        soundVolume: 80,
+        musicEnabled: true,
+        musicVolume: 50,
 
-      // 通知设置
-      notifications: true,
-      desktopNotifications: false,
+        // 通知设置
+        notifications: true,
+        desktopNotifications: false,
 
-      // 游戏设置
-      autoScroll: true,
-      showAnimations: true,
-      darkMode: false,
+        // 游戏设置
+        autoScroll: true,
+        showAnimations: true,
+        darkMode: false,
 
-      // 语言设置
-    language: 'zh-CN',
-  })
+        // 语言设置
+        language: 'zh-CN',
+    })
 
     const handleChange = (key, value) => {
         setSettings(prev => ({
