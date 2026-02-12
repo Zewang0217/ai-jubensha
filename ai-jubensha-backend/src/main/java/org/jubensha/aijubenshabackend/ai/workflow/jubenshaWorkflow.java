@@ -12,6 +12,7 @@ import org.bsc.langgraph4j.NodeOutput;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.bsc.langgraph4j.prebuilt.MessagesStateGraph;
 import org.jubensha.aijubenshabackend.ai.workflow.node.*;
+import static org.jubensha.aijubenshabackend.ai.workflow.node.CoverImageGeneratorNode.create;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.springframework.stereotype.Component;
 
@@ -44,7 +45,7 @@ public class jubenshaWorkflow {
     public CompiledGraph<MessagesState<String>> createWorkflow() {
         return createWorkflow(false); // 默认使用非流式节点
     }
-    
+
     /**
      * 创建并发工作流
      * @param useStreaming 是否使用流式剧本生成节点
@@ -52,15 +53,33 @@ public class jubenshaWorkflow {
      */
     public CompiledGraph<MessagesState<String>> createWorkflow(boolean useStreaming, boolean useNewWorkflow) {
         try {
+            return new MessagesStateGraph<String>()
+                    .addNode("script_generator", ScriptGeneratorNode.create())
+                    .addNode("cover_image_generator", create())
+                    .addNode("player_allocator", PlayerAllocatorNode.create())
+                    .addNode("scene_loader", SceneLoaderNode.create())
+                    .addNode("script_reader", ScriptReaderNode.create())
+                    .addNode("first_investigation", FirstInvestigationNode.create())
+                    .addNode("discussion", DiscussionNode.create())
+                    .addEdge("__START__", "script_generator")
+                    .addEdge("script_generator", "cover_image_generator")
+                    .addEdge("cover_image_generator", "player_allocator")
+                    .addEdge("player_allocator", "script_reader")
+                    .addEdge("player_allocator", "scene_loader")
+                    .addEdge("script_reader", "first_investigation")
+                    .addEdge("scene_loader", "first_investigation")
+                    .addEdge("first_investigation", "discussion")
+                    .addEdge("discussion", "__END__")
+                    .compile();
             MessagesStateGraph<String> graph = new MessagesStateGraph<String>();
-            
+
             // 添加所有节点
             graph.addNode("player_allocator", PlayerAllocatorNode.create());
             graph.addNode("scene_loader", SceneLoaderNode.create());
             graph.addNode("script_reader", ScriptReaderNode.create());
             graph.addNode("first_investigation", FirstInvestigationNode.create());
             graph.addNode("discussion", DiscussionNode.create());
-            
+
             // 根据参数选择使用哪种剧本生成节点
             if (useNewWorkflow) {
                 log.info("使用新的剧本生成工作流节点");
@@ -72,7 +91,7 @@ public class jubenshaWorkflow {
                 log.info("使用非流式剧本生成节点");
                 graph.addNode("script_generator", ScriptGeneratorNode.create());
             }
-            
+
             // 添加边
             graph.addEdge("__START__", "script_generator");
             graph.addEdge("script_generator", "player_allocator");
@@ -82,14 +101,14 @@ public class jubenshaWorkflow {
             graph.addEdge("scene_loader", "first_investigation");
             graph.addEdge("first_investigation", "discussion");
             graph.addEdge("discussion", "__END__");
-            
+
             return graph.compile();
         } catch (GraphStateException e) {
             // TODO: 替换为自定义的事务异常
             throw new RuntimeException(e);
         }
     }
-    
+
     /**
      * 创建并发工作流
      * @param useStreaming 是否使用流式剧本生成节点
@@ -104,32 +123,32 @@ public class jubenshaWorkflow {
     public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId) {
         return executeWorkflow(originalPrompt, createNewScript, scriptId, false, false, null);
     }
-    
+
     /**
      * 执行并发工作流
      */
     public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming) {
         return executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, false, null);
     }
-    
+
     /**
      * 执行并发工作流
      */
     public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming, Long gameId) {
         return executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, true, gameId);
     }
-    
+
     /**
      * 执行并发工作流
      */
     public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming, Boolean useNewWorkflow, Long gameId) {
         CompiledGraph<MessagesState<String>> workflow = createWorkflow(useStreaming, useNewWorkflow);
-        
+
         // 根据是否提供gameId来决定是使用现有游戏还是创建新游戏
         try {
             // 获取游戏服务
             GameService gameService = SpringContextUtil.getBean(GameService.class);
-            
+
             if (gameId != null) {
                 // 使用现有游戏
                 var gameOpt = gameService.getGameById(gameId);
@@ -170,14 +189,14 @@ public class jubenshaWorkflow {
             .createNewScript(createNewScript)
             .existingScriptId(createNewScript ? null : scriptId)
             .build();
-        
+
         // 如果使用现有剧本，直接设置剧本ID
         if (!createNewScript && scriptId != null) {
             initialContext.setScriptId(scriptId);
             initialContext.setCurrentStep("使用现有剧本");
             log.info("使用现有剧本，剧本ID: {}", scriptId);
         }
-        
+
         GraphRepresentation graph = workflow.getGraph(Type.MERMAID);
         log.info("并发工作流图：\n{}", graph.content());
         log.info("开始执行并发工作流...");
@@ -186,7 +205,7 @@ public class jubenshaWorkflow {
             log.info("现有剧本ID: {}", scriptId);
         }
         log.info("游戏ID: {}", gameId);
-        
+
         WorkflowContext finalContext = null;
         int stepCounter = 1;
         // 配置并发执行
@@ -241,11 +260,11 @@ public class jubenshaWorkflow {
                 log.error("更新游戏剧本ID失败：{}", e.getMessage(), e);
             }
         }
-        
+
         log.info("并发工作流执行完成");
         return finalContext;
     }
-    
+
     /**
      * 创建新游戏
      */
@@ -268,7 +287,7 @@ public class jubenshaWorkflow {
         log.info("创建新游戏成功，游戏ID: {}", gameId);
         return gameId;
     }
-    
+
     /**
      * 生成随机游戏码
      */
@@ -276,7 +295,7 @@ public class jubenshaWorkflow {
         // 生成6位随机数字游戏码
         return String.format("%06d", (int) (Math.random() * 1000000));
     }
-    
+
     /**
      * 执行并发工作流（兼容旧版本）
      */

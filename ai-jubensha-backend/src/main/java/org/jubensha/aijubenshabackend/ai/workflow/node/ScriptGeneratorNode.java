@@ -44,7 +44,7 @@ public class ScriptGeneratorNode {
             WorkflowContext context = WorkflowContext.getContext(state);
             log.debug("ScriptGeneratorNode: {}", context);
             log.info("执行节点：剧本生成");
-            
+
             // 检查是否使用现有剧本
             Boolean createNewScript = context.getCreateNewScript();
             Long existingScriptId = context.getExistingScriptId();
@@ -58,7 +58,7 @@ public class ScriptGeneratorNode {
                 return WorkflowContext.saveContext(context);
             }
             log.info("不满足使用现有剧本条件，继续执行剧本生成步骤");
-            
+
             // 构建用户消息（包含原始提示词合可能的错误修复信息）
             String userMessage = buildUserMessage(context);
 
@@ -67,22 +67,22 @@ public class ScriptGeneratorNode {
                 log.info("获取 ScriptGenerateServiceFactory 实例");
                 ScriptGenerateServiceFactory scriptGenerateServiceFactory = SpringContextUtil.getBean(
                         ScriptGenerateServiceFactory.class);
-                
+
                 if (scriptGenerateServiceFactory == null) {
                     throw new IllegalStateException("ScriptGenerateServiceFactory 实例获取失败");
                 }
-                
+
                 log.info("开始生成剧本");
                 // 生成临时scriptId，使用UUID的哈希值确保唯一性
                 Long tempScriptId = Math.abs(java.util.UUID.randomUUID().getLeastSignificantBits());
                 log.info("生成临时剧本ID: {}", tempScriptId);
-                
+
                 try {
                     ScriptGenerateService generateService = scriptGenerateServiceFactory.getService(tempScriptId);
                     if (generateService == null) {
                         throw new IllegalStateException("获取剧本生成服务失败");
                     }
-                    
+
                     log.info("调用剧本生成服务");
                     String scriptJson = generateService.generateScript(userMessage);
                     log.info("剧本生成完成，JSON长度: {}", scriptJson.length());
@@ -201,7 +201,7 @@ public class ScriptGeneratorNode {
             WorkflowContext context = WorkflowContext.getContext(state);
             log.debug("ScriptGeneratorNode (Streaming): {}", context);
             log.info("执行节点：流式剧本生成");
-            
+
             // 检查是否使用现有剧本
             Boolean createNewScript = context.getCreateNewScript();
             Long existingScriptId = context.getExistingScriptId();
@@ -215,7 +215,7 @@ public class ScriptGeneratorNode {
                 return WorkflowContext.saveContext(context);
             }
             log.info("不满足使用现有剧本条件，继续执行流式剧本生成步骤");
-            
+
             // 构建用户消息（包含原始提示词合可能的错误修复信息）
             String userMessage = buildUserMessage(context);
 
@@ -224,29 +224,29 @@ public class ScriptGeneratorNode {
                 log.info("获取 ScriptGenerateServiceFactory 实例");
                 ScriptGenerateServiceFactory scriptGenerateServiceFactory = SpringContextUtil.getBean(
                         ScriptGenerateServiceFactory.class);
-                
+
                 if (scriptGenerateServiceFactory == null) {
                     throw new IllegalStateException("ScriptGenerateServiceFactory 实例获取失败");
                 }
-                
+
                 log.info("开始流式生成剧本");
                 // 生成临时scriptId，使用UUID的哈希值确保唯一性
                 Long tempScriptId = Math.abs(java.util.UUID.randomUUID().getLeastSignificantBits());
                 log.info("生成临时剧本ID: {}", tempScriptId);
-                
+
                 try {
                     ScriptGenerateService generateService = scriptGenerateServiceFactory.getService(tempScriptId);
                     if (generateService == null) {
                         throw new IllegalStateException("获取剧本生成服务失败");
                     }
-                    
+
                     // 获取临时存储服务
                     log.info("获取 ScriptTempStorageService 实例");
                     ScriptTempStorageService tempStorageService = SpringContextUtil.getBean(ScriptTempStorageService.class);
                     if (tempStorageService == null) {
                         throw new IllegalStateException("ScriptTempStorageService 实例获取失败");
                     }
-                    
+
                     // 使用流式生成
                     AtomicReference<String> scriptJsonBuilder = new AtomicReference<>("");
                     CompletableFuture<Void> streamFuture = new CompletableFuture<>();
@@ -254,7 +254,7 @@ public class ScriptGeneratorNode {
                     // 调整批量大小，增加存储频率，确保即使在流式输出被截断的情况下，也能保存尽可能多的内容
                     final int BATCH_SIZE = 500; // 每500个字符保存一次
                     final int MAX_BATCH_SIZE = 15000; // 最大批量大小
-                    
+
                     log.info("调用流式生成服务");
                     generateService.generateScriptStream(userMessage)
                             .doOnNext(chunk -> {
@@ -296,12 +296,12 @@ public class ScriptGeneratorNode {
                         log.info("流式生成完成，开始处理结果");
                         String scriptJson = scriptJsonBuilder.get();
                         log.info("剧本生成完成，JSON长度: {}", scriptJson.length());
-                        
+
                         // 验证生成内容的完整性
                         if (scriptJson.length() < 1000) {
                             log.warn("生成的剧本内容过短，可能不完整，长度: {}", scriptJson.length());
                         }
-                        
+
                         // 检查JSON是否包含基本结构
                         if (!scriptJson.contains("scriptName") || !scriptJson.contains("characters") || !scriptJson.contains("scenes")) {
                             log.warn("生成的剧本可能缺少基本结构，需要检查");
@@ -433,7 +433,7 @@ public class ScriptGeneratorNode {
             return WorkflowContext.saveContext(context);
         });
     }
-    
+
     /**
      * 创建流式生成节点（兼容旧方法名）
      */
@@ -649,7 +649,7 @@ public class ScriptGeneratorNode {
             // 移除尾部可能的不完整单词或字符
             json = json.replaceAll("[,\s}]*$", "");
             log.debug("清理尾部无效字符后的JSON长度: {}", json.length());
-            
+
             // 3. 补充缺失的闭合括号
             int openBraces = 0;
             int closeBraces = 0;
@@ -675,7 +675,7 @@ public class ScriptGeneratorNode {
             }
             
             log.debug("括号计数: 花括号 {}:{}, 方括号 {}:{}", openBraces, closeBraces, openBrackets, closeBrackets);
-            
+
             // 补充缺失的闭合括号
             StringBuilder sb = new StringBuilder(json);
             
@@ -719,7 +719,7 @@ public class ScriptGeneratorNode {
                 // 尝试提取剧本名称和简介
                 String scriptName = "未完成的剧本";
                 String scriptIntro = "剧本生成过程中出现错误";
-                
+
                 // 尝试从原始JSON中提取剧本名称
                 int scriptNameIndex = json.indexOf("\"scriptName\":");
                 if (scriptNameIndex != -1) {
@@ -732,7 +732,7 @@ public class ScriptGeneratorNode {
                         }
                     }
                 }
-                
+
                 // 尝试从原始JSON中提取剧本简介
                 int scriptIntroIndex = json.indexOf("\"scriptIntro\":");
                 if (scriptIntroIndex != -1) {
@@ -745,10 +745,10 @@ public class ScriptGeneratorNode {
                         }
                     }
                 }
-                
+
                 // 如果仍然失败，返回一个包含提取信息的基本JSON结构
                 log.warn("无法修复JSON，返回包含提取信息的基本结构");
-                String basicJson = String.format("{\"scriptName\": \"%s\", \"scriptIntro\": \"%s\", \"characters\": [], \"scenes\": [], \"clues\": []}", 
+                String basicJson = String.format("{\"scriptName\": \"%s\", \"scriptIntro\": \"%s\", \"characters\": [], \"scenes\": [], \"clues\": []}",
                         scriptName, scriptIntro);
                 log.debug("生成的基本JSON结构: {}", basicJson);
                 return basicJson;
