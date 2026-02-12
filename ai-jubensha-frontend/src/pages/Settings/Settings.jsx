@@ -1,5 +1,35 @@
 import {useState} from 'react'
+// eslint-disable-next-line no-unused-vars
 import {motion} from 'framer-motion'
+
+// 子组件定义在父组件外部
+const SettingItem = ({label, description, children}) => (
+    <div
+        className="flex flex-col md:flex-row md:items-center md:justify-between py-4 border-b border-[var(--color-secondary-200)] last:border-0">
+        <div className="mb-2 md:mb-0">
+            <h3 className="font-medium text-[var(--color-secondary-800)]">{label}</h3>
+            {description && (
+                <p className="text-sm text-[var(--color-secondary-500)]">{description}</p>
+            )}
+        </div>
+        <div>{children}</div>
+    </div>
+)
+
+const Toggle = ({checked, onChange}) => (
+    <button
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            checked ? 'bg-[var(--color-primary-600)]' : 'bg-[var(--color-secondary-300)]'
+        }`}
+    >
+      <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              checked ? 'translate-x-6' : 'translate-x-1'
+          }`}
+      />
+    </button>
+)
 
 function Settings() {
     const [settings, setSettings] = useState({
@@ -51,34 +81,6 @@ function Settings() {
             })
         }
     }
-
-    const SettingItem = ({label, description, children}) => (
-        <div
-            className="flex flex-col md:flex-row md:items-center md:justify-between py-4 border-b border-[var(--color-secondary-200)] last:border-0">
-            <div className="mb-2 md:mb-0">
-                <h3 className="font-medium text-[var(--color-secondary-800)]">{label}</h3>
-                {description && (
-                    <p className="text-sm text-[var(--color-secondary-500)]">{description}</p>
-                )}
-            </div>
-            <div>{children}</div>
-        </div>
-    )
-
-    const Toggle = ({checked, onChange}) => (
-        <button
-            onClick={() => onChange(!checked)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                checked ? 'bg-[var(--color-primary-600)]' : 'bg-[var(--color-secondary-300)]'
-            }`}
-        >
-      <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              checked ? 'translate-x-6' : 'translate-x-1'
-          }`}
-      />
-        </button>
-    )
 
     return (
         <div className="space-y-6">

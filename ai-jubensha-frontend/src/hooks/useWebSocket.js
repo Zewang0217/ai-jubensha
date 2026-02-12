@@ -22,6 +22,7 @@ export const useWebSocket = (url) => {
             setError(null)
             await wsRef.current.connect(connectionUrl)
             setIsConnected(true)
+            setLastMessage(null)
             return true
         } catch (err) {
             setError(err.message)
@@ -52,8 +53,10 @@ export const useWebSocket = (url) => {
     }, [])
 
     // 自动连接（如果提供了 URL）
+    const hasConnectedRef = useRef(false)
     useEffect(() => {
-        if (url) {
+        if (url && !hasConnectedRef.current) {
+            hasConnectedRef.current = true
             connect()
         }
 
@@ -83,12 +86,13 @@ export const useWebSocketMessage = (type, handler) => {
     const wsRef = useRef(WebSocketService)
 
     useEffect(() => {
+        const wsService = wsRef.current
         if (!type || !handler) return
 
-        wsRef.current.on(type, handler)
+        wsService.on(type, handler)
 
         return () => {
-            wsRef.current.off(type, handler)
+            wsService.off(type, handler)
         }
     }, [type, handler])
 }
@@ -97,22 +101,24 @@ export const useWebSocketMessage = (type, handler) => {
  * 使用 WebSocket 连接状态的 Hook
  */
 export const useWebSocketStatus = () => {
-    const [isConnected, setIsConnected] = useState(false)
     const wsRef = useRef(WebSocketService)
+    const [isConnected, setIsConnected] = useState(false)
 
     useEffect(() => {
+        const wsService = wsRef.current
+
+        // 设置初始状态
+        setIsConnected(wsService.isConnected())
+
         const handleConnect = () => setIsConnected(true)
         const handleDisconnect = () => setIsConnected(false)
 
-        wsRef.current.on('__connected__', handleConnect)
-        wsRef.current.on('__disconnected__', handleDisconnect)
-
-        // 初始状态
-        setIsConnected(wsRef.current.isConnected())
+        wsService.on('__connected__', handleConnect)
+        wsService.on('__disconnected__', handleDisconnect)
 
         return () => {
-            wsRef.current.off('__connected__', handleConnect)
-            wsRef.current.off('__disconnected__', handleDisconnect)
+            wsService.off('__connected__', handleConnect)
+            wsService.off('__disconnected__', handleDisconnect)
         }
     }, [])
 

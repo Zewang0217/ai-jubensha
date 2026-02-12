@@ -1,4 +1,5 @@
 import {Link} from 'react-router-dom'
+// eslint-disable-next-line no-unused-vars
 import {motion} from 'framer-motion'
 
 function Home() {

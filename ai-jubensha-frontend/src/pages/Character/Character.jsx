@@ -1,5 +1,6 @@
 import {useParams} from 'react-router-dom'
 import {useQuery} from '@tanstack/react-query'
+// eslint-disable-next-line no-unused-vars
 import {motion} from 'framer-motion'
 import {characterApi} from '../../services/api'
 import Loading from '../../components/common/Loading'
