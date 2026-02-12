@@ -1,210 +1,288 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import {useState} from 'react'
+// eslint-disable-next-line no-unused-vars
+import {motion} from 'framer-motion'
 
-const Settings = () => {
-  const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [settings, setSettings] = useState({
-    sound: 80,
-    music: 60,
-    language: 'zh-CN',
-    notifications: true,
-    darkMode: true
-  });
-
-  const handleSettingChange = (key, value) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-secondary-900 to-secondary-800 text-white">
-      {/* 导航栏 */}
-      <nav className="bg-secondary-900/80 backdrop-blur-md border-b border-secondary-700 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
-              <span className="text-xl font-bold">AI</span>
-            </div>
-            <h1 className="text-2xl font-bold text-primary-400">剧本杀</h1>
-          </div>
-          
-          {/* 桌面端导航 */}
-          <div className="hidden md:flex space-x-8">
-            <Link to="/" className="text-secondary-300 font-medium hover:text-primary-300 transition-colors">首页</Link>
-            <Link to="/games" className="text-secondary-300 font-medium hover:text-primary-300 transition-colors">游戏</Link>
-            <Link to="/settings" className="text-primary-400 font-medium hover:text-primary-300 transition-colors">设置</Link>
-          </div>
-          
-          {/* 移动端菜单按钮 */}
-          <div className="md:hidden flex items-center space-x-4">
-            <button 
-              className="text-white" 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {isMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-          </div>
-          
-          <button className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-            登录
-          </button>
+// 子组件定义在父组件外部
+const SettingItem = ({label, description, children}) => (
+    <div
+        className="flex flex-col md:flex-row md:items-center md:justify-between py-4 border-b border-[var(--color-secondary-200)] last:border-0">
+        <div className="mb-2 md:mb-0">
+            <h3 className="font-medium text-[var(--color-secondary-800)]">{label}</h3>
+            {description && (
+                <p className="text-sm text-[var(--color-secondary-500)]">{description}</p>
+            )}
         </div>
-        
-        {/* 移动端导航菜单 */}
-        <AnimatePresence>
-          {isMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="md:hidden bg-secondary-800 border-t border-secondary-700"
-            >
-              <div className="container mx-auto px-4 py-4 flex flex-col space-y-4">
-                <Link 
-                  to="/" 
-                  className="text-secondary-300 font-medium hover:text-primary-300 transition-colors py-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  首页
-                </Link>
-                <Link 
-                  to="/games" 
-                  className="text-secondary-300 font-medium hover:text-primary-300 transition-colors py-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  游戏
-                </Link>
-                <Link 
-                  to="/settings" 
-                  className="text-primary-400 font-medium hover:text-primary-300 transition-colors py-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  设置
-                </Link>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
-
-      {/* 设置页面内容 */}
-      <div className="container mx-auto px-4 py-12">
-        <h2 className="text-3xl font-bold mb-8 text-white">设置</h2>
-        
-        <div className="bg-secondary-800 rounded-xl p-6 border border-secondary-700 mb-8">
-          <h3 className="text-xl font-bold mb-6 text-white">音频设置</h3>
-          <div className="space-y-6">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-secondary-300">音效音量</label>
-                <span className="text-secondary-400">{settings.sound}%</span>
-              </div>
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={settings.sound}
-                onChange={(e) => handleSettingChange('sound', parseInt(e.target.value))}
-                className="w-full bg-secondary-700 rounded-lg h-2 appearance-none cursor-pointer"
-              />
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-secondary-300">背景音乐音量</label>
-                <span className="text-secondary-400">{settings.music}%</span>
-              </div>
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={settings.music}
-                onChange={(e) => handleSettingChange('music', parseInt(e.target.value))}
-                className="w-full bg-secondary-700 rounded-lg h-2 appearance-none cursor-pointer"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-secondary-800 rounded-xl p-6 border border-secondary-700 mb-8">
-          <h3 className="text-xl font-bold mb-6 text-white">语言设置</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-secondary-300 mb-2">语言</label>
-              <select 
-                value={settings.language}
-                onChange={(e) => handleSettingChange('language', e.target.value)}
-                className="w-full bg-secondary-700 border border-secondary-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary-500 transition-colors"
-              >
-                <option value="zh-CN">简体中文</option>
-                <option value="en-US">English</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-secondary-800 rounded-xl p-6 border border-secondary-700 mb-8">
-          <h3 className="text-xl font-bold mb-6 text-white">通知设置</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <label className="text-secondary-300">游戏通知</label>
-              <button 
-                className={`w-12 h-6 rounded-full transition-colors ${settings.notifications ? 'bg-primary-500' : 'bg-secondary-600'}`}
-                onClick={() => handleSettingChange('notifications', !settings.notifications)}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full transform transition-transform ${settings.notifications ? 'translate-x-6' : 'translate-x-1'}`}></div>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-secondary-800 rounded-xl p-6 border border-secondary-700">
-          <h3 className="text-xl font-bold mb-6 text-white">外观设置</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <label className="text-secondary-300">深色模式</label>
-              <button 
-                className={`w-12 h-6 rounded-full transition-colors ${settings.darkMode ? 'bg-primary-500' : 'bg-secondary-600'}`}
-                onClick={() => handleSettingChange('darkMode', !settings.darkMode)}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full transform transition-transform ${settings.darkMode ? 'translate-x-6' : 'translate-x-1'}`}></div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 底部 */}
-      <footer className="bg-secondary-900 border-t border-secondary-800 py-12 mt-20">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-6 md:mb-0">
-              <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
-                <span className="text-xl font-bold">AI</span>
-              </div>
-              <h1 className="text-2xl font-bold text-primary-400">剧本杀</h1>
-            </div>
-            <div className="flex space-x-8 mb-6 md:mb-0">
-              <Link to="/" className="text-secondary-400 hover:text-primary-400 transition-colors">首页</Link>
-              <Link to="/games" className="text-secondary-400 hover:text-primary-400 transition-colors">游戏</Link>
-              <Link to="/settings" className="text-secondary-400 hover:text-primary-400 transition-colors">设置</Link>
-              <Link to="/" className="text-secondary-400 hover:text-primary-400 transition-colors">关于我们</Link>
-            </div>
-            <div className="text-secondary-500 text-sm">
-              © 2026 AI剧本杀. 保留所有权利
-            </div>
-          </div>
-        </div>
-      </footer>
+        <div>{children}</div>
     </div>
-  );
-};
+)
 
-export default Settings;
+const Toggle = ({checked, onChange}) => (
+    <button
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            checked ? 'bg-[var(--color-primary-600)]' : 'bg-[var(--color-secondary-300)]'
+        }`}
+    >
+      <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              checked ? 'translate-x-6' : 'translate-x-1'
+          }`}
+      />
+    </button>
+)
+
+function Settings() {
+    const [settings, setSettings] = useState({
+        // 音频设置
+        soundEnabled: true,
+        soundVolume: 80,
+        musicEnabled: true,
+        musicVolume: 50,
+
+        // 通知设置
+        notifications: true,
+        desktopNotifications: false,
+
+        // 游戏设置
+        autoScroll: true,
+        showAnimations: true,
+        darkMode: false,
+
+        // 语言设置
+        language: 'zh-CN',
+    })
+
+    const handleChange = (key, value) => {
+        setSettings(prev => ({
+            ...prev,
+            [key]: value
+        }))
+    }
+
+    const handleSave = () => {
+        // TODO: 保存设置到本地存储或服务器
+        localStorage.setItem('gameSettings', JSON.stringify(settings))
+        alert('设置已保存')
+    }
+
+    const handleReset = () => {
+        if (confirm('确定要重置所有设置吗？')) {
+            setSettings({
+                soundEnabled: true,
+                soundVolume: 80,
+                musicEnabled: true,
+                musicVolume: 50,
+                notifications: true,
+                desktopNotifications: false,
+                autoScroll: true,
+                showAnimations: true,
+                darkMode: false,
+                language: 'zh-CN',
+            })
+        }
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <motion.div
+                initial={{opacity: 0, y: -20}}
+                animate={{opacity: 1, y: 0}}
+            >
+                <h1 className="text-2xl font-bold text-[var(--color-secondary-800)]">
+                    游戏设置
+                </h1>
+                <p className="text-[var(--color-secondary-600)]">
+                    自定义您的游戏体验
+                </p>
+            </motion.div>
+
+            {/* Audio Settings */}
+            <motion.div
+                initial={{opacity: 0, y: 20}}
+                animate={{opacity: 1, y: 0}}
+                transition={{delay: 0.1}}
+                className="card"
+            >
+                <h2 className="text-lg font-semibold mb-4 flex items-center">
+                    <span className="mr-2">🔊</span>
+                    音频设置
+                </h2>
+
+                <SettingItem
+                    label="音效"
+                    description="启用游戏音效"
+                >
+                    <Toggle
+                        checked={settings.soundEnabled}
+                        onChange={(value) => handleChange('soundEnabled', value)}
+                    />
+                </SettingItem>
+
+                {settings.soundEnabled && (
+                    <SettingItem
+                        label="音效音量"
+                        description="调整音效音量大小"
+                    >
+                        <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={settings.soundVolume}
+                            onChange={(e) => handleChange('soundVolume', parseInt(e.target.value))}
+                            className="w-32 h-2 bg-[var(--color-secondary-200)] rounded-lg appearance-none cursor-pointer accent-[var(--color-primary-600)]"
+                        />
+                        <span className="ml-2 text-sm text-[var(--color-secondary-600)]">
+              {settings.soundVolume}%
+            </span>
+                    </SettingItem>
+                )}
+
+                <SettingItem
+                    label="背景音乐"
+                    description="启用背景音乐"
+                >
+                    <Toggle
+                        checked={settings.musicEnabled}
+                        onChange={(value) => handleChange('musicEnabled', value)}
+                    />
+                </SettingItem>
+
+                {settings.musicEnabled && (
+                    <SettingItem
+                        label="音乐音量"
+                        description="调整音乐音量大小"
+                    >
+                        <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={settings.musicVolume}
+                            onChange={(e) => handleChange('musicVolume', parseInt(e.target.value))}
+                            className="w-32 h-2 bg-[var(--color-secondary-200)] rounded-lg appearance-none cursor-pointer accent-[var(--color-primary-600)]"
+                        />
+                        <span className="ml-2 text-sm text-[var(--color-secondary-600)]">
+              {settings.musicVolume}%
+            </span>
+                    </SettingItem>
+                )}
+            </motion.div>
+
+            {/* Notification Settings */}
+            <motion.div
+                initial={{opacity: 0, y: 20}}
+                animate={{opacity: 1, y: 0}}
+                transition={{delay: 0.2}}
+                className="card"
+            >
+                <h2 className="text-lg font-semibold mb-4 flex items-center">
+                    <span className="mr-2">🔔</span>
+                    通知设置
+                </h2>
+
+                <SettingItem
+                    label="游戏通知"
+                    description="接收游戏内通知"
+                >
+                    <Toggle
+                        checked={settings.notifications}
+                        onChange={(value) => handleChange('notifications', value)}
+                    />
+                </SettingItem>
+
+                <SettingItem
+                    label="桌面通知"
+                    description="接收桌面推送通知"
+                >
+                    <Toggle
+                        checked={settings.desktopNotifications}
+                        onChange={(value) => handleChange('desktopNotifications', value)}
+                    />
+                </SettingItem>
+            </motion.div>
+
+            {/* Game Settings */}
+            <motion.div
+                initial={{opacity: 0, y: 20}}
+                animate={{opacity: 1, y: 0}}
+                transition={{delay: 0.3}}
+                className="card"
+            >
+                <h2 className="text-lg font-semibold mb-4 flex items-center">
+                    <span className="mr-2">🎮</span>
+                    游戏设置
+                </h2>
+
+                <SettingItem
+                    label="自动滚动"
+                    description="对话自动滚动到底部"
+                >
+                    <Toggle
+                        checked={settings.autoScroll}
+                        onChange={(value) => handleChange('autoScroll', value)}
+                    />
+                </SettingItem>
+
+                <SettingItem
+                    label="动画效果"
+                    description="启用界面动画效果"
+                >
+                    <Toggle
+                        checked={settings.showAnimations}
+                        onChange={(value) => handleChange('showAnimations', value)}
+                    />
+                </SettingItem>
+
+                <SettingItem
+                    label="深色模式"
+                    description="使用深色主题"
+                >
+                    <Toggle
+                        checked={settings.darkMode}
+                        onChange={(value) => handleChange('darkMode', value)}
+                    />
+                </SettingItem>
+
+                <SettingItem
+                    label="语言"
+                    description="选择界面语言"
+                >
+                    <select
+                        value={settings.language}
+                        onChange={(e) => handleChange('language', e.target.value)}
+                        className="input w-40"
+                    >
+                        <option value="zh-CN">简体中文</option>
+                        <option value="zh-TW">繁體中文</option>
+                        <option value="en">English</option>
+                    </select>
+                </SettingItem>
+            </motion.div>
+
+            {/* Actions */}
+            <motion.div
+                initial={{opacity: 0, y: 20}}
+                animate={{opacity: 1, y: 0}}
+                transition={{delay: 0.4}}
+                className="flex flex-col sm:flex-row gap-4"
+            >
+                <button
+                    onClick={handleSave}
+                    className="btn-primary flex-1"
+                >
+                    <span className="mr-2">💾</span>
+                    保存设置
+                </button>
+                <button
+                    onClick={handleReset}
+                    className="btn-secondary flex-1"
+                >
+                    <span className="mr-2">🔄</span>
+                    重置设置
+                </button>
+            </motion.div>
+        </div>
+    )
+}
+
+export default Settings
