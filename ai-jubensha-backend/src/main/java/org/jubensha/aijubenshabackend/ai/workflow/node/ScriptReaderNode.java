@@ -9,7 +9,16 @@ import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
+import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
+import org.jubensha.aijubenshabackend.service.game.GameService;
+import org.jubensha.aijubenshabackend.service.player.PlayerService;
+import org.jubensha.aijubenshabackend.models.entity.Game;
+import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
+import org.jubensha.aijubenshabackend.models.enums.GamePlayerStatus;
+import org.jubensha.aijubenshabackend.models.enums.GameStatus;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
+import java.time.LocalDateTime;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,7 +47,7 @@ public class ScriptReaderNode {
     public static AsyncNodeAction<MessagesState<String>> create() {
         return node_async(state -> {
             WorkflowContext context = WorkflowContext.getContext(state);
-            log.debug("ScriptReaderNode: {}", context);
+//            log.debug("ScriptReaderNode: {}", context);
             log.info("执行节点：剧本读取");
 
             // 获取剧本ID
@@ -64,10 +73,39 @@ public class ScriptReaderNode {
                 AIService aiService = SpringContextUtil.getBean(AIService.class);
                 // 获取WebSocket服务
                 WebSocketService webSocketService = SpringContextUtil.getBean(WebSocketService.class);
+                // 获取游戏服务
+                GameService gameService = SpringContextUtil.getBean(GameService.class);
+                // 获取玩家服务
+                PlayerService playerService = SpringContextUtil.getBean(PlayerService.class);
+                // 获取游戏玩家关系服务
+                GamePlayerService gamePlayerService = SpringContextUtil.getBean(GamePlayerService.class);
 
                 // 获取剧本的所有角色
                 List<Character> characters = characterService.getCharactersByScriptId(scriptId);
                 log.info("剧本 {} 共有 {} 个角色", scriptId, characters.size());
+
+                // 确保游戏存在
+                Long gameId = context.getGameId();
+                
+                // 检查gameId是否为null
+                if (gameId == null) {
+                    log.error("游戏ID为空，无法继续执行");
+                    context.setErrorMessage("游戏ID为空，无法继续执行");
+                    context.setSuccess(false);
+                    return WorkflowContext.saveContext(context);
+                }
+                
+                // 查询游戏是否存在
+                var gameOpt = gameService.getGameById(gameId);
+                
+                if (!gameOpt.isPresent()) {
+                    log.error("游戏不存在，游戏ID: {}", gameId);
+                    context.setErrorMessage("游戏不存在，游戏ID: " + gameId);
+                    context.setSuccess(false);
+                    return WorkflowContext.saveContext(context);
+                }
+                
+                log.info("游戏存在，游戏ID: {}", gameId);
 
                 // 通知玩家读取剧本
                 for (Map<String, Object> assignment : playerAssignments) {
@@ -76,9 +114,36 @@ public class ScriptReaderNode {
                     Long characterId = (Long) assignment.get("characterId");
                     String characterName = (String) assignment.get("characterName");
 
+                    // 创建GamePlayer关系
+                    try {
+                        // 检查玩家和角色是否存在
+                        var playerOpt = playerService.getPlayerById(playerId);
+                        var characterOpt = characterService.getCharacterById(characterId);
+                        
+                        if (playerOpt.isPresent() && characterOpt.isPresent()) {
+                            // 使用已存在的游戏对象
+                            Game game = gameOpt.get();
+                            GamePlayer gamePlayer = new GamePlayer();
+                            gamePlayer.setGame(game);
+                            gamePlayer.setPlayer(playerOpt.get());
+                            gamePlayer.setCharacter(characterOpt.get());
+                            gamePlayer.setIsDm(false);
+                            gamePlayer.setStatus(GamePlayerStatus.READY);
+                            
+                            gamePlayerService.createGamePlayer(gamePlayer);
+                            log.info("创建游戏玩家关系成功：游戏ID={}, 玩家ID={}, 角色ID={}, 角色名称={}", 
+                                    gameId, playerId, characterId, characterName);
+                        } else {
+                            log.warn("创建游戏玩家关系失败：必要实体不存在 - 玩家存在={}, 角色存在={}", 
+                                    playerOpt.isPresent(), characterOpt.isPresent());
+                        }
+                    } catch (Exception e) {
+                        log.warn("创建游戏玩家关系失败：{}", e.getMessage(), e);
+                    }
+
                     if ("AI".equals(playerType)) {
                         // 为AI玩家将角色信息插入到向量数据库
-                        insertCharacterToVectorDB(context.getGameId(), playerId, characterId, characters);
+                        insertCharacterToVectorDB(gameId, playerId, characterId, characters);
 
                         // 通知AI玩家读取剧本
                         aiService.notifyAIPlayerReadScript(playerId, characterId);

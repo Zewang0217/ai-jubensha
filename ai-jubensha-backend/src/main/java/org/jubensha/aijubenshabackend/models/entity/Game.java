@@ -22,9 +22,10 @@ public class Game {
     @JsonIgnore
     private Script script;
 
-    @Column(name = "script_id", nullable = false)
+    @Column(name = "script_id", nullable = true)
     private Long scriptId;
 
+    @Column(name = "game_code", nullable = true, unique = true)
     private String gameCode;
 
     @Enumerated(EnumType.STRING)

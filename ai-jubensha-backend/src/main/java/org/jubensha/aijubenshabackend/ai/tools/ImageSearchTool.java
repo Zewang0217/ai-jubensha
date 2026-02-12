@@ -97,4 +97,9 @@ public class ImageSearchTool extends BaseTool {
             throw new BusinessException(THIRD_PARTY_SERVICE_ERROR);
         }
     }
+
+    @Override
+    public org.jubensha.aijubenshabackend.ai.tools.permission.ToolPermissionLevel getRequiredPermissionLevel(org.jubensha.aijubenshabackend.ai.tools.permission.AgentType agentType) {
+        return ToolPermissionLevel.NONE;
+    }
 }
