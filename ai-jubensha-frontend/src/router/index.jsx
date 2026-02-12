@@ -7,9 +7,9 @@ import Loading from '../components/common/Loading'
 const Home = lazy(() => import('../pages/Home/Home'))
 const GameList = lazy(() => import('../pages/GameList/GameList'))
 const GameRoom = lazy(() => import('../pages/GameRoom/GameRoom'))
+const ScriptList = lazy(() => import('../pages/ScriptList/ScriptList'))
+const ScriptDetail = lazy(() => import('../pages/ScriptDetail/ScriptDetail'))
 const Scene = lazy(() => import('../pages/Scene/Scene'))
-const Character = lazy(() => import('../pages/Character/Character'))
-const Clue = lazy(() => import('../pages/Clue/Clue'))
 const Settings = lazy(() => import('../pages/Settings/Settings'))
 const NotFound = lazy(() => import('../pages/Error/NotFound'))
 
@@ -22,9 +22,9 @@ function AppRouter() {
                         <Route index element={<Home/>}/>
                         <Route path="games" element={<GameList/>}/>
                         <Route path="game/:id" element={<GameRoom/>}/>
+                        <Route path="scripts" element={<ScriptList/>}/>
+                        <Route path="scripts/:id" element={<ScriptDetail/>}/>
                         <Route path="scene/:id" element={<Scene/>}/>
-                        <Route path="character/:id" element={<Character/>}/>
-                        <Route path="clue/:id" element={<Clue/>}/>
                         <Route path="settings" element={<Settings/>}/>
                     </Route>
                     <Route path="/404" element={<NotFound/>}/>

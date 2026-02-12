@@ -5,6 +5,7 @@ import {AnimatePresence, motion} from 'framer-motion'
 const navItems = [
     {path: '/', label: '首页'},
     {path: '/games', label: '游戏大厅'},
+    {path: '/scripts', label: '剧本库'},
     {path: '/settings', label: '设置'},
 ]
 

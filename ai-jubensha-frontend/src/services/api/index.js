@@ -1,69 +1,4 @@
-import axios from 'axios'
-
-// 创建 axios 实例
-const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8088/api',
-    timeout: 10000,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-})
-
-// 请求拦截器
-apiClient.interceptors.request.use(
-    (config) => {
-        // 可以在这里添加认证 token
-        const token = localStorage.getItem('token')
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`
-        }
-        return config
-    },
-    (error) => {
-        return Promise.reject(error)
-    }
-)
-
-// 响应拦截器
-apiClient.interceptors.response.use(
-    (response) => {
-        return response.data
-    },
-    (error) => {
-        // 统一错误处理
-        if (error.response) {
-            // 服务器返回错误状态码
-            const {status, data} = error.response
-
-            switch (status) {
-                case 401:
-                    // 未授权，清除 token 并跳转到登录页
-                    localStorage.removeItem('token')
-                    window.location.href = '/login'
-                    break
-                case 403:
-                    console.error('没有权限访问该资源')
-                    break
-                case 404:
-                    console.error('请求的资源不存在')
-                    break
-                case 500:
-                    console.error('服务器内部错误')
-                    break
-                default:
-                    console.error(`请求失败: ${data?.message || error.message}`)
-            }
-        } else if (error.request) {
-            // 请求发出但没有收到响应
-            console.error('网络错误，请检查网络连接')
-        } else {
-            // 请求配置出错
-            console.error('请求配置错误:', error.message)
-        }
-
-        return Promise.reject(error)
-    }
-)
+import apiClient from './client'
 
 // API 方法封装
 export const api = {
@@ -161,4 +96,15 @@ export const sceneApi = {
     createScene: (data) => api.post('/scenes', data),
 }
 
-export default apiClient
+// 导出新的模块化 API
+export {
+    getScripts,
+    getScriptById,
+    createScript as createScriptNew,
+    updateScript,
+    deleteScript,
+    generateScript as generateScriptNew,
+} from './script'
+
+export {default as apiClient} from './client'
+export {default} from './client'
