@@ -15,11 +15,11 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <WebSocketProvider>
-        <AppRouter/>
-      </WebSocketProvider>
-    </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <WebSocketProvider>
+          <AppRouter/>
+        </WebSocketProvider>
+      </QueryClientProvider>
   )
 }
 
