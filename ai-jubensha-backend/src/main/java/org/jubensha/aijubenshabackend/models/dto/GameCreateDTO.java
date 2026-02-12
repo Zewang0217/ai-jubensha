@@ -18,7 +18,6 @@ public class GameCreateDTO {
     @NotNull(message = "剧本ID不能为空")
     private Long scriptId;
 
-    @NotBlank(message = "游戏房间码不能为空")
     @Size(max = 50, message = "游戏房间码长度不能超过50个字符")
     private String gameCode;
 
