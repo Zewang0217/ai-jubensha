@@ -58,121 +58,12 @@ html {
 
 body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: var(--color-secondary-50);
-    color: var(--color-secondary-900);
+    background: linear-gradient(135deg, #141414, #282828, #141414); /* Deep charcoal to misty gray gradient */
+    color: var(--color-secondary-200); /* Lighter text for dark background */
+    min-height: 100vh; /* Ensure body takes full viewport height */
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-}
-
-#root {
-    min-height: 100vh;
-}
-
-/* 按钮样式 */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    transition: all 0.2s;
-    cursor: pointer;
-    border: none;
-    outline: none;
-}
-
-.btn:focus {
-    outline: none;
-    ring: 2px;
-    ring-offset: 2px;
-}
-
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.btn-primary {
-    background-color: var(--color-primary-600);
-    color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-    background-color: var(--color-primary-700);
-}
-
-.btn-secondary {
-    background-color: var(--color-secondary-200);
-    color: var(--color-secondary-800);
-}
-
-.btn-secondary:hover:not(:disabled) {
-    background-color: var(--color-secondary-300);
-}
-
-.btn-accent {
-    background-color: var(--color-accent-500);
-    color: white;
-}
-
-.btn-accent:hover:not(:disabled) {
-    background-color: var(--color-accent-600);
-}
-
-/* 卡片样式 */
-.card {
-    background-color: white;
-    border-radius: 0.75rem;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-    border: 1px solid var(--color-secondary-200);
-    padding: 1.5rem;
-}
-
-/* 输入框样式 */
-.input {
-    width: 100%;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--color-secondary-300);
-    background-color: white;
-    color: var(--color-secondary-900);
-    transition: all 0.2s;
-}
-
-.input::placeholder {
-    color: var(--color-secondary-400);
-}
-
-.input:focus {
-    outline: none;
-    border-color: transparent;
-    box-shadow: 0 0 0 2px var(--color-primary-500);
-}
-
-/* 标签样式 */
-.label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-secondary-700);
-    margin-bottom: 0.25rem;
-}
-
-/* 文字渐变 */
-.text-gradient {
-    background: linear-gradient(to right, var(--color-primary-600), var(--color-accent-500));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-/* 玻璃态效果 */
-.glass {
-    background-color: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* 动画 */
@@ -182,6 +73,21 @@ body {
 
 .animate-slide-up {
     animation: slideUp 0.3s ease-out;
+}
+
+/* Frosted Glass Neomorphism Effect */
+.frosted-glass-effect {
+    background-color: rgba(255, 255, 255, 0.08); /* Light translucent background */
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem; /* Soft rounded corners */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05); /* Subtle shadow and inner light */
+    transition: all 0.3s ease-in-out; /* Add transition for smooth hover effects */
+}
+
+.frosted-glass-effect:hover {
+    border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle light border on hover */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1); /* Slightly more prominent shadow on hover */
 }
 
 @keyframes fadeIn {

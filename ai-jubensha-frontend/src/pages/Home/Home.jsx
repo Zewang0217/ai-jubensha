@@ -1,5 +1,4 @@
 import {Link} from 'react-router-dom'
-// eslint-disable-next-line no-unused-vars
 import {motion} from 'framer-motion'
 
 function Home() {
@@ -27,59 +26,60 @@ function Home() {
     ]
 
     return (
-        <div className="space-y-12">
-            {/* Hero Section */}
-            <section className="text-center py-12 md:py-20">
+        <div className="relative min-h-screen flex flex-col justify-center items-center text-center pt-20 px-4">
+            {/* Hero Section - Central Visual Area */}
+            <section className="py-12 md:py-20 max-w-4xl mx-auto">
                 <motion.div
                     initial={{opacity: 0, y: 20}}
                     animate={{opacity: 1, y: 0}}
-                    transition={{duration: 0.5}}
+                    transition={{duration: 0.8, ease: "easeOut"}}
                 >
-                    <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                        <span className="text-gradient">AI 剧本杀</span>
+                    <h1 className="text-5xl md:text-7xl font-bold mb-6 text-white tracking-wide leading-tight">
+                        <span className="text-dark-red-500">剧本杀</span>
+                        AI 智能推理
                     </h1>
-                    <p className="text-xl text-[var(--color-secondary-600)] mb-8 max-w-2xl mx-auto">
-                        与 AI 一起体验沉浸式剧本杀游戏，智能主持、自动推理，
-                        让每一局游戏都充满惊喜
+                    <p className="text-xl text-secondary-300 mb-10 max-w-3xl mx-auto opacity-80">
+                        深入迷雾，解锁真相。与AI共织悬疑，每一场都是智力与勇气的较量。
                     </p>
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
                         <Link
                             to="/games"
-                            className="btn-primary text-lg px-8 py-3"
+                            className="btn bg-dark-red-500 text-white text-lg px-10 py-4 rounded-xl shadow-lg hover:bg-dark-red-600 transition-all duration-300 transform hover:-translate-y-1"
                         >
-                            <span className="mr-2">🎮</span>
-                            开始游戏
+                            <span className="mr-3 text-2xl">🔍</span>
+                            开始推理
                         </Link>
                         <Link
                             to="/settings"
-                            className="btn-secondary text-lg px-8 py-3"
+                            className="btn border-2 border-dark-gold-500 text-dark-gold-500 text-lg px-10 py-4 rounded-xl shadow-lg hover:bg-dark-gold-500 hover:text-white transition-all duration-300 transform hover:-translate-y-1"
                         >
-                            <span className="mr-2">⚙️</span>
-                            游戏设置
+                            <span className="mr-3 text-2xl">⚙️</span>
+                            剧本工坊
                         </Link>
                     </div>
                 </motion.div>
             </section>
 
             {/* Features Section */}
-            <section>
-                <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
-                    游戏特色
+            <section className="mt-20 w-full max-w-6xl">
+                <h2 className="text-3xl font-bold text-center mb-12 text-white opacity-90">
+                    核心特色
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     {features.map((feature, index) => (
                         <motion.div
                             key={feature.title}
-                            initial={{opacity: 0, y: 20}}
-                            animate={{opacity: 1, y: 0}}
-                            transition={{duration: 0.5, delay: index * 0.1}}
-                            className="card text-center hover:shadow-md transition-shadow"
+                            initial={{opacity: 0, y: 50}}
+                            whileInView={{opacity: 1, y: 0}}
+                            viewport={{once: true, amount: 0.3}}
+                            transition={{duration: 0.6, delay: index * 0.15, ease: "easeOut"}}
+                            className="frosted-glass-effect card text-center p-6 cursor-pointer transform hover:scale-105 transition-all duration-300"
                         >
-                            <div className="text-4xl mb-4">{feature.icon}</div>
-                            <h3 className="text-lg font-semibold text-[var(--color-secondary-800)] mb-2">
+                            <div className="text-5xl mb-4 opacity-80">{feature.icon}</div>
+                            <h3 className="text-xl font-semibold text-white mb-2 opacity-95">
                                 {feature.title}
                             </h3>
-                            <p className="text-[var(--color-secondary-600)] text-sm">
+                            <p className="text-secondary-300 text-base opacity-70">
                                 {feature.description}
                             </p>
                         </motion.div>
@@ -87,31 +87,29 @@ function Home() {
                 </div>
             </section>
 
-            {/* Quick Start Section */}
-            <section className="card bg-gradient-to-br from-[var(--color-primary-50)] to-[var(--color-accent-50)]">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-4">快速开始</h2>
-                    <p className="text-[var(--color-secondary-600)] mb-6">
-                        选择一个游戏房间加入，或创建自己的房间邀请好友
+            {/* Quick Start Section - Renamed to Call to Action */}
+            <section className="mt-20 mb-20 w-full max-w-4xl">
+                <motion.div
+                    initial={{opacity: 0, scale: 0.9}}
+                    whileInView={{opacity: 1, scale: 1}}
+                    viewport={{once: true, amount: 0.3}}
+                    transition={{duration: 0.7, delay: 0.5, ease: "easeOut"}}
+                    className="frosted-glass-effect p-10 text-center"
+                >
+                    <h2 className="text-3xl font-bold text-white mb-4">
+                        立即开启你的推理之旅
+                    </h2>
+                    <p className="text-secondary-300 mb-8 opacity-80">
+                        体验前所未有的沉浸式剧本杀乐趣，与AI一同揭开重重迷雾。
                     </p>
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Link
-                            to="/games"
-                            className="btn-primary"
-                        >
-                            浏览游戏房间
-                        </Link>
-                        <button
-                            className="btn-accent"
-                            onClick={() => {
-                                // TODO: 实现创建房间逻辑
-                                console.log('创建房间')
-                            }}
-                        >
-                            创建新房间
-                        </button>
-                    </div>
-                </div>
+                    <Link
+                        to="/games"
+                        className="btn bg-dark-red-500 text-white text-xl px-12 py-4 rounded-xl shadow-lg hover:bg-dark-red-600 transition-all duration-300 transform hover:-translate-y-1"
+                    >
+                        <span className="mr-3">🚀</span>
+                        探索游戏房间
+                    </Link>
+                </motion.div>
             </section>
         </div>
     )
