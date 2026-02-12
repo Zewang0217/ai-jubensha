@@ -1,5 +1,6 @@
 package org.jubensha.aijubenshabackend.models.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -29,5 +30,6 @@ public class ScriptCreateDTO {
     @Positive(message = "玩家人数必须为正数")
     private Integer playerCount;
 
+    @JsonProperty("coverImage")
     private String coverImageUrl;
 }

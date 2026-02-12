@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.serializer.Serializer;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -31,8 +32,14 @@ public class AppConfig implements WebMvcConfigurer {
     }
 
     @Bean
+    @Primary
     public ObjectMapper objectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        // 注册JavaTimeModule以支持Java 8时间类型序列化
+        objectMapper.registerModule(new JavaTimeModule());
+        // 禁用将日期写为时间戳的特性，确保正确序列化LocalDateTime
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         // 注册 JavaTimeModule
         objectMapper.registerModule(new JavaTimeModule());
         // 禁用默认的时间戳格式
