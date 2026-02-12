@@ -6,7 +6,7 @@ import apiClient from './client'
  */
 
 // Mock 数据开关 - 开发环境使用
-const USE_MOCK = false
+const USE_MOCK = true
 
 // Mock 剧本数据
 const mockScripts = [
@@ -18,7 +18,7 @@ const mockScripts = [
         playerCount: 6,
         duration: 180,
         difficulty: 'MEDIUM',
-        coverImageUrl: '',
+        coverImageUrl: 'https://picsum.photos/200/300',
         createTime: '2026-01-15T10:30:00Z',
         updateTime: '2026-02-10T14:20:00Z',
     },
@@ -30,7 +30,7 @@ const mockScripts = [
         playerCount: 4,
         duration: 120,
         difficulty: 'EASY',
-        coverImageUrl: '',
+        coverImageUrl: 'https://picsum.photos/200/300',
         createTime: '2026-01-20T09:00:00Z',
         updateTime: '2026-01-25T16:45:00Z',
     },
@@ -42,7 +42,7 @@ const mockScripts = [
         playerCount: 8,
         duration: 240,
         difficulty: 'HARD',
-        coverImageUrl: '',
+        coverImageUrl: 'https://picsum.photos/200/300',
         createTime: '2026-02-01T11:00:00Z',
         updateTime: '2026-02-08T10:30:00Z',
     },
@@ -71,13 +71,9 @@ export const getScripts = () => {
         // 模拟 API 延迟
         return new Promise((resolve) => {
             setTimeout(() => {
-                resolve({
-                    content: mockScripts,
-                    totalElements: mockScripts.length,
-                    totalPages: 1,
-                    number: 0,
-                    size: 10,
-                })
+                resolve(
+                    mockScripts
+                )
             }, 500)
         })
     }

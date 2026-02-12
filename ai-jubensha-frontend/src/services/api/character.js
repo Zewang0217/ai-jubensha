@@ -6,7 +6,7 @@ import apiClient from './client'
  */
 
 // Mock 数据开关 - 开发环境使用
-const USE_MOCK = false
+const USE_MOCK = true
 
 // Mock 角色数据
 const mockCharacters = [
