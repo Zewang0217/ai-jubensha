@@ -53,24 +53,6 @@ public class jubenshaWorkflow {
      */
     public CompiledGraph<MessagesState<String>> createWorkflow(boolean useStreaming, boolean useNewWorkflow) {
         try {
-            return new MessagesStateGraph<String>()
-                    .addNode("script_generator", ScriptGeneratorNode.create())
-                    .addNode("cover_image_generator", create())
-                    .addNode("player_allocator", PlayerAllocatorNode.create())
-                    .addNode("scene_loader", SceneLoaderNode.create())
-                    .addNode("script_reader", ScriptReaderNode.create())
-                    .addNode("first_investigation", FirstInvestigationNode.create())
-                    .addNode("discussion", DiscussionNode.create())
-                    .addEdge("__START__", "script_generator")
-                    .addEdge("script_generator", "cover_image_generator")
-                    .addEdge("cover_image_generator", "player_allocator")
-                    .addEdge("player_allocator", "script_reader")
-                    .addEdge("player_allocator", "scene_loader")
-                    .addEdge("script_reader", "first_investigation")
-                    .addEdge("scene_loader", "first_investigation")
-                    .addEdge("first_investigation", "discussion")
-                    .addEdge("discussion", "__END__")
-                    .compile();
             MessagesStateGraph<String> graph = new MessagesStateGraph<String>();
 
             // 添加所有节点
@@ -108,6 +90,7 @@ public class jubenshaWorkflow {
             throw new RuntimeException(e);
         }
     }
+
 
     /**
      * 创建并发工作流
