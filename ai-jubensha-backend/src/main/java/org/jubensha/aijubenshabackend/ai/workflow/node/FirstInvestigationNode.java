@@ -23,6 +23,7 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
  * 第一轮搜证节点
  *
  * @author zewang
+ * @author luobo
  * @version 1.0
  * @date 2026-02-01
  * @since 2026
@@ -74,7 +75,8 @@ public class FirstInvestigationNode {
                 // 获取RAG服务
                 RAGService ragService = SpringContextUtil.getBean(RAGService.class);
 
-                // 整合场景和角色信息
+                // 整合场景和角色信息, 存放到investigationScenes中
+                // 用于存储所有搜证场景, 其中包含场景线索列表
                 List<Map<String, Object>> investigationScenes = new ArrayList<>();
                 for (Scene scene : scenes) {
                     // 获取场景中的线索
@@ -86,22 +88,59 @@ public class FirstInvestigationNode {
                         ragService.insertGlobalClueMemory(context.getScriptId(), 0L, clue.getDescription());
                     }
 
-                    Map<String, Object> sceneInfo = Map.of(
-                            "sceneId", scene.getId(),
-                            "sceneName", scene.getName(),
-                            "description", scene.getDescription(),
-                            "clues", sceneClues
-                    );
+                    // 构建场景信息，只包含线索的基本信息（不包含完整描述，保持神秘感）
+                    List<Map<String, Object>> clueSummaries = new ArrayList<>();
+                    for (Clue clue : sceneClues) {
+                        Map<String, Object> clueSummary = new java.util.HashMap<>();
+                        clueSummary.put("clueId", clue.getId());
+                        clueSummary.put("clueName", clue.getName());
+                        clueSummary.put("type", clue.getType());
+                        clueSummary.put("importance", clue.getImportance());
+                        // 不返回描述，玩家需要搜证才能看到
+                        clueSummaries.add(clueSummary);
+                    }
+
+                    Map<String, Object> sceneInfo = new java.util.HashMap<>();
+                    sceneInfo.put("sceneId", scene.getId());
+                    sceneInfo.put("sceneName", scene.getName());
+                    sceneInfo.put("description", scene.getDescription());
+                    sceneInfo.put("clueCount", sceneClues.size());
+                    sceneInfo.put("clues", clueSummaries);
                     investigationScenes.add(sceneInfo);
                     log.info("场景 {} 中有 {} 个线索", scene.getName(), sceneClues.size());
                 }
 
+                // 初始化玩家搜证次数
+                List<Long> playerIds = new ArrayList<>();
+                for (Map<String, Object> assignment : playerAssignments) {
+                    Long playerId = (Long) assignment.get("playerId");
+                    playerIds.add(playerId);
+                }
+                context.initInvestigationCounts(playerIds);
+                log.info("已初始化 {} 个玩家的搜证次数，每轮 {} 次", playerIds.size(), WorkflowContext.DEFAULT_INVESTIGATION_LIMIT);
+
+                /*
+                Map<String, Object> assignment = Map.of(
+                    "playerType", "REAL",
+                    "playerId", realPlayer.getId(),
+                    "characterId", character.getId(),
+                    "characterName", character.getName()
+                );
+                */
                 // 通知玩家开始第一轮搜证
                 for (Map<String, Object> assignment : playerAssignments) {
                     String playerType = (String) assignment.get("playerType");
                     Long playerId = (Long) assignment.get("playerId");
                     Long characterId = (Long) assignment.get("characterId");
                     String characterName = (String) assignment.get("characterName");
+
+                    // 构建玩家搜证通知数据
+                    Map<String, Object> investigationData = new java.util.HashMap<>();
+                    investigationData.put("scenes", investigationScenes);
+                    investigationData.put("remainingChances", WorkflowContext.DEFAULT_INVESTIGATION_LIMIT);
+                    investigationData.put("totalChances", WorkflowContext.DEFAULT_INVESTIGATION_LIMIT);
+                    investigationData.put("phase", "FIRST_INVESTIGATION");
+                    investigationData.put("round", 1);
 
                     if ("AI".equals(playerType)) {
                         // 通知AI玩家开始搜证
@@ -112,7 +151,7 @@ public class FirstInvestigationNode {
                     } else {
                         // 通知真人玩家开始搜证
                         try {
-//                            webSocketService.notifyPlayerStartInvestigation(playerId, investigationScenes);
+                            webSocketService.notifyPlayerStartInvestigation(playerId, investigationData);
                             log.info("通过WebSocket通知真人玩家 {} (角色: {}) 开始第一轮搜证", playerId, characterName);
                         } catch (Exception e) {
                             log.warn("WebSocket通知失败，使用日志记录", e);
