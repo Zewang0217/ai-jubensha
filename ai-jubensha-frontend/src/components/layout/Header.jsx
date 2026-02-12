@@ -19,13 +19,13 @@ function Header() {
     }
 
     return (
-        <header className="bg-white shadow-sm border-b border-(--color-secondary-200) sticky top-0 z-50">
+        <header className="frosted-glass-effect fixed top-0 left-0 right-0 z-50 py-3">
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
-                    <Link to="/" className="flex items-center space-x-2">
+                    <Link to="/" className="flex items-center space-x-2 text-white">
                         <span className="text-2xl">🎭</span>
-                        <span className="text-xl font-bold text-gradient">AI剧本杀</span>
+                        <span className="text-xl font-bold">AI剧本杀</span>
                     </Link>
 
                     {/* Desktop Navigation */}
@@ -36,8 +36,8 @@ function Header() {
                                 to={item.path}
                                 className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                                     isActive(item.path)
-                                        ? 'bg-(--color-primary-100) text-(--color-primary-700)'
-                                        : 'text-(--color-secondary-600) hover:bg-(--color-secondary-100) hover:text-(--color-secondary-900)'
+                                        ? 'bg-dark-red-500 text-white'
+                                        : 'text-secondary-200 hover:text-white hover:bg-white/10'
                                 }`}
                             >
                                 <span className="mr-2">{item.icon}</span>
@@ -48,7 +48,7 @@ function Header() {
 
                     {/* Mobile Menu Button */}
                     <button
-                        className="md:hidden p-2 rounded-lg hover:bg-(--color-secondary-100) transition-colors"
+                        className="md:hidden p-2 rounded-lg text-secondary-200 hover:bg-white/10 transition-colors"
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     >
                         <span className="text-2xl">{isMobileMenuOpen ? '✕' : '☰'}</span>
@@ -57,7 +57,7 @@ function Header() {
 
                 {/* Mobile Navigation */}
                 {isMobileMenuOpen && (
-                    <nav className="md:hidden py-4 border-t border-(--color-secondary-200)">
+                    <nav className="md:hidden py-4 border-t border-white/10">
                         <div className="flex flex-col space-y-2">
                             {navItems.map((item) => (
                                 <Link
@@ -65,8 +65,8 @@ function Header() {
                                     to={item.path}
                                     className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
                                         isActive(item.path)
-                                            ? 'bg-(--color-primary-100) text-(--color-primary-700)'
-                                            : 'text-(--color-secondary-600) hover:bg-(--color-secondary-100)'
+                                            ? 'bg-dark-red-500 text-white'
+                                            : 'text-secondary-200 hover:text-white hover:bg-white/10'
                                     }`}
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
