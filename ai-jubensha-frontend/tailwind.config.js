@@ -43,6 +43,15 @@ export default {
           800: '#9a3412',
           900: '#7c2d12',
         },
+        // Custom dark red and dark gold colors for the theme
+        'dark-red': {
+          500: '#8B0000', // A deep, dark red
+          600: '#A52A2A', // Slightly lighter for hover
+        },
+        'dark-gold': {
+          500: '#B8860B', // Dark goldenrod
+          600: '#DAA520', // Goldenrod
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
