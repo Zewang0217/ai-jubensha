@@ -1,6 +1,7 @@
 import {useState} from 'react'
 import {Link} from 'react-router-dom'
 import {useQuery} from '@tanstack/react-query'
+// eslint-disable-next-line no-unused-vars
 import {motion} from 'framer-motion'
 import {gameApi} from '../../services/api'
 import Loading from '../../components/common/Loading'
