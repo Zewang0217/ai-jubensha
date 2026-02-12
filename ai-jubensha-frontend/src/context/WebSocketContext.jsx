@@ -1,6 +1,8 @@
-import {useCallback, useEffect, useRef, useState} from 'react'
+import {createContext, useCallback, useEffect, useRef, useState} from 'react'
 import WebSocketService from '../services/websocket/WebSocketService'
-import {WebSocketContext} from './WebSocketContext.js'
+
+// 创建上下文
+export const WebSocketContext = createContext(null)
 
 export const WebSocketProvider = ({children}) => {
     const [isConnected, setIsConnected] = useState(false)
