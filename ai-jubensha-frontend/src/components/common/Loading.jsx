@@ -9,7 +9,7 @@ function Loading({fullScreen = false, size = 'md', text = '加载中...'}) {
     const spinner = (
         <div className={`${sizeClasses[size]} animate-spin`}>
             <svg
-                className="text-(--color-primary-600)"
+                className="text-primary-600"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -34,10 +34,10 @@ function Loading({fullScreen = false, size = 'md', text = '加载中...'}) {
     if (fullScreen) {
         return (
             <div
-                className="fixed inset-0 flex flex-col items-center justify-center bg-(--color-secondary-50) z-50">
+                className="fixed inset-0 flex flex-col items-center justify-center bg-secondary-50 z-50">
                 {spinner}
                 {text && (
-                    <p className="mt-4 text-(--color-secondary-600) font-medium">
+                    <p className="mt-4 text-secondary-600 font-medium">
                         {text}
                     </p>
                 )}
@@ -49,7 +49,7 @@ function Loading({fullScreen = false, size = 'md', text = '加载中...'}) {
         <div className="flex flex-col items-center justify-center p-8">
             {spinner}
             {text && (
-                <p className="mt-3 text-sm text-(--color-secondary-500)">
+                <p className="mt-3 text-sm text-secondary-500">
                     {text}
                 </p>
             )}
