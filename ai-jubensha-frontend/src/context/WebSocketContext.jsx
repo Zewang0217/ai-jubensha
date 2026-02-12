@@ -1,19 +1,7 @@
-import {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import WebSocketService from '../services/websocket/WebSocketService'
+import {WebSocketContext} from './WebSocketContext.js'
 
-// 创建上下文
-const WebSocketContext = createContext(null)
-
-// 自定义 Hook
-export const useWebSocket = () => {
-    const context = useContext(WebSocketContext)
-    if (!context) {
-        throw new Error('useWebSocket must be used within a WebSocketProvider')
-    }
-    return context
-}
-
-// WebSocket 提供者组件
 export const WebSocketProvider = ({children}) => {
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState(null)
@@ -61,6 +49,8 @@ export const WebSocketProvider = ({children}) => {
 
     // 监听连接状态变化
     useEffect(() => {
+        const wsService = wsServiceRef.current
+
         const handleConnect = () => {
             setIsConnected(true)
             setError(null)
@@ -79,16 +69,16 @@ export const WebSocketProvider = ({children}) => {
         }
 
         // 注册全局事件监听
-        wsServiceRef.current.on('__connected__', handleConnect)
-        wsServiceRef.current.on('__disconnected__', handleDisconnect)
-        wsServiceRef.current.on('__error__', handleError)
-        wsServiceRef.current.on('__message__', handleMessage)
+        wsService.on('__connected__', handleConnect)
+        wsService.on('__disconnected__', handleDisconnect)
+        wsService.on('__error__', handleError)
+        wsService.on('__message__', handleMessage)
 
         return () => {
-            wsServiceRef.current.off('__connected__', handleConnect)
-            wsServiceRef.current.off('__disconnected__', handleDisconnect)
-            wsServiceRef.current.off('__error__', handleError)
-            wsServiceRef.current.off('__message__', handleMessage)
+            wsService.off('__connected__', handleConnect)
+            wsService.off('__disconnected__', handleDisconnect)
+            wsService.off('__error__', handleError)
+            wsService.off('__message__', handleMessage)
         }
     }, [])
 
