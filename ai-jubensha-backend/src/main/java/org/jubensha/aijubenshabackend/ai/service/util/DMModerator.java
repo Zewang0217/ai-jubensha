@@ -6,7 +6,9 @@ import org.jubensha.aijubenshabackend.ai.service.AIService;
 import org.jubensha.aijubenshabackend.ai.service.agent.DMAgent;
 import org.jubensha.aijubenshabackend.ai.service.agent.PlayerAgent;
 import org.jubensha.aijubenshabackend.ai.tools.SendDiscussionMessageTool;
+import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.Player;
+import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -48,6 +50,9 @@ public class DMModerator {
     @Autowired
     private DiscussionHelper discussionHelper;
 
+    @Autowired
+    private CharacterService characterService;
+
     // 线程池
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -86,7 +91,7 @@ public class DMModerator {
                 String startMessage = dmAgent.startDiscussion(discussionInfo);
 
                 // 发送讨论开始消息
-                sendDiscussionMessageTool.execute(startMessage, gameId, dmId, playerIds);
+                sendDiscussionMessageTool.executeSendDiscussionMessage(startMessage, gameId, dmId, playerIds);
 
                 // 开始陈述阶段
                 startStatementPhase(gameId, playerIds, dmId, characterIds, scriptId, dmAgent);
@@ -109,7 +114,7 @@ public class DMModerator {
 
             // 宣布陈述阶段开始
             String phaseMessage = dmAgent.moderateDiscussion("开始陈述阶段，每位玩家有5分钟时间，请依次发言");
-            sendDiscussionMessageTool.execute(phaseMessage, gameId, dmId, playerIds);
+            sendDiscussionMessageTool.executeSendDiscussionMessage(phaseMessage, gameId, dmId, playerIds);
 
             // 依次让每位玩家发言
             for (int i = 0; i < playerIds.size(); i++) {
@@ -120,14 +125,33 @@ public class DMModerator {
                 Optional<Player> playerOpt = playerService.getPlayerById(playerId);
                 Player player = playerOpt.orElseThrow(() -> new RuntimeException("玩家不存在"));
                 String speakerMessage = String.format("现在请%s发言", player.getNickname());
-                sendDiscussionMessageTool.execute(speakerMessage, gameId, dmId, playerIds);
+                sendDiscussionMessageTool.executeSendDiscussionMessage(speakerMessage, gameId, dmId, playerIds);
 
-                // AI玩家将自主进行陈述，通过工具调用发送消息
-                // 这里不再自动生成陈述，由AI玩家自主决策
-                log.info("AI玩家将自主进行陈述，玩家ID: {}", playerId);
+                // 获取Player Agent并生成陈述
+                PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
+                if (playerAgent != null) {
+                    // 获取角色信息
+                    Optional<Character> characterOpt = characterService.getCharacterById(characterId);
+                    if (characterOpt.isPresent()) {
+                        Character character = characterOpt.get();
+                        // 调用PlayerAgent的generateStatement方法
+                        String statement = playerAgent.generateStatement(
+                                gameId.toString(),
+                                playerId.toString(),
+                                character.getId().toString(),
+                                character.getName()
+                        );
+                        
+                        // 发送陈述消息
+                        if (statement != null && !statement.isEmpty()) {
+                            log.info("AI玩家陈述，玩家ID: {}, 角色: {}, 内容: {}", playerId, character.getName(), statement);
+                            sendDiscussionMessageTool.executeSendDiscussionMessage(statement, gameId, playerId, playerIds);
+                        }
+                    }
+                }
 
-                // 等待发言完成（实际项目中应使用回调）
-                Thread.sleep(5000); // 模拟发言时间
+                // 等待发言完成
+                Thread.sleep(3000); // 等待3秒
 
                 // 移动到下一个玩家
                 turnManager.endCurrentTurn(gameId);
@@ -153,7 +177,7 @@ public class DMModerator {
 
             // 宣布自由讨论阶段开始
             String phaseMessage = dmAgent.moderateDiscussion("开始自由讨论阶段，大家可以畅所欲言，每位玩家有2次单聊机会，每次3分钟");
-            sendDiscussionMessageTool.execute(phaseMessage, gameId, dmId, playerIds);
+            sendDiscussionMessageTool.executeSendDiscussionMessage(phaseMessage, gameId, dmId, playerIds);
 
             // 启动自由讨论计时器
             // 这里可以集成TimerService
@@ -181,7 +205,7 @@ public class DMModerator {
 
             // 宣布答题阶段开始
             String phaseMessage = dmAgent.moderateDiscussion("开始答题阶段，请每位玩家给出你的答案");
-            sendDiscussionMessageTool.execute(phaseMessage, gameId, dmId, playerIds);
+            sendDiscussionMessageTool.executeSendDiscussionMessage(phaseMessage, gameId, dmId, playerIds);
 
             // 启动答题计时器
             // 这里可以集成TimerService
@@ -218,11 +242,11 @@ public class DMModerator {
 
             // DM评分
             String scoreMessage = dmAgent.scoreAnswers(answers);
-            sendDiscussionMessageTool.execute(scoreMessage, gameId, dmId, playerIds);
+            sendDiscussionMessageTool.executeSendDiscussionMessage(scoreMessage, gameId, dmId, playerIds);
 
             // 宣布讨论结束
             String endMessage = "讨论环节已结束，感谢大家的参与！";
-            sendDiscussionMessageTool.execute(endMessage, gameId, dmId, playerIds);
+            sendDiscussionMessageTool.executeSendDiscussionMessage(endMessage, gameId, dmId, playerIds);
 
             // 清理游戏发言状态
             turnManager.cleanup(gameId);

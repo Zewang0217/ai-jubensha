@@ -3,6 +3,7 @@ package org.jubensha.aijubenshabackend.ai.service.agent;
 
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
+import dev.langchain4j.service.V;
 
 /**
  * Player Agent接口
@@ -42,5 +43,25 @@ public interface PlayerAgent {
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请通过调用工具分析当前讨论情况和其他玩家状态，决定是否需要发起单聊，并选择合适的目标玩家。")
     String decidePrivateChat(String gameId, String playerId);
 
-    // TODO: 添加startInvestigation接口用于Agent启动搜证
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n角色ID：{{characterId}}\n角色名称：{{characterName}}\n\n请作为{{characterName}}角色，通过调用工具获取以下信息：\n1. 讨论历史，了解当前游戏进展\n2. 你的角色线索，掌握关键信息\n3. 你的角色时间线，梳理行动轨迹\n4. 你的角色秘密，了解隐藏信息\n5. 其他玩家状态，掌握全局情况\n\n基于获取的信息，生成一个结构化的陈述，包括：\n- 自我介绍和角色背景\n- 案发时间前后的行动轨迹\n- 你发现的关键线索\n- 你对案件的初步分析\n- 你对其他玩家的观察\n\n陈述要符合{{characterName}}的性格特点，逻辑清晰，信息准确。请确保你的陈述基于通过工具获取的真实信息，而不是虚构内容。")
+    String generateStatement(@V("gameId") String gameId,
+                           @V("playerId") String playerId,
+                           @V("characterId") String characterId,
+                           @V("characterName") String characterName);
+
+    @UserMessage("""
+        游戏ID：{{gameId}}
+                玩家ID：{{playerId}}
+               \s
+                【你的内心深层思考】
+                {{reasoningResult}}
+               \s
+                请基于以上你的深度思考结果，结合当前局势,可以适当调用工具，生成对外的发言或行动。
+        """)
+    String speakWithReasoning(
+        @V("gameId") String gameId,
+        @V("playerId") String playerId,
+        @V("reasoningResult") String reasoningResult,
+        @V("characterName") String characterName
+    );
 }

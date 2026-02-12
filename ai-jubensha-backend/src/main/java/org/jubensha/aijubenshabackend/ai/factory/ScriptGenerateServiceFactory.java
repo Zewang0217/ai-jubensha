@@ -115,7 +115,7 @@ public class ScriptGenerateServiceFactory {
                 .chatModel(chatModel)
 //            .chatMemoryProvider(memoryId -> chatMemory)
             .streamingChatModel(streamingChatModel)
-                .tools(toolManager.getAllTools())
+//                .tools(toolManager.getAllTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
                                 "Error: there is no toll called" + toolExecutionRequest.name()))
@@ -152,7 +152,7 @@ public class ScriptGenerateServiceFactory {
                 .chatModel(chatModel)
                 .streamingChatModel(streamingChatModel)
 //            .chatMemoryProvider(memoryId -> chatMemory)
-                .tools(toolManager.getAllTools())
+//                .tools(toolManager.getAllTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
                                 "Error: there is no toll called" + toolExecutionRequest.name()))

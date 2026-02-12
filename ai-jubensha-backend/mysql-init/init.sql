@@ -234,3 +234,7 @@ INSERT IGNORE INTO clue_relations (clue_id1, clue_id2, strength, description) VA
 (6, 7, 5, '密码学书籍可能与运动服上的污渍有关');
 
 COMMIT;
+
+-- 字段的修改
+ALTER TABLE players MODIFY COLUMN role VARCHAR(32);
+ALTER TABLE games MODIFY COLUMN game_code VARCHAR(20) NULL UNIQUE COMMENT '游戏码';

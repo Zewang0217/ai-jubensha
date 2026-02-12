@@ -2,6 +2,8 @@ package org.jubensha.aijubenshabackend.ai.tools;
 
 
 import cn.hutool.json.JSONObject;
+import dev.langchain4j.agent.tool.P;
+import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.MessageQueueService;
 import org.jubensha.aijubenshabackend.ai.tools.permission.AgentType;
@@ -63,19 +65,15 @@ public class SendPrivateChatRequestTool extends BaseTool {
      * 工具执行方法
      * 供AI直接调用
      */
-    public boolean execute(Long senderId, Long receiverId, String message) {
-        try {
-            // 构建单聊邀请消息
-            String invitationMessage = String.format("单聊邀请: %s", message);
-
-            // 发送单聊邀请到消息队列
-            messageQueueService.sendPrivateChatMessage(invitationMessage, senderId, receiverId);
-
-            return true;
-        } catch (Exception e) {
-            log.error("发送单聊请求失败: {}", e.getMessage(), e);
-            return false;
-        }
+    @Tool("发送单聊请求")
+    public String executeSendPrivateChatRequest(@P("发送者ID") Long senderId, @P("接收者ID") Long receiverId, @P("邀请消息") String message) {
+        // 创建参数对象
+        JSONObject arguments = new JSONObject();
+        arguments.put("senderId", senderId);
+        arguments.put("receiverId", receiverId);
+        arguments.put("message", message);
+        // 调用核心逻辑方法
+        return generateToolExecutedResult(arguments);
     }
 
     @Override

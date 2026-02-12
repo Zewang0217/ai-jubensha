@@ -14,6 +14,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.http.MediaType;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.HashMap;
@@ -245,23 +246,36 @@ public class GlobalExceptionHandler {
     // ==================== 通用异常处理 ====================
 
     /**
-     * 处理所有异常
+     * 处理SSE端点异常
      *
      * @param ex      异常
      * @param request HTTP请求
      * @return 响应实体
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Object>> handleException(
-            Exception ex, HttpServletRequest request) {
+    public Object handleException(Exception ex, HttpServletRequest request) {
         log.error("未处理的异常: {}", ex.getMessage(), ex);
 
-        ApiResponse<Object> response = ApiResponse.error(
-                ErrorCodeEnum.SYSTEM_ERROR,
-                "系统内部错误，请稍后重试"
-        );
-        response.setPath(request.getRequestURI());
+        // 检查是否是SSE端点请求
+        if (request.getRequestURI().contains("/generate/new")) {
+            // 对于SSE端点，返回text/event-stream格式的响应
+            String errorMessage = "系统内部错误，请稍后重试";
+            StringBuilder sseResponse = new StringBuilder();
+            sseResponse.append("event: error\n");
+            sseResponse.append("data: ").append(errorMessage).append("\n\n");
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .contentType(MediaType.TEXT_EVENT_STREAM)
+                    .body(sseResponse.toString());
+        } else {
+            // 对于普通端点，返回ApiResponse格式的响应
+            ApiResponse<Object> response = ApiResponse.error(
+                    ErrorCodeEnum.SYSTEM_ERROR,
+                    "系统内部错误，请稍后重试"
+            );
+            response.setPath(request.getRequestURI());
 
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }
