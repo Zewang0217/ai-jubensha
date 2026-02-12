@@ -102,6 +102,8 @@ logging:
     org.hibernate: warn
   pattern:
     console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(%-5level){logback-color} %clr(%logger{36}){cyan} - %msg%n"
+  file:
+    name: logs/latest.log
 
 # 系统配置
 system:
