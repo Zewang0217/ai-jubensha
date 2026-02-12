@@ -185,7 +185,7 @@ function Home() {
                             whileTap={{scale: 0.98}}
                         >
                             <Link
-                                to="/settings"
+                                to="/scripts"
                                 className="inline-flex items-center px-8 py-4 bg-white/80 backdrop-blur-sm text-slate-700 text-lg font-semibold rounded-2xl border border-slate-200 hover:border-blue-300 hover:bg-white hover:text-blue-600 shadow-lg shadow-slate-200/50 transition-all duration-300"
                             >
                                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

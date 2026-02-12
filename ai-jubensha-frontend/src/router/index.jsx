@@ -11,6 +11,7 @@ const ScriptList = lazy(() => import('../pages/ScriptList/ScriptList'))
 const ScriptDetail = lazy(() => import('../pages/ScriptDetail/ScriptDetail'))
 const Scene = lazy(() => import('../pages/Scene/Scene'))
 const Settings = lazy(() => import('../pages/Settings/Settings'))
+const ScriptCharacters = lazy(() => import('../pages/ScriptCharacters/ScriptCharacters'))
 const NotFound = lazy(() => import('../pages/Error/NotFound'))
 
 function AppRouter() {
@@ -24,6 +25,7 @@ function AppRouter() {
                         <Route path="game/:id" element={<GameRoom/>}/>
                         <Route path="scripts" element={<ScriptList/>}/>
                         <Route path="scripts/:id" element={<ScriptDetail/>}/>
+                        <Route path="scripts/:scriptId/characters" element={<ScriptCharacters/>}/>
                         <Route path="scene/:id" element={<Scene/>}/>
                         <Route path="settings" element={<Settings/>}/>
                     </Route>
