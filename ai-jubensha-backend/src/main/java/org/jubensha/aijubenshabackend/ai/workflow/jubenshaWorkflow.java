@@ -12,10 +12,8 @@ import org.bsc.langgraph4j.NodeOutput;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.bsc.langgraph4j.prebuilt.MessagesStateGraph;
 import org.jubensha.aijubenshabackend.ai.workflow.node.*;
-import static org.jubensha.aijubenshabackend.ai.workflow.node.CoverImageGeneratorNode.create;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.springframework.stereotype.Component;
-
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
