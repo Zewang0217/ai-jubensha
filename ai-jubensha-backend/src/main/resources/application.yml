@@ -6,7 +6,12 @@ spring:
   # 配置枚举反序列化时忽略大小写
   application:
     name: ai-jubensha-backend
-  
+  # 添加以下配置来解决LocalDateTime序列化问题
+  serialization:
+    write-dates-as-timestamps: false
+  date-format: yyyy-MM-dd HH:mm:ss
+  # 确保时间类型被正确处理
+  default-property-inclusion: non_null
   # 数据库配置
   datasource:
     url: jdbc:mysql://localhost:3306/ai_jubensha?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
@@ -121,6 +126,10 @@ ai:
   reranking-model: "BAAI/bge-reranker-v2-m3"  # Using SiliconFlow reranking model
   reranking-base-url: "https://api.siliconflow.cn/v1"
   reranking-api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
+  # 图像生成配置
+  image-generation-model: "Kwai-Kolors/Kolors"
+  image-generation-base-url: "https://api.siliconflow.cn/v1"
+  image-generation-api-key: "sk-grybheaiwxaghhrftrzjqcluzphujxmiirpncdlhgntgftmc"
 
 pexels:
   api-key: Mpb0VvYO65aSOLAxFczBELv738mXR27mAIEDpTo7TgQ4PNXXqo2gFCbH

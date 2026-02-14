@@ -39,7 +39,7 @@ public class SecurityConfig {
                         // 允许访问健康检查等监控端点
                         .requestMatchers("/actuator/**").permitAll()
                         // 允许访问静态资源
-                        .requestMatchers("/static/**", "/css/**", "/js/**", "/images/**", "/**/*.js", "/**/*.css", "/**/*.html").permitAll()
+                        .requestMatchers("/static/**", "/css/**", "/js/**", "/images/**").permitAll()
                         // 其他所有请求都需要认证（可以根据需要调整）
                         .anyRequest().authenticated()
                 )
