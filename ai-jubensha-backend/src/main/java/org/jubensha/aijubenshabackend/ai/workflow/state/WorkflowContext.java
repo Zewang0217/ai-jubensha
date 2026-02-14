@@ -84,6 +84,10 @@ public class WorkflowContext implements Serializable {
      */
     private String scriptDifficulty;
     /**
+     * 剧本封面图片URL
+     */
+    private String coverImageUrl;
+    /**
      * 角色数量
      */
     private Integer characterCount;
