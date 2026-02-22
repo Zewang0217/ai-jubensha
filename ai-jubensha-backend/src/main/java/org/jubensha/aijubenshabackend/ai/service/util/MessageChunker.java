@@ -198,9 +198,10 @@ public class MessageChunker {
             case PLAYER_MESSAGE:
                 return true;  // 玩家消息必须存储
             case DM_MESSAGE:
-                return false; // DM消息选择性存储（可选）
+                return true;  // DM消息必须存储，包含重要的游戏信息和线索提示
             case SYSTEM_MESSAGE:
-                return false; // 系统消息不存储
+                // 系统消息选择性存储，只存储包含游戏状态更新的消息
+                return false;
             default:
                 return false;
         }

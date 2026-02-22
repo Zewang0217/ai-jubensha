@@ -43,11 +43,12 @@ public interface PlayerAgent {
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请通过调用工具分析当前讨论情况和其他玩家状态，决定是否需要发起单聊，并选择合适的目标玩家。")
     String decidePrivateChat(String gameId, String playerId);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n角色ID：{{characterId}}\n角色名称：{{characterName}}\n\n请作为{{characterName}}角色，通过调用工具获取以下信息：\n1. 讨论历史，了解当前游戏进展\n2. 你的角色线索，掌握关键信息\n3. 你的角色时间线，梳理行动轨迹\n4. 你的角色秘密，了解隐藏信息\n5. 其他玩家状态，掌握全局情况\n\n基于获取的信息，生成一个结构化的陈述，包括：\n- 自我介绍和角色背景\n- 案发时间前后的行动轨迹\n- 你发现的关键线索\n- 你对案件的初步分析\n- 你对其他玩家的观察\n\n陈述要符合{{characterName}}的性格特点，逻辑清晰，信息准确。请确保你的陈述基于通过工具获取的真实信息，而不是虚构内容。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n角色ID：{{characterId}}\n角色名称：{{characterName}}\n剧本ID：{{scriptId}}\n\n请作为{{characterName}}角色，通过调用工具获取以下信息：\n1. 讨论历史，了解当前游戏进展\n2. 你的角色线索，掌握关键信息（使用剧本ID：{{scriptId}}）\n3. 你的角色时间线，梳理行动轨迹（使用剧本ID：{{scriptId}}）\n4. 你的角色秘密，了解隐藏信息（使用剧本ID：{{scriptId}}）\n5. 其他玩家状态，掌握全局情况\n\n基于获取的信息，生成一个结构化的陈述，包括：\n- 自我介绍和角色背景\n- 案发时间前后的行动轨迹\n- 你发现的关键线索\n- 你对案件的初步分析\n- 你对其他玩家的观察\n\n陈述要符合{{characterName}}的性格特点，逻辑清晰，信息准确。请确保你的陈述基于通过工具获取的真实信息，而不是虚构内容。")
     String generateStatement(@V("gameId") String gameId,
                            @V("playerId") String playerId,
                            @V("characterId") String characterId,
-                           @V("characterName") String characterName);
+                           @V("characterName") String characterName,
+                           @V("scriptId") String scriptId);
 
     @UserMessage("""
         游戏ID：{{gameId}}
@@ -56,12 +57,43 @@ public interface PlayerAgent {
                 【你的内心深层思考】
                 {{reasoningResult}}
                \s
-                请基于以上你的深度思考结果，结合当前局势,可以适当调用工具，生成对外的发言或行动。
+                [你的秘密]
+                {{secret}}
+               \s
+                [你的背景信息]
+                {{backgroundStory}}
+               \s
+                [你的时间线]
+                {{timeline}}
+                请基于以上内容，结合当前局势,通过调用工具来获取最新的线索和时间线以及对话内容，生成对外的发言或行动。
         """)
     String speakWithReasoning(
         @V("gameId") String gameId,
         @V("playerId") String playerId,
         @V("reasoningResult") String reasoningResult,
-        @V("characterName") String characterName
+        @V("characterName") String characterName,
+        @V("secret") String secret,
+        @V("timeline") String timeline,
+        @V("backgroundStory") String backgroundStory
+    );
+
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n角色ID：{{characterId}}\n角色名称：{{characterName}}\n\n【剧本内容】\n{{scriptContent}}\n\n请作为{{characterName}}角色，仔细阅读上述剧本内容，包括你的背景故事、秘密和时间线。\n这些信息将作为你在游戏中的基础设定，请牢记并在后续的讨论中保持角色一致性。\n\n阅读完成后，请确认你已了解所有信息，并准备开始游戏。")
+    String readScript(
+        @V("gameId") String gameId,
+        @V("playerId") String playerId,
+        @V("characterId") String characterId,
+        @V("characterName") String characterName,
+        @V("scriptContent") String scriptContent
+    );
+
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n\n【角色信息】\n角色名称：{{characterName}}\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。\n讨论内容要符合你作为{{characterName}}的角色设定，基于你的背景故事、秘密和时间线。")
+    String discussWithCharacterInfo(
+        @V("gameId") String gameId,
+        @V("playerId") String playerId,
+        @V("topic") String topic,
+        @V("characterName") String characterName,
+        @V("backgroundStory") String backgroundStory,
+        @V("secret") String secret,
+        @V("timeline") String timeline
     );
 }
