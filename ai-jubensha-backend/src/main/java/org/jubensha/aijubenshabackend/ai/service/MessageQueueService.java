@@ -55,4 +55,14 @@ public interface MessageQueueService {
      * @param recipientIds 接收者ID列表
      */
     void sendSystemMessage(String message, List<Long> recipientIds);
+
+    /**
+     * 发送AI玩家搜证通知
+     *
+     * @param gameId     游戏ID
+     * @param playerId   玩家ID
+     * @param sceneIds   可搜证场景ID列表
+     * @param maxChances 最大搜证次数
+     */
+    void sendInvestigationNotification(Long gameId, Long playerId, List<Long> sceneIds, Integer maxChances);
 }
