@@ -88,7 +88,7 @@ public class SceneLoaderNode {
                     if (scenes == null || scenes.isEmpty()) {
                         String scriptAiOutPut = context.getModelOutput();
                         // 戛然而止
-                        log.debug("AI生成剧本原输出:\n\n" + scriptAiOutPut + "\n\n");
+                        log.debug("AI生成剧本原输出:\n\n{}\n\n", scriptAiOutPut);
                         if (scriptAiOutPut != null && !scriptAiOutPut.isEmpty()) {
                             log.info("数据库中无场景，尝试从JSON解析");
 //                            JsonNode rootNode = objectMapper.readTree(scriptAiOutPut);
@@ -120,7 +120,7 @@ public class SceneLoaderNode {
                                     )
                                     // 2. 异常处理（避免异步任务抛异常导致程序崩溃）
                                     .exceptionally(e -> {
-                                        log.warn("异步搜索图片失败：" + e.getMessage());
+                                        log.warn("异步搜索图片失败：{}", e.getMessage());
                                         throw new BusinessException("异步搜索图片失败：" + e.getMessage());
                                     });
 
