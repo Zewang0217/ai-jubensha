@@ -1,5 +1,6 @@
 package org.jubensha.aijubenshabackend.service.game;
 
+import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
 import org.jubensha.aijubenshabackend.models.enums.GamePlayerStatus;
 import org.jubensha.aijubenshabackend.repository.game.GamePlayerRepository;
@@ -133,5 +134,11 @@ public class GamePlayerServiceImpl implements GamePlayerService {
         logger.info("Deleting all game players for playerId: {}", playerId);
         List<GamePlayer> gamePlayers = gamePlayerRepository.findByPlayerId(playerId);
         gamePlayerRepository.deleteAll(gamePlayers);
+    }
+
+    @Override
+    public Optional<GamePlayer> getCharacterByPlayerId(Long playerId) {
+        logger.info("通过playerId获取角色");
+        return gamePlayerRepository.findByPlayerId(playerId).stream().findFirst();
     }
 }
