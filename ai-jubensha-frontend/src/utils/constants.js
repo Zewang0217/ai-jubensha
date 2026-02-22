@@ -131,3 +131,39 @@ export const ANIMATION = {
         BOUNCE: [0.68, -0.55, 0.265, 1.55],
     },
 }
+
+// 游戏阶段常量
+export const GAME_PHASE = {
+    INTRODUCTION: 'introduction',
+    SEARCH: 'search',
+    DISCUSSION: 'discussion',
+    VOTING: 'voting',
+    ENDING: 'ending',
+}
+
+// 游戏阶段文本
+export const GAME_PHASE_TEXT = {
+    [GAME_PHASE.INTRODUCTION]: '自我介绍',
+    [GAME_PHASE.SEARCH]: '搜证阶段',
+    [GAME_PHASE.DISCUSSION]: '讨论阶段',
+    [GAME_PHASE.VOTING]: '投票阶段',
+    [GAME_PHASE.ENDING]: '游戏结束',
+}
+
+// 游戏阶段颜色
+export const GAME_PHASE_COLOR = {
+    [GAME_PHASE.INTRODUCTION]: 'from-blue-500 to-cyan-500',
+    [GAME_PHASE.SEARCH]: 'from-amber-500 to-orange-500',
+    [GAME_PHASE.DISCUSSION]: 'from-purple-500 to-pink-500',
+    [GAME_PHASE.VOTING]: 'from-red-500 to-rose-500',
+    [GAME_PHASE.ENDING]: 'from-emerald-500 to-teal-500',
+}
+
+// 游戏阶段背景色
+export const GAME_PHASE_BG = {
+    [GAME_PHASE.INTRODUCTION]: 'bg-blue-500/10 border-blue-500/30',
+    [GAME_PHASE.SEARCH]: 'bg-amber-500/10 border-amber-500/30',
+    [GAME_PHASE.DISCUSSION]: 'bg-purple-500/10 border-purple-500/30',
+    [GAME_PHASE.VOTING]: 'bg-red-500/10 border-red-500/30',
+    [GAME_PHASE.ENDING]: 'bg-emerald-500/10 border-emerald-500/30',
+}
