@@ -76,9 +76,18 @@ public class MemoryServiceImpl implements MemoryService {
 
     @Override
     public void storeClueMemory(Long gameId, Long playerId, Long clueId, String content, String discoveredBy) {
+        // 只存储已发现的线索，确保这是在搜证环节被调用
+        log.info("[搜证环节] 存储线索记忆，游戏ID: {}, 玩家ID: {}, 线索ID: {}, 发现者: {}", 
+                gameId, playerId, clueId, discoveredBy);
+        
         // 线索应该存储到全局记忆中，而不是对话记忆中
-        ragService.insertGlobalClueMemory(gameId, clueId, content);
-        log.info("存储线索记忆，游戏ID: {}, 玩家ID: {}, 线索ID: {}", gameId, playerId, clueId);
+        Long storedId = ragService.insertGlobalClueMemory(gameId, clueId, content);
+        
+        if (storedId != null) {
+            log.info("[搜证环节] 线索存储成功，存储ID: {}", storedId);
+        } else {
+            log.warn("[搜证环节] 线索存储失败");
+        }
     }
 
     @Override
