@@ -107,21 +107,25 @@ public class SceneLoaderNode {
                     }
 
                     // 加载线索并为各个线索设置图片
-                    List<Clue> allClues = clueService.getCluesByScriptId(scriptId);
-                    ImageSearchTool imageSearchTool = SpringContextUtil.getBean(ImageSearchTool.class);
-                    for (Clue clue : allClues) {
-                        if (clue.getImageUrl() == null || clue.getImageUrl().isEmpty()) {
-                            log.info("线索 {} 没有图片，尝试使用图片搜索工具获取图片", clue.getName());
+                List<Clue> allClues = clueService.getCluesByScriptId(scriptId);
+                ImageSearchTool imageSearchTool = SpringContextUtil.getBean(ImageSearchTool.class);
+                for (Clue clue : allClues) {
+                    if (clue.getImageUrl() == null || clue.getImageUrl().isEmpty()) {
+                        log.info("线索 {} 没有图片，尝试使用图片搜索工具获取图片", clue.getName());
 
-
+                        try {
                             // 1. 异步执行图片搜索任务
                             CompletableFuture<ImageResource> imageFuture = CompletableFuture.supplyAsync(
                                             () -> imageSearchTool.searchImage(clue.getName())
                                     )
                                     // 2. 异常处理（避免异步任务抛异常导致程序崩溃）
                                     .exceptionally(e -> {
-                                        log.warn("异步搜索图片失败：" + e.getMessage());
-                                        throw new BusinessException("异步搜索图片失败：" + e.getMessage());
+                                        log.warn("异步搜索图片失败：{}", e.getMessage());
+                                        // 返回默认图片，不抛出异常
+                                        return ImageResource.builder()
+                                                .description("默认图片")
+                                                .imageUrl("https://images.pexels.com/photos/35637981/pexels-photo-35637981.jpeg")
+                                                .build();
                                     });
 
                             // 3. 获取异步执行结果
@@ -129,8 +133,12 @@ public class SceneLoaderNode {
 
                             String imageUrl = clueService.updateClueImage(clue.getId(), imageResource.getImageUrl());
                             clue.setImageUrl(imageUrl);
+                        } catch (Exception e) {
+                            log.warn("处理线索图片失败：{}，继续处理其他线索", e.getMessage());
+                            // 继续处理其他线索，不中断整个流程
                         }
                     }
+                }
 
                     // 加载线索并构建场景-线索映射
                     sceneCluesMap = new HashMap<>();
