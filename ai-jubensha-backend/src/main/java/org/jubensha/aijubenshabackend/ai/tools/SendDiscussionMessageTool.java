@@ -157,6 +157,12 @@ public class SendDiscussionMessageTool extends BaseTool {
 
         // 识别消息类型
         MessageChunker.MessageType messageType = messageChunker.identifyMessageType(message, playerName);
+        
+        // 确保AI玩家的消息被正确识别为AI_PLAYER_MESSAGE
+        if (playerName != null && (playerName.startsWith("AI_") || playerName.contains("AI") || playerName.contains("智能"))) {
+            messageType = MessageChunker.MessageType.AI_PLAYER_MESSAGE;
+        }
+        
         log.debug("识别消息类型: {}", messageType);
 
         // 检查是否需要处理
