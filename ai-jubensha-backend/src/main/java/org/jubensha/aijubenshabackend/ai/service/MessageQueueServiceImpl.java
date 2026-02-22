@@ -131,4 +131,23 @@ public class MessageQueueServiceImpl implements MessageQueueService {
             rabbitTemplate.convertAndSend(SYSTEM_EXCHANGE, SYSTEM_ROUTING_KEY_PREFIX + "player." + recipientId, messageContent);
         }
     }
+
+    @Override
+    public void sendInvestigationNotification(Long gameId, Long playerId, List<Long> sceneIds, Integer maxChances) {
+        log.info("发送AI玩家搜证通知: 游戏ID: {}, 玩家ID: {}, 场景数量: {}, 最大搜证次数: {}", gameId, playerId, sceneIds.size(), maxChances);
+
+        // 构建消息内容
+        Map<String, Object> messageContent = Map.of(
+                "type", "INVESTIGATION",
+                "gameId", gameId,
+                "playerId", playerId,
+                "sceneIds", sceneIds,
+                "maxChances", maxChances,
+                "timestamp", System.currentTimeMillis()
+        );
+
+        // 发送到系统交换机
+        rabbitTemplate.convertAndSend(SYSTEM_EXCHANGE, SYSTEM_ROUTING_KEY_PREFIX + "investigation." + playerId, messageContent);
+        log.info("AI玩家搜证通知已发送");
+    }
 }
