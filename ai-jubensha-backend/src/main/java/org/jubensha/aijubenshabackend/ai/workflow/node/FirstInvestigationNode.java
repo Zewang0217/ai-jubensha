@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.jubensha.aijubenshabackend.ai.service.AIService;
+import org.jubensha.aijubenshabackend.ai.service.MessageQueueService;
 import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
@@ -71,6 +72,8 @@ public class FirstInvestigationNode {
                 AIService aiService = SpringContextUtil.getBean(AIService.class);
                 // 获取WebSocket服务
                 WebSocketService webSocketService = SpringContextUtil.getBean(WebSocketService.class);
+                // 获取消息队列服务
+                MessageQueueService messageQueueService = SpringContextUtil.getBean(MessageQueueService.class);
 
                 // 获取RAG服务
                 RAGService ragService = SpringContextUtil.getBean(RAGService.class);
@@ -82,11 +85,12 @@ public class FirstInvestigationNode {
                     // 获取场景中的线索
                     List<Clue> sceneClues = clueService.getCluesByScene(scene.getName());
 
-                    // 存储场景线索到RAGService
-                    for (Clue clue : sceneClues) {
-                        // 使用默认character_id为0，因为场景线索不属于特定角色
-                        ragService.insertGlobalClueMemory(context.getScriptId(), 0L, clue.getDescription());
-                    }
+                    // 暂时不存储场景线索到RAGService
+                // 线索应该只在玩家实际发现时才存储到数据库中
+                for (Clue clue : sceneClues) {
+                    // 记录线索信息，但不提前存储到向量数据库
+                    log.info("[搜证环节] 场景线索: {} - {}", clue.getName(), clue.getType());
+                }
 
                     // 构建场景信息，只包含线索的基本信息（不包含完整描述，保持神秘感）
                     List<Map<String, Object>> clueSummaries = new ArrayList<>();
@@ -143,11 +147,22 @@ public class FirstInvestigationNode {
                     investigationData.put("round", 1);
 
                     if ("AI".equals(playerType)) {
-                        // 通知AI玩家开始搜证
-                        aiService.notifyAIPlayerStartInvestigation(playerId, investigationScenes);
+                        // 准备场景ID列表
+                        List<Long> sceneIds = new ArrayList<>();
+                        for (Scene scene : scenes) {
+                            sceneIds.add(scene.getId());
+                        }
+                        
+                        // 通过消息队列通知AI玩家开始搜证
+                        messageQueueService.sendInvestigationNotification(
+                                context.getGameId(),
+                                playerId,
+                                sceneIds,
+                                WorkflowContext.DEFAULT_INVESTIGATION_LIMIT
+                        );
                         // 线索信息已经存储到global_memory中，不需要再存储到对话记忆
                         // 对话记忆应该只存储玩家的对话内容，而不是线索信息
-                        log.info("通知AI玩家 {} (角色: {}) 开始第一轮搜证", playerId, characterName);
+                        log.info("通过消息队列通知AI玩家 {} (角色: {}) 开始第一轮搜证", playerId, characterName);
                     } else {
                         // 通知真人玩家开始搜证
                         try {

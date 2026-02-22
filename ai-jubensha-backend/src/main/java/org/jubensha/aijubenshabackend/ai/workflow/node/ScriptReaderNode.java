@@ -178,28 +178,20 @@ public class ScriptReaderNode {
     }
 
     /**
-     * 为AI玩家将角色信息插入到向量数据库
+     * 为AI玩家处理角色信息
+     * 注意：暂时不向向量数据库存储任何信息，包括时间线和线索
+     * 时间线将通过提示词提供，线索只在搜证环节存储
      */
     private static void insertCharacterToVectorDB(Long gameId, Long playerId, Long characterId, List<Character> characters) {
         // 查找对应的角色
         for (Character character : characters) {
             if (character.getId().equals(characterId)) {
-                // 获取RAG服务
-                RAGService ragService = SpringContextUtil.getBean(RAGService.class);
-
-                // 只存储全局时间线，不存储角色信息到对话记忆
-                // 对话记忆是全局的，每个角色都可以查看，会导致角色信息泄露
-                if (character.getTimeline() != null && !character.getTimeline().isEmpty()) {
-                    // 存储全局时间线
-                    ragService.insertGlobalTimelineMemory(character.getScriptId(), characterId, character.getTimeline(), "game_start");
-                }
-
-                // 存储角色相关的线索到全局线索记忆
-                if (character.getSecret() != null && !character.getSecret().isEmpty()) {
-                    ragService.insertGlobalClueMemory(character.getScriptId(), characterId, character.getSecret());
-                }
-
-                log.info("为AI玩家 {} 插入角色 {} 的时间线和线索到全局记忆", playerId, character.getName());
+                // 暂时不向向量数据库存储任何信息
+                // 时间线将通过提示词提供，线索只在搜证环节存储
+                log.info("[暂时不存储] 为AI玩家 {} 处理角色 {} 的信息", playerId, character.getName());
+                log.info("[暂时不存储] 时间线长度: {}, 秘密长度: {}", 
+                        character.getTimeline() != null ? character.getTimeline().length() : 0, 
+                        character.getSecret() != null ? character.getSecret().length() : 0);
                 break;
             }
         }
