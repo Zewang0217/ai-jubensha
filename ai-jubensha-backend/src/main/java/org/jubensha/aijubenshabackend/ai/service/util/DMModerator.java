@@ -11,6 +11,7 @@ import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -52,6 +53,9 @@ public class DMModerator {
 
     @Autowired
     private CharacterService characterService;
+
+    @Autowired
+    private RAGService ragService;
 
     // 线程池
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
@@ -139,13 +143,25 @@ public class DMModerator {
                                 gameId.toString(),
                                 playerId.toString(),
                                 character.getId().toString(),
-                                character.getName()
+                                character.getName(),
+                                scriptId.toString()
                         );
                         
                         // 发送陈述消息
                         if (statement != null && !statement.isEmpty()) {
                             log.info("AI玩家陈述，玩家ID: {}, 角色: {}, 内容: {}", playerId, character.getName(), statement);
                             sendDiscussionMessageTool.executeSendDiscussionMessage(statement, gameId, playerId, playerIds);
+                            // 将陈述信息存储到向量数据库
+                            if (statement != null && !statement.isEmpty()) {
+                                try {
+                                    ragService.insertConversationMemory(gameId, playerId, player.getNickname(), statement);
+                                    log.info("陈述信息已存储到向量数据库，玩家ID: {}, 角色: {}", playerId, character.getName());
+                                } catch (Exception e) {
+                                    log.error("存储陈述信息到向量数据库失败: {}", e.getMessage(), e);
+                                    // 存储失败不影响讨论流程
+                                }
+                            }
+
                         }
                     }
                 }
