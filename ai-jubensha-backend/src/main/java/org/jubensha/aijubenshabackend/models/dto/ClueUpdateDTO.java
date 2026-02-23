@@ -14,6 +14,8 @@ import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
 @Data
 public class ClueUpdateDTO {
 
+    private Long sceneId;
+
     @Size(max = 100, message = "线索名称长度不能超过100个字符")
     private String name;
 

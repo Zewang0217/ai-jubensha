@@ -28,6 +28,14 @@ public class Clue implements Serializable {
     @Column(name = "script_id", nullable = false)
     private Long scriptId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "scene_id", insertable = false, updatable = false)
+    @JsonIgnore
+    private Scene sceneEntity;
+
+    @Column(name = "scene_id")
+    private Long sceneId;
+
     private String name;
 
     // 线索的内容
@@ -56,6 +64,6 @@ public class Clue implements Serializable {
     
     @Override
     public String toString() {
-        return "Clue{id=" + id + ", name='" + name + "', scriptId=" + scriptId + '}';
+        return "Clue{id=" + id + ", name='" + name + "', scriptId=" + scriptId + ", sceneId=" + sceneId + '}';
     }
 }
