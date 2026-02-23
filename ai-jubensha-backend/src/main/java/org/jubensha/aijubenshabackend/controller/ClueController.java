@@ -189,6 +189,21 @@ public class ClueController {
     }
 
     /**
+     * 根据场景ID查询线索
+     *
+     * @param sceneId 场景ID
+     * @return 线索响应DTO列表
+     */
+    @GetMapping("/scene-id/{sceneId}")
+    public ResponseEntity<List<ClueResponseDTO>> getCluesBySceneId(@PathVariable Long sceneId) {
+        List<Clue> clues = clueService.getCluesBySceneId(sceneId);
+        List<ClueResponseDTO> responseDTOs = clues.stream()
+                .map(ClueResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
+    }
+
+    /**
      * 查询重要线索
      *
      * @param importance 重要度阈值
