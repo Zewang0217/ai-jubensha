@@ -96,26 +96,52 @@ public class InvestigationServiceImpl implements InvestigationService {
             throw InvalidInvestigationException.invalidScene(sceneId);
         }
 
-        // 6. 更新线索状态为已发现（PRIVATE）
+        // 6. 更新线索状态并保存到向量数据库
         if (clue.getVisibility() == ClueVisibility.UNDISCOVERED) {
-            clue.setVisibility(ClueVisibility.PRIVATE);
-            clueService.updateClue(clue.getId(), clue);
-            log.info("线索 {} 状态已更新为 PRIVATE", clue.getName());
-            
             // 7. 将线索保存到向量数据库
             try {
                 // 构建线索内容，包含线索名称和描述
                 String clueContent = clue.getName() + ": " + clue.getDescription();
+                
+                // 确定线索的可见性和对应的玩家ID
+                Long characterId;
+                if (clue.getImportance() != null && clue.getImportance() >= 5) {
+                    // 重要线索默认为公开线索
+                    clue.setVisibility(ClueVisibility.PUBLIC);
+                    characterId = 0L;
+                } else {
+                    // 普通线索为非公开线索
+                    clue.setVisibility(ClueVisibility.PRIVATE);
+                    characterId = playerId;
+                }
+                
+                // 更新线索状态
+                clueService.updateClue(clue.getId(), clue);
+                log.info("线索 {} 状态已更新为 {}", clue.getName(), clue.getVisibility());
+                
                 // 保存到全局线索记忆
-                Long ragId = ragService.insertGlobalClueMemory(clue.getScriptId(), null, clueContent);
+                Long ragId = ragService.insertGlobalClueMemory(clue.getScriptId(), characterId, clueContent);
                 if (ragId != null) {
-                    log.info("线索 {} 已成功保存到向量数据库，RAG ID: {}", clue.getName(), ragId);
+                    log.info("线索 {} 已成功保存到向量数据库，RAG ID: {}, 玩家ID: {}", clue.getName(), ragId, characterId);
                 } else {
                     log.warn("线索 {} 保存到向量数据库失败", clue.getName());
                 }
             } catch (Exception e) {
                 log.error("保存线索到向量数据库失败: {}", e.getMessage(), e);
                 // 继续执行，不中断搜证流程
+            }
+        } else if (clue.getVisibility() == ClueVisibility.PUBLIC) {
+            // 公开线索直接保存到向量数据库，player_id 为 0
+            try {
+                String clueContent = clue.getName() + ": " + clue.getDescription();
+                Long ragId = ragService.insertGlobalClueMemory(clue.getScriptId(), 0L, clueContent);
+                if (ragId != null) {
+                    log.info("公开线索 {} 已成功保存到向量数据库，RAG ID: {}", clue.getName(), ragId);
+                } else {
+                    log.warn("公开线索 {} 保存到向量数据库失败", clue.getName());
+                }
+            } catch (Exception e) {
+                log.error("保存公开线索到向量数据库失败: {}", e.getMessage(), e);
             }
         }
 
