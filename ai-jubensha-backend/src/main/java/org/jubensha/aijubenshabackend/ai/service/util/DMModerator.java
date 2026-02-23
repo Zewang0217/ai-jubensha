@@ -153,18 +153,8 @@ public class DMModerator {
                         // 发送陈述消息
                         if (statement != null && !statement.isEmpty()) {
                             log.info("AI玩家陈述，玩家ID: {}, 角色: {}, 内容: {}", playerId, character.getName(), statement);
+                            // 通过sendDiscussionMessageTool发送消息，会自动处理存储逻辑
                             sendDiscussionMessageTool.executeSendDiscussionMessage(statement, gameId, playerId, playerIds);
-                            // 将陈述信息存储到向量数据库
-                            if (statement != null && !statement.isEmpty()) {
-                                try {
-                                    ragService.insertConversationMemory(gameId, playerId, player.getNickname(), statement);
-                                    log.info("陈述信息已存储到向量数据库，玩家ID: {}, 角色: {}", playerId, character.getName());
-                                } catch (Exception e) {
-                                    log.error("存储陈述信息到向量数据库失败: {}", e.getMessage(), e);
-                                    // 存储失败不影响讨论流程
-                                }
-                            }
-
                         }
                     }
                 }
