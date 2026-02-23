@@ -1,9 +1,11 @@
 package org.jubensha.aijubenshabackend.controller;
 
 import jakarta.validation.Valid;
+import org.jubensha.aijubenshabackend.models.dto.ClueResponseDTO;
 import org.jubensha.aijubenshabackend.models.dto.SceneCreateDTO;
 import org.jubensha.aijubenshabackend.models.dto.SceneResponseDTO;
 import org.jubensha.aijubenshabackend.models.dto.SceneUpdateDTO;
+import org.jubensha.aijubenshabackend.models.entity.Clue;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
 import org.springframework.http.HttpStatus;
@@ -262,5 +264,20 @@ public class SceneController {
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+    }
+
+    /**
+     * 获取场景的线索列表
+     *
+     * @param sceneId 场景ID
+     * @return 线索响应DTO列表
+     */
+    @GetMapping("/{sceneId}/clues")
+    public ResponseEntity<List<ClueResponseDTO>> getCluesBySceneId(@PathVariable Long sceneId) {
+        List<Clue> clues = sceneService.getCluesBySceneId(sceneId);
+        List<ClueResponseDTO> responseDTOs = clues.stream()
+                .map(ClueResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
     }
 }
