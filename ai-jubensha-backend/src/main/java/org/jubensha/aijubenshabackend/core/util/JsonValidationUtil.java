@@ -58,7 +58,16 @@ public class JsonValidationUtil {
                 }
             } catch (Exception e) {
                 lastException = e;
-                log.warn("第{}次尝试失败: {}", attempts, e.getMessage());
+                String errorMessage = e.getMessage();
+                
+                // 检查是否是护轨拦截错误
+                if (isGuardrailError(errorMessage)) {
+                    String guardrailReason = extractGuardrailReason(errorMessage);
+                    log.warn("第{}次尝试失败: 输入护轨拦截 - 原因: {}", attempts, guardrailReason);
+                    log.debug("完整的护轨拦截错误信息: {}", errorMessage);
+                } else {
+                    log.warn("第{}次尝试失败: {}", attempts, errorMessage);
+                }
                 
                 // 如果不是最后一次尝试，等待一段时间后重试
                 if (attempts < maxRetries) {
@@ -74,6 +83,31 @@ public class JsonValidationUtil {
 
         log.error("达到最大重试次数({})，JSON生成失败", maxRetries);
         throw lastException != null ? lastException : new IllegalStateException("JSON生成失败，未知错误");
+    }
+
+    /**
+     * 检查是否是输入护轨拦截错误
+     * @param errorMessage 错误信息
+     * @return 是否是护轨拦截错误
+     */
+    private static boolean isGuardrailError(String errorMessage) {
+        return errorMessage != null && (
+            errorMessage.contains("The guardrail") && 
+            errorMessage.contains("PromptSafetyInputGuardrail failed with this message")
+        );
+    }
+
+    /**
+     * 从错误信息中提取护轨拦截的具体原因
+     * @param errorMessage 错误信息
+     * @return 护轨拦截的具体原因
+     */
+    private static String extractGuardrailReason(String errorMessage) {
+        if (errorMessage != null && errorMessage.contains("failed with this message: ")) {
+            int startIndex = errorMessage.indexOf("failed with this message: ") + "failed with this message: ".length();
+            return errorMessage.substring(startIndex).trim();
+        }
+        return errorMessage;
     }
 
     /**

@@ -6,7 +6,7 @@ import org.jubensha.aijubenshabackend.core.exception.enums.ErrorCodeEnum;
  * 无效搜证操作异常
  * 当玩家在不正确的阶段搜证或搜证无效场景时抛出
  *
- * @author luobo
+ * @author zewang
  * @date 2026-02-10
  */
 public class InvalidInvestigationException extends BusinessException {
