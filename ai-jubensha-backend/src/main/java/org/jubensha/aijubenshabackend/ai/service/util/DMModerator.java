@@ -144,7 +144,10 @@ public class DMModerator {
                                 playerId.toString(),
                                 character.getId().toString(),
                                 character.getName(),
-                                scriptId.toString()
+                                scriptId.toString(),
+                                character.getBackgroundStory() != null ? character.getBackgroundStory() : "暂无背景故事",
+                                character.getSecret() != null ? character.getSecret() : "暂无秘密信息",
+                                character.getTimeline() != null ? character.getTimeline() : "暂无时间线信息"
                         );
                         
                         // 发送陈述消息
