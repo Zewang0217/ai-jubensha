@@ -108,6 +108,9 @@ public class MilvusSchemaConfig {
                 .dataType(DataType.Int64)
                 .build());
 
+        // 玩家ID
+        
+
         // 数据类型（clue/timeline）
         schema.addField(AddFieldReq.builder()
                 .fieldName("type")
