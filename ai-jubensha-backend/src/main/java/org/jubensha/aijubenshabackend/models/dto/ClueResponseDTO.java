@@ -15,6 +15,7 @@ public class ClueResponseDTO {
 
     private Long id;
     private Long scriptId;
+    private Long sceneId;
     private String name;
     private String description;
     private ClueType type;
@@ -34,6 +35,7 @@ public class ClueResponseDTO {
         ClueResponseDTO dto = new ClueResponseDTO();
         dto.setId(clue.getId());
         dto.setScriptId(clue.getScriptId());
+        dto.setSceneId(clue.getSceneId());
         dto.setName(clue.getName());
         dto.setDescription(clue.getDescription());
         dto.setType(clue.getType());
