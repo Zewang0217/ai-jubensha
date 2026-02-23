@@ -61,8 +61,8 @@ public interface MessageQueueService {
      *
      * @param gameId     游戏ID
      * @param playerId   玩家ID
-     * @param sceneIds   可搜证场景ID列表
+     * @param clueOptions 可选择的线索列表（包含clueId和clueName）
      * @param maxChances 最大搜证次数
      */
-    void sendInvestigationNotification(Long gameId, Long playerId, List<Long> sceneIds, Integer maxChances);
+    void sendInvestigationNotification(Long gameId, Long playerId, List<java.util.Map<String, Object>> clueOptions, Integer maxChances);
 }

@@ -122,7 +122,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private final AtomicBoolean speakingLock = new AtomicBoolean(false);
     
     // 发言阈值
-    private static final int SPEAK_THRESHOLD = 30;
+    private static final int SPEAK_THRESHOLD = 20;
 
     /**
      * 线程池，用于并行处理AI推理任务
@@ -415,7 +415,6 @@ public class DiscussionServiceImpl implements DiscussionService {
         log.info("结束讨论");
         discussionState.put("endTime", LocalDateTime.now());
         discussionState.put("playerAnswers", playerAnswers);
-        discussionCompleted = true;
 
         // 停止中央调度器
         stopCentralDirector();
@@ -444,14 +443,15 @@ public class DiscussionServiceImpl implements DiscussionService {
             discussionState.put("judgeSummary", summary);
         }
 
+        // 标记讨论完成
+        discussionCompleted = true;
+        log.info("讨论已完成，游戏ID: {}", gameId);
+
         // 通知回调
         if (completionCallback != null) {
             completionCallback.onDiscussionCompleted(discussionState);
             log.info("已通知讨论完成回调");
         }
-
-        // 标记讨论完成
-        log.info("讨论已完成，游戏ID: {}", gameId);
 
         return discussionState;
     }
@@ -706,11 +706,17 @@ public class DiscussionServiceImpl implements DiscussionService {
         executorService.submit(() -> {
             try {
                 // 定期检查讨论状态
-                while (!discussionCompleted) {
+                int checkCount = 0;
+                while (!discussionCompleted && checkCount < 60) { // 最多检查60次（1小时）
                     Thread.sleep(60000); // 每分钟检查一次
                     log.debug("检查讨论状态，游戏ID: {}, 完成状态: {}", gameId, discussionCompleted);
+                    checkCount++;
                 }
-                log.info("讨论监控完成，游戏ID: {}", gameId);
+                if (discussionCompleted) {
+                    log.info("讨论监控完成，游戏ID: {}", gameId);
+                } else {
+                    log.warn("讨论监控超时，游戏ID: {}, 可能存在状态检测问题", gameId);
+                }
             } catch (Exception e) {
                 log.error("讨论监控失败: {}", e.getMessage(), e);
             }
@@ -991,9 +997,9 @@ public class DiscussionServiceImpl implements DiscussionService {
      * @return 选中的玩家ID，若没有则返回null
      */
     private Long selectNextSpeaker(Map<Long, Integer> scores) {
-        // 找出欲望值最高且超过阈值的玩家
+        // 找出欲望值最高的玩家
         Long selectedPlayerId = null;
-        int maxScore = SPEAK_THRESHOLD;
+        int maxScore = 0;
         
         for (Map.Entry<Long, Integer> entry : scores.entrySet()) {
             Long playerId = entry.getKey();
@@ -1005,7 +1011,14 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
         }
         
-        return selectedPlayerId;
+        // 如果最高分数超过阈值或没有玩家发言过，选择该玩家
+        if (selectedPlayerId != null && (maxScore >= SPEAK_THRESHOLD || lastSpeakTimes.isEmpty())) {
+            log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 发言阈值: {}", getCharacterName(selectedPlayerId), maxScore, SPEAK_THRESHOLD);
+            return selectedPlayerId;
+        }
+        
+        log.debug("[中央调度器] 没有玩家的发言欲望值超过阈值 {}，最高分数: {}", SPEAK_THRESHOLD, maxScore);
+        return null;
     }
 
     /**
