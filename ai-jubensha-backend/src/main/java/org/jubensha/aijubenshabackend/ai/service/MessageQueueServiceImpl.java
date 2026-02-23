@@ -133,15 +133,15 @@ public class MessageQueueServiceImpl implements MessageQueueService {
     }
 
     @Override
-    public void sendInvestigationNotification(Long gameId, Long playerId, List<Long> sceneIds, Integer maxChances) {
-        log.info("发送AI玩家搜证通知: 游戏ID: {}, 玩家ID: {}, 场景数量: {}, 最大搜证次数: {}", gameId, playerId, sceneIds.size(), maxChances);
+    public void sendInvestigationNotification(Long gameId, Long playerId, List<Map<String, Object>> clueOptions, Integer maxChances) {
+        log.info("发送AI玩家搜证通知: 游戏ID: {}, 玩家ID: {}, 线索数量: {}, 最大搜证次数: {}", gameId, playerId, clueOptions.size(), maxChances);
 
         // 构建消息内容
         Map<String, Object> messageContent = Map.of(
                 "type", "INVESTIGATION",
                 "gameId", gameId,
                 "playerId", playerId,
-                "sceneIds", sceneIds,
+                "clueOptions", clueOptions,
                 "maxChances", maxChances,
                 "timestamp", System.currentTimeMillis()
         );
