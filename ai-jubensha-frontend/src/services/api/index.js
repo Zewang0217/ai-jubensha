@@ -21,69 +21,9 @@ export const api = {
 // 游戏相关 API
 const USE_MOCK = true // 开启 Mock 数据模式
 
-// Mock 数据
-const mockGameData = {
-    1: {
-        id: 1,
-        name: '午夜庄园谋杀案',
-        scriptName: '午夜庄园',
-        status: 'playing',
-        currentPlayers: 4,
-        maxPlayers: 6,
-        players: [
-            {
-                id: 1,
-                name: '玩家A',
-                characterName: '管家',
-                backgroundStory: '在庄园工作了20年的老管家，对庄园的一切了如指掌',
-                isHost: true
-            },
-            {
-                id: 2,
-                name: '玩家B',
-                characterName: '医生',
-                backgroundStory: '镇上的知名医生，与死者有旧交情',
-                isHost: false
-            },
-            {
-                id: 3,
-                name: '玩家C',
-                characterName: '律师',
-                backgroundStory: '负责死者遗嘱的律师，动机不明',
-                isHost: false
-            },
-            {
-                id: 4,
-                name: '玩家D',
-                characterName: '厨师',
-                backgroundStory: '庄园的新厨师，最近刚入职',
-                isHost: false
-            }
-        ]
-    }
-}
-
 export const gameApi = {
     // 获取游戏列表
     getGames: (params) => api.get('/games', params),
-
-    // 获取游戏详情
-    getGame: (id) => {
-        if (USE_MOCK) {
-            return Promise.resolve({
-                data: mockGameData[id] || {
-                    id: parseInt(id),
-                    name: `游戏房间 #${id}`,
-                    scriptName: '未选择剧本',
-                    status: 'waiting',
-                    currentPlayers: 0,
-                    maxPlayers: 8,
-                    players: []
-                }
-            })
-        }
-        return api.get(`/games/${id}`)
-    },
 
     // 创建游戏
     createGame: (data) => api.post('/games', data),
