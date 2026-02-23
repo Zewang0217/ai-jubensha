@@ -9,7 +9,7 @@ import java.util.Map;
  * 搜证状态数据传输对象
  * 用于返回玩家的搜证状态信息
  *
- * @author luobo
+ * @author zewang
  * @date 2026-02-10
  */
 @Data

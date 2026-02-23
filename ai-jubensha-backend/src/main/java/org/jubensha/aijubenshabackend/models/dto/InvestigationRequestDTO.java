@@ -7,7 +7,7 @@ import lombok.Data;
  * 搜证请求数据传输对象
  * 用于接收玩家搜证请求
  *
- * @author luobo
+ * @author zewang
  * @date 2026-02-10
  */
 @Data
