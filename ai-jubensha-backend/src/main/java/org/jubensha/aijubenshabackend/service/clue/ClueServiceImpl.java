@@ -78,6 +78,12 @@ public class ClueServiceImpl implements ClueService {
     }
 
     @Override
+    public List<Clue> getCluesBySceneId(Long sceneId) {
+        logger.info("Getting clues by scene id: {}", sceneId);
+        return clueRepository.findBySceneId(sceneId);
+    }
+
+    @Override
     public List<Clue> getImportantClues(Integer importanceThreshold) {
         logger.info("Getting important clues with threshold: {}", importanceThreshold);
         return clueRepository.findByImportanceGreaterThanEqual(importanceThreshold);
@@ -105,6 +111,9 @@ public class ClueServiceImpl implements ClueService {
             }
             if (clue.getScene() != null) {
                 updatedClue.setScene(clue.getScene());
+            }
+            if (clue.getSceneId() != null) {
+                updatedClue.setSceneId(clue.getSceneId());
             }
             if (clue.getImageUrl() != null) {
                 updatedClue.setImageUrl(clue.getImageUrl());
