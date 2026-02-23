@@ -74,6 +74,31 @@ public class MilvusSchemaConfig {
                 .dataType(DataType.Int64)
                 .build());
 
+        // 父文档ID（用于父子文档检索）
+        schema.addField(AddFieldReq.builder()
+                .fieldName("parent_id")
+                .dataType(DataType.Int64)
+                .build());
+
+        // 块索引（用于标识子文档在父文档中的位置）
+        schema.addField(AddFieldReq.builder()
+                .fieldName("chunk_index")
+                .dataType(DataType.Int32)
+                .build());
+
+        // 总块数（用于标识父文档的总块数）
+        schema.addField(AddFieldReq.builder()
+                .fieldName("total_chunks")
+                .dataType(DataType.Int32)
+                .build());
+
+        // 消息类型
+        schema.addField(AddFieldReq.builder()
+                .fieldName("message_type")
+                .dataType(DataType.VarChar)
+                .maxLength(50)
+                .build());
+
         // 向量嵌入
         schema.addField(AddFieldReq.builder()
                 .fieldName("embedding")
