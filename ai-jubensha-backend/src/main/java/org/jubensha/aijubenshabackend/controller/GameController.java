@@ -315,7 +315,31 @@ public class GameController {
             Boolean useStreaming = (Boolean) request.getOrDefault("useStreaming", false);
             log.info("使用流式生成: {}", useStreaming);
 
-            WorkflowContext result = workflow.executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, gameId);
+            // 获取真人玩家数量参数
+            Integer realPlayerCount = null;
+            Object realPlayerCountObj = request.get("realPlayerCount");
+            if (realPlayerCountObj != null) {
+                if (realPlayerCountObj instanceof Number) {
+                    realPlayerCount = ((Number) realPlayerCountObj).intValue();
+                } else if (realPlayerCountObj instanceof String) {
+                    try {
+                        realPlayerCount = Integer.parseInt((String) realPlayerCountObj);
+                    } catch (NumberFormatException e) {
+                        return ResponseEntity.badRequest()
+                                .body(Map.of("error", "Invalid realPlayerCount format"));
+                    }
+                }
+                // 验证真人玩家数量必须是非负整数
+                if (realPlayerCount < 0) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error", "realPlayerCount must be non-negative"));
+                }
+                log.info("真人玩家数量: {}", realPlayerCount);
+            } else {
+                log.info("未设置真人玩家数量，使用默认值");
+            }
+
+            WorkflowContext result = workflow.executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, gameId, realPlayerCount);
 
             // 构建响应
             Map<String, Object> response = new java.util.HashMap<>();
