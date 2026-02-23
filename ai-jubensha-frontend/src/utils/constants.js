@@ -1,48 +1,3 @@
-// 游戏状态常量
-export const GAME_STATUS = {
-    WAITING: 'waiting',
-    PLAYING: 'playing',
-    FINISHED: 'finished',
-}
-
-// 游戏状态文本
-export const GAME_STATUS_TEXT = {
-    [GAME_STATUS.WAITING]: '等待中',
-    [GAME_STATUS.PLAYING]: '游戏中',
-    [GAME_STATUS.FINISHED]: '已结束',
-}
-
-// 游戏状态颜色
-export const GAME_STATUS_COLOR = {
-    [GAME_STATUS.WAITING]: 'bg-[var(--color-warning)]',
-    [GAME_STATUS.PLAYING]: 'bg-[var(--color-success)]',
-    [GAME_STATUS.FINISHED]: 'bg-[var(--color-secondary-400)]',
-}
-
-// 线索类型常量
-export const CLUE_TYPE = {
-    PHYSICAL: 'physical',
-    TESTIMONY: 'testimony',
-    DOCUMENT: 'document',
-    OTHER: 'other',
-}
-
-// 线索类型文本
-export const CLUE_TYPE_TEXT = {
-    [CLUE_TYPE.PHYSICAL]: '物证',
-    [CLUE_TYPE.TESTIMONY]: '证词',
-    [CLUE_TYPE.DOCUMENT]: '文件',
-    [CLUE_TYPE.OTHER]: '其他',
-}
-
-// 线索类型颜色
-export const CLUE_TYPE_COLOR = {
-    [CLUE_TYPE.PHYSICAL]: 'bg-[var(--color-primary-100)] text-[var(--color-primary-700)]',
-    [CLUE_TYPE.TESTIMONY]: 'bg-[var(--color-accent-100)] text-[var(--color-accent-700)]',
-    [CLUE_TYPE.DOCUMENT]: 'bg-[var(--color-success)]/20 text-[var(--color-success)]',
-    [CLUE_TYPE.OTHER]: 'bg-[var(--color-secondary-200)] text-[var(--color-secondary-700)]',
-}
-
 // WebSocket 消息类型
 export const WS_MESSAGE_TYPE = {
     // 连接相关
@@ -130,40 +85,4 @@ export const ANIMATION = {
         DEFAULT: [0.25, 0.1, 0.25, 1],
         BOUNCE: [0.68, -0.55, 0.265, 1.55],
     },
-}
-
-// 游戏阶段常量
-export const GAME_PHASE = {
-    INTRODUCTION: 'introduction',
-    SEARCH: 'search',
-    DISCUSSION: 'discussion',
-    VOTING: 'voting',
-    ENDING: 'ending',
-}
-
-// 游戏阶段文本
-export const GAME_PHASE_TEXT = {
-    [GAME_PHASE.INTRODUCTION]: '自我介绍',
-    [GAME_PHASE.SEARCH]: '搜证阶段',
-    [GAME_PHASE.DISCUSSION]: '讨论阶段',
-    [GAME_PHASE.VOTING]: '投票阶段',
-    [GAME_PHASE.ENDING]: '游戏结束',
-}
-
-// 游戏阶段颜色
-export const GAME_PHASE_COLOR = {
-    [GAME_PHASE.INTRODUCTION]: 'from-blue-500 to-cyan-500',
-    [GAME_PHASE.SEARCH]: 'from-amber-500 to-orange-500',
-    [GAME_PHASE.DISCUSSION]: 'from-purple-500 to-pink-500',
-    [GAME_PHASE.VOTING]: 'from-red-500 to-rose-500',
-    [GAME_PHASE.ENDING]: 'from-emerald-500 to-teal-500',
-}
-
-// 游戏阶段背景色
-export const GAME_PHASE_BG = {
-    [GAME_PHASE.INTRODUCTION]: 'bg-blue-500/10 border-blue-500/30',
-    [GAME_PHASE.SEARCH]: 'bg-amber-500/10 border-amber-500/30',
-    [GAME_PHASE.DISCUSSION]: 'bg-purple-500/10 border-purple-500/30',
-    [GAME_PHASE.VOTING]: 'bg-red-500/10 border-red-500/30',
-    [GAME_PHASE.ENDING]: 'bg-emerald-500/10 border-emerald-500/30',
 }
