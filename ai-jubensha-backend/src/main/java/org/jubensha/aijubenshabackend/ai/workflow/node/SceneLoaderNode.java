@@ -33,7 +33,7 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
  * 异步且并发地拉取线索相关的网络素材图片
  *
  * @author zewang
- * @author luobo
+ * @author zewang
  * @version 1.0
  * @date 2026-02-01
  * @since 2026
@@ -144,38 +144,81 @@ public class SceneLoaderNode {
                     sceneCluesMap = new HashMap<>();
                     if (scenes != null && !scenes.isEmpty()) {
 //                        List<Clue> allClues = clueService.getCluesByScriptId(scriptId);
+                        
+                        // 第一步：使用多种匹配策略为场景分配线索
                         for (Scene scene : scenes) {
                             List<Clue> sceneClues = new ArrayList<>();
                             for (Clue clue : allClues) {
-                                // 线索过滤逻辑：
-                                // 1. 首先检查线索的scene字段是否直接匹配场景名称
-                                // 2. 如果不匹配，尝试检查线索描述中是否包含场景名称
-                                // 3. 确保线索属于当前剧本
+                                // 确保线索属于当前剧本
+                                if (clue.getScriptId() == null || !clue.getScriptId().equals(scriptId)) {
+                                    continue;
+                                }
+                                
+                                // 线索匹配策略：
+                                // 1. 精确匹配：线索场景字段与场景名称完全相同
+                                // 2. 包含匹配：线索场景字段包含场景名称或反之
+                                // 3. 描述匹配：线索描述中包含场景名称
+                                // 4. 关键词匹配：场景名称的关键词在线索中出现
+                                // 5. 模糊匹配：场景名称与线索场景字段相似度较高
                                 boolean isSceneMatch = false;
 
-                                // 检查线索的scene字段
+                                // 1. 精确匹配
                                 if (clue.getScene() != null) {
                                     String clueScene = clue.getScene().trim();
                                     String sceneName = scene.getName().trim();
-                                    isSceneMatch = clueScene.equals(sceneName) ||
-                                            clueScene.contains(sceneName) ||
-                                            sceneName.contains(clueScene);
+                                    if (clueScene.equalsIgnoreCase(sceneName)) {
+                                        isSceneMatch = true;
+                                    }
                                 }
 
-                                // 如果场景字段不匹配，检查线索描述
+                                // 2. 包含匹配
+                                if (!isSceneMatch && clue.getScene() != null) {
+                                    String clueScene = clue.getScene().trim().toLowerCase();
+                                    String sceneName = scene.getName().trim().toLowerCase();
+                                    isSceneMatch = clueScene.contains(sceneName) || sceneName.contains(clueScene);
+                                }
+
+                                // 3. 描述匹配
                                 if (!isSceneMatch && clue.getDescription() != null) {
                                     String description = clue.getDescription().toLowerCase();
                                     String sceneNameLower = scene.getName().toLowerCase();
                                     isSceneMatch = description.contains(sceneNameLower);
                                 }
 
-                                // 确保线索属于当前剧本
-                                if (isSceneMatch && clue.getScriptId() != null && clue.getScriptId().equals(scriptId)) {
+                                // 4. 关键词匹配
+                                if (!isSceneMatch) {
+                                    String[] sceneKeywords = scene.getName().toLowerCase().split("\\s+");
+                                    String clueText = (clue.getScene() != null ? clue.getScene() + " " : "") + 
+                                                   (clue.getDescription() != null ? clue.getDescription() : "");
+                                    String clueTextLower = clueText.toLowerCase();
+                                    
+                                    for (String keyword : sceneKeywords) {
+                                        if (!keyword.isEmpty() && clueTextLower.contains(keyword)) {
+                                            isSceneMatch = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                // 5. 模糊匹配（简单相似度计算）
+                                if (!isSceneMatch && clue.getScene() != null) {
+                                    String clueScene = clue.getScene().trim().toLowerCase();
+                                    String sceneName = scene.getName().trim().toLowerCase();
+                                    double similarity = calculateSimilarity(clueScene, sceneName);
+                                    if (similarity > 0.6) { // 相似度阈值
+                                        isSceneMatch = true;
+                                    }
+                                }
+
+                                if (isSceneMatch) {
                                     sceneClues.add(clue);
                                 }
                             }
                             sceneCluesMap.put(scene.getId(), sceneClues);
                         }
+
+                        // 第二步：确保每个场景至少有1个线索（兜底机制）
+                        ensureEachSceneHasClues(scenes, sceneCluesMap, allClues, scriptId);
                     }
 
                     // 更新缓存
@@ -195,9 +238,61 @@ public class SceneLoaderNode {
                 context.getMetadata().put("cacheKey", cacheKey);
 
                 log.info("场景加载完成，共加载 {} 个场景", scenes.size());
+                
+                // 线索分布统计
+                int totalClues = 0;
+                List<Integer> clueCounts = new ArrayList<>();
+                Map<String, Integer> sceneClueCountMap = new HashMap<>();
+                
                 for (Scene scene : scenes) {
                     List<Clue> clues = sceneCluesMap.get(scene.getId());
-                    log.info("场景 {} 包含 {} 个线索", scene.getName(), clues != null ? clues.size() : 0);
+                    int clueCount = clues != null ? clues.size() : 0;
+                    totalClues += clueCount;
+                    clueCounts.add(clueCount);
+                    sceneClueCountMap.put(scene.getName(), clueCount);
+                    log.info("场景 {} 包含 {} 个线索", scene.getName(), clueCount);
+                }
+                
+                // 计算线索分布平衡性
+                if (!clueCounts.isEmpty()) {
+                    double averageClues = (double) totalClues / clueCounts.size();
+                    double variance = 0.0;
+                    for (int count : clueCounts) {
+                        variance += Math.pow(count - averageClues, 2);
+                    }
+                    variance /= clueCounts.size();
+                    double standardDeviation = Math.sqrt(variance);
+                    double balanceScore = 1.0 - (standardDeviation / averageClues);
+                    if (balanceScore < 0) balanceScore = 0;
+                    
+                    // 评估平衡性等级
+                    String balanceLevel;
+                    if (balanceScore > 0.8) {
+                        balanceLevel = "优秀";
+                    } else if (balanceScore > 0.6) {
+                        balanceLevel = "良好";
+                    } else if (balanceScore > 0.4) {
+                        balanceLevel = "一般";
+                    } else {
+                        balanceLevel = "较差";
+                    }
+                    
+                    log.info("线索分布统计：");
+                    log.info("总线索数：{}", totalClues);
+                    log.info("平均每个场景线索数：{}", String.format("%.2f", averageClues));
+                    log.info("线索分布标准差：{}", String.format("%.2f", standardDeviation));
+                    log.info("线索分布平衡性得分：{}", String.format("%.2f", balanceScore));
+                    log.info("线索分布平衡性等级：{}", balanceLevel);
+                    
+                    // 存储线索分布统计结果到上下文元数据
+                    Map<String, Object> clueDistributionStats = new HashMap<>();
+                    clueDistributionStats.put("totalClues", totalClues);
+                    clueDistributionStats.put("averageClues", averageClues);
+                    clueDistributionStats.put("standardDeviation", standardDeviation);
+                    clueDistributionStats.put("balanceScore", balanceScore);
+                    clueDistributionStats.put("balanceLevel", balanceLevel);
+                    clueDistributionStats.put("sceneClueCounts", sceneClueCountMap);
+                    context.getMetadata().put("clueDistributionStats", clueDistributionStats);
                 }
 
             } catch (Exception e) {
@@ -246,6 +341,108 @@ public class SceneLoaderNode {
             }
         }
         return scenes;
+    }
+
+    /**
+     * 计算两个字符串的相似度（简单的Levenshtein距离算法）
+     * @param s1 第一个字符串
+     * @param s2 第二个字符串
+     * @return 相似度值，范围0-1
+     */
+    private static double calculateSimilarity(String s1, String s2) {
+        if (s1 == null || s2 == null) {
+            return 0.0;
+        }
+        if (s1.equals(s2)) {
+            return 1.0;
+        }
+        
+        int maxLength = Math.max(s1.length(), s2.length());
+        if (maxLength == 0) {
+            return 1.0;
+        }
+        
+        int distance = levenshteinDistance(s1, s2);
+        return 1.0 - ((double) distance / maxLength);
+    }
+
+    /**
+     * 计算Levenshtein距离
+     * @param s1 第一个字符串
+     * @param s2 第二个字符串
+     * @return 编辑距离
+     */
+    private static int levenshteinDistance(String s1, String s2) {
+        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
+        
+        for (int i = 0; i <= s1.length(); i++) {
+            dp[i][0] = i;
+        }
+        for (int j = 0; j <= s2.length(); j++) {
+            dp[0][j] = j;
+        }
+        
+        for (int i = 1; i <= s1.length(); i++) {
+            for (int j = 1; j <= s2.length(); j++) {
+                int cost = s1.charAt(i - 1) == s2.charAt(j - 1) ? 0 : 1;
+                dp[i][j] = Math.min(Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1), dp[i - 1][j - 1] + cost);
+            }
+        }
+        
+        return dp[s1.length()][s2.length()];
+    }
+
+    /**
+     * 确保每个场景至少有一个线索（兜底机制）
+     * @param scenes 场景列表
+     * @param sceneCluesMap 场景-线索映射
+     * @param allClues 所有线索
+     * @param scriptId 剧本ID
+     */
+    private static void ensureEachSceneHasClues(List<Scene> scenes, Map<Long, List<Clue>> sceneCluesMap, 
+                                              List<Clue> allClues, Long scriptId) {
+        if (scenes == null || scenes.isEmpty() || allClues == null || allClues.isEmpty()) {
+            return;
+        }
+        
+        // 收集所有未分配的线索
+        List<Clue> unassignedClues = new ArrayList<>();
+        for (Clue clue : allClues) {
+            if (clue.getScriptId() != null && clue.getScriptId().equals(scriptId)) {
+                boolean isAssigned = false;
+                for (List<Clue> clues : sceneCluesMap.values()) {
+                    if (clues.contains(clue)) {
+                        isAssigned = true;
+                        break;
+                    }
+                }
+                if (!isAssigned) {
+                    unassignedClues.add(clue);
+                }
+            }
+        }
+        
+        // 为没有线索的场景分配未分配的线索
+        for (Scene scene : scenes) {
+            List<Clue> sceneClues = sceneCluesMap.get(scene.getId());
+            if (sceneClues == null || sceneClues.isEmpty()) {
+                if (!unassignedClues.isEmpty()) {
+                    // 分配第一个未分配的线索
+                    Clue clue = unassignedClues.remove(0);
+                    sceneClues = new ArrayList<>();
+                    sceneClues.add(clue);
+                    sceneCluesMap.put(scene.getId(), sceneClues);
+                    log.info("为场景 {} 分配兜底线索：{}", scene.getName(), clue.getName());
+                } else {
+                    // 如果没有未分配的线索，从所有线索中随机分配一个
+                    Clue randomClue = allClues.get((int) (Math.random() * allClues.size()));
+                    sceneClues = new ArrayList<>();
+                    sceneClues.add(randomClue);
+                    sceneCluesMap.put(scene.getId(), sceneClues);
+                    log.info("为场景 {} 随机分配线索：{}", scene.getName(), randomClue.getName());
+                }
+            }
+        }
     }
 
     /**

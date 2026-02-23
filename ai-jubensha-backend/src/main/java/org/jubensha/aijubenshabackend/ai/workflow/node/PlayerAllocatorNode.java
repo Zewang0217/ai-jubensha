@@ -91,9 +91,12 @@ public class PlayerAllocatorNode {
      */
     private static int getRealPlayerCount(WorkflowContext context) {
         Integer realPlayerCount = context.getRealPlayerCount();
-        if (realPlayerCount == null || realPlayerCount <= 0) {
+        if (realPlayerCount == null) {
             realPlayerCount = 1;
             log.info("WorkflowContext中未设置真人玩家数量，默认设置为1");
+        } else if (realPlayerCount < 0) {
+            realPlayerCount = 0;
+            log.warn("真人玩家数量为负数，自动调整为0");
         }
         return realPlayerCount;
     }
