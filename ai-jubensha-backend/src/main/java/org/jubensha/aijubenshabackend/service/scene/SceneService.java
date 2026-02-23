@@ -1,5 +1,6 @@
 package org.jubensha.aijubenshabackend.service.scene;
 
+import org.jubensha.aijubenshabackend.models.entity.Clue;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
 import org.jubensha.aijubenshabackend.models.entity.Script;
 
@@ -82,4 +83,9 @@ public interface SceneService {
      * 批量删除场景
      */
     void deleteScenesBatch(List<Long> ids);
+
+    /**
+     * 获取场景的线索列表
+     */
+    List<Clue> getCluesBySceneId(Long sceneId);
 }

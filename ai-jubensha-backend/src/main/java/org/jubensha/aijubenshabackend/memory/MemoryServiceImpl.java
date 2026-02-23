@@ -16,21 +16,26 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 记忆管理服务实现
- * 使用内存存储作为临时实现，确保代码能够编译通过
- * 后续可以替换为实际的Milvus实现
+ * 基于RAGService和Milvus向量数据库提供高效的记忆存储和检索功能
  * <p>
- * 注意：以下部分需要使用Milvus向量数据库实现：
- * 1. storeCharacterMemory：使用Milvus的insert操作存储角色记忆
- * 2. retrieveCharacterMemory：使用Milvus的search操作检索角色记忆
- * 3. storeConversationMemory：使用Milvus的insert操作存储对话记忆
- * 4. retrieveConversationMemory：使用Milvus的search操作检索对话记忆
- * 5. storeClueMemory：使用Milvus的insert操作存储线索记忆
- * 6. retrieveClueMemory：使用Milvus的search操作检索线索记忆
- * 7. storeGlobalClueMemory：使用Milvus的insert操作存储全局线索记忆
- * 8. retrieveGlobalClueMemory：使用Milvus的search操作检索全局线索记忆
- * 9. storeGlobalTimelineMemory：使用Milvus的insert操作存储全局时间线记忆
- * 10. retrieveGlobalTimelineMemory：使用Milvus的search操作检索全局时间线记忆
- * 11. deleteGameMemory：使用Milvus的delete操作删除游戏相关记忆
+ * 优化措施：
+ * 1. 使用RAGService作为底层实现，统一管理对话记忆和全局记忆
+ * 2. 对话记忆存储：通过RAGService.insertConversationMemory实现，支持消息分块和嵌入向量生成
+ * 3. 线索记忆存储：通过RAGService.insertGlobalClueMemory实现，确保线索存储到全局记忆中
+ * 4. 全局记忆管理：支持线索和时间线的存储与检索
+ * <p>
+ * 实现细节：
+ * - storeCharacterMemory：暂时不存储，需要确定正确的存储位置
+ * - retrieveCharacterMemory：暂时返回空列表，后续可根据业务需求实现
+ * - storeConversationMemory：使用RAGService存储对话记忆
+ * - retrieveConversationMemory：使用RAGService检索对话记忆
+ * - storeClueMemory：只存储已发现的线索，确保在搜证环节被调用
+ * - retrieveClueMemory：使用RAGService检索线索记忆
+ * - storeGlobalClueMemory：使用RAGService存储全局线索记忆
+ * - retrieveGlobalClueMemory：使用RAGService检索全局线索记忆
+ * - storeGlobalTimelineMemory：使用RAGService存储全局时间线记忆
+ * - retrieveGlobalTimelineMemory：使用RAGService检索全局时间线记忆
+ * - deleteGameMemory：目前RAGService没有直接的删除游戏记忆的方法
  */
 @Slf4j
 @Service

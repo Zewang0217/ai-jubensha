@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 搜证服务实现类
  * 实现玩家搜证相关的业务逻辑
  *
- * @author luobo
+ * @author luobo zewang
  * @date 2026-02-10
  */
 @Slf4j
@@ -152,14 +152,20 @@ public class InvestigationServiceImpl implements InvestigationService {
             throw new NoInvestigationChanceException(playerId, 0);
         }
 
-        // 8. 记录搜证历史
+        // 8. 检查玩家是否已用完所有搜证次数，如果是，标记为已完成搜证
+        int remainingChances = context.getRemainingInvestigationCount(playerId);
+        if (remainingChances <= 0) {
+            context.markInvestigationCompleted(playerId);
+            log.info("玩家 {} 已用完所有搜证次数，标记为已完成搜证", playerId);
+        }
+
+        // 9. 记录搜证历史
         context.recordInvestigationHistory(playerId, sceneId, clue.getId(), clue.getName());
 
-        // 9. 保存更新后的上下文
+        // 10. 保存更新后的上下文
         saveWorkflowContext(gameId, context);
 
         // 10. 构建响应
-        int remainingChances = context.getRemainingInvestigationCount(playerId);
         InvestigationResponseDTO response = InvestigationResponseDTO.success(
                 clue, remainingChances, WorkflowContext.DEFAULT_INVESTIGATION_LIMIT
         );

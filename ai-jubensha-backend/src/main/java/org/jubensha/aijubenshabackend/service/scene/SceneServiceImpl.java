@@ -1,7 +1,9 @@
 package org.jubensha.aijubenshabackend.service.scene;
 
+import org.jubensha.aijubenshabackend.models.entity.Clue;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
 import org.jubensha.aijubenshabackend.models.entity.Script;
+import org.jubensha.aijubenshabackend.repository.clue.ClueRepository;
 import org.jubensha.aijubenshabackend.repository.scene.SceneRepository;
 import org.jubensha.aijubenshabackend.repository.script.ScriptRepository;
 import org.slf4j.Logger;
@@ -21,11 +23,13 @@ public class SceneServiceImpl implements SceneService {
 
     private final SceneRepository sceneRepository;
     private final ScriptRepository scriptRepository;
+    private final ClueRepository clueRepository;
 
     @Autowired
-    public SceneServiceImpl(SceneRepository sceneRepository, ScriptRepository scriptRepository) {
+    public SceneServiceImpl(SceneRepository sceneRepository, ScriptRepository scriptRepository, ClueRepository clueRepository) {
         this.sceneRepository = sceneRepository;
         this.scriptRepository = scriptRepository;
+        this.clueRepository = clueRepository;
     }
 
     @Override
@@ -168,5 +172,11 @@ public class SceneServiceImpl implements SceneService {
         if (ids != null && !ids.isEmpty()) {
             sceneRepository.deleteAllById(ids);
         }
+    }
+
+    @Override
+    public List<Clue> getCluesBySceneId(Long sceneId) {
+        logger.info("Getting clues by scene id: {}", sceneId);
+        return clueRepository.findBySceneId(sceneId);
     }
 }
