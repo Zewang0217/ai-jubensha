@@ -9,6 +9,7 @@ import org.jubensha.aijubenshabackend.ai.factory.ScriptGenerateServiceFactory;
 import org.jubensha.aijubenshabackend.ai.service.ScriptGenerateService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.ScriptCreationState;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
+import org.jubensha.aijubenshabackend.core.util.JsonValidationUtil;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 
 import java.util.concurrent.CompletableFuture;
@@ -61,40 +62,40 @@ public class SceneClueNode {
                     throw new IllegalStateException("获取剧本生成服务失败");
                 }
                 
-                // 生成场景和线索
+                // 生成场景和线索（带重试机制）
                 log.info("开始生成场景和线索");
-                AtomicReference<String> mechanicsBuilder = new AtomicReference<>("");
-                CompletableFuture<Void> streamFuture = new CompletableFuture<>();
+                String mechanicsJson = JsonValidationUtil.generateWithRetry(() -> {
+                    AtomicReference<String> mechanicsBuilder = new AtomicReference<>("");
+                    CompletableFuture<Void> streamFuture = new CompletableFuture<>();
+                    
+                    generateService.generateMechanics(outlineJson)
+                            .doOnNext(chunk -> {
+                                mechanicsBuilder.updateAndGet(current -> current + chunk);
+                            })
+                            .doOnComplete(() -> {
+                                log.info("场景和线索生成完成，总长度: {}", mechanicsBuilder.get().length());
+                                streamFuture.complete(null);
+                            })
+                            .doOnError(error -> {
+                                log.error("场景和线索生成失败: {}", error.getMessage(), error);
+                                streamFuture.completeExceptionally(error);
+                            })
+                            .subscribe();
+                    
+                    // 等待流式生成完成
+                    streamFuture.orTimeout(600, java.util.concurrent.TimeUnit.SECONDS).join();
+                    
+                    String generatedJson = mechanicsBuilder.get();
+                    
+                    // 验证生成结果
+                    if (generatedJson == null || generatedJson.isEmpty()) {
+                        throw new IllegalStateException("场景和线索生成结果为空");
+                    }
+                    
+                    return generatedJson;
+                });
                 
-                generateService.generateMechanics(outlineJson)
-                        .doOnNext(chunk -> {
-                            mechanicsBuilder.updateAndGet(current -> current + chunk);
-//                            log.debug("收到场景和线索生成chunk，长度: {}", chunk.length());
-                        })
-                        .doOnComplete(() -> {
-                            log.info("场景和线索生成完成，总长度: {}", mechanicsBuilder.get().length());
-                            streamFuture.complete(null);
-                        })
-                        .doOnError(error -> {
-                            log.error("场景和线索生成失败: {}", error.getMessage(), error);
-                            streamFuture.completeExceptionally(error);
-                        })
-                        .subscribe();
-                
-                // 等待流式生成完成
-                streamFuture.orTimeout(600, java.util.concurrent.TimeUnit.SECONDS).join();
-                
-                String mechanicsJson = mechanicsBuilder.get();
-                
-                // 验证生成结果
-                if (mechanicsJson == null || mechanicsJson.isEmpty()) {
-                    throw new IllegalStateException("场景和线索生成结果为空");
-                }
-                
-                // 预处理 JSON
-                mechanicsJson = preprocessJson(mechanicsJson);
-                
-                // 验证 JSON 格式
+                // 验证场景和线索结构
                 try {
                     JsonNode rootNode = objectMapper.readTree(mechanicsJson);
                     log.debug("场景和线索 JSON 格式验证通过");
@@ -116,8 +117,8 @@ public class SceneClueNode {
                     log.info("生成场景 {} 个，线索 {} 个", scenesNode.size(), cluesNode.size());
                     
                 } catch (Exception e) {
-                    log.error("场景和线索 JSON 格式验证失败: {}", e.getMessage());
-                    throw new IllegalStateException("场景和线索 JSON 格式错误", e);
+                    log.error("场景和线索 JSON 结构验证失败: {}", e.getMessage());
+                    throw new IllegalStateException("场景和线索 JSON 结构错误", e);
                 }
                 
                 // 保存场景和线索到状态
@@ -155,41 +156,5 @@ public class SceneClueNode {
         return creationState;
     }
     
-    /**
-     * 预处理 JSON，移除代码块标记并修复不完整的 JSON
-     */
-    private static String preprocessJson(String json) {
-        if (json == null || json.isEmpty()) {
-            log.warn("输入 JSON 为空");
-            return "{}";
-        }
-        
-        // 移除开头的代码块标记
-        if (json.startsWith("```json")) {
-            json = json.substring(7);
-            log.debug("移除了开头的 JSON 代码块标记");
-        } else if (json.startsWith("```")) {
-            json = json.substring(3);
-            log.debug("移除了开头的代码块标记");
-        }
-        
-        // 移除结尾的代码块标记
-        if (json.endsWith("```")) {
-            json = json.substring(0, json.length() - 3);
-            log.debug("移除了结尾的代码块标记");
-        }
-        
-        // 去除首尾空白
-        json = json.trim();
-        log.debug("去除首尾空白后的 JSON 长度: {}", json.length());
-        
-        // 移除开头的前言文字，只保留 JSON 内容
-        int jsonStartIndex = json.indexOf('{');
-        if (jsonStartIndex != -1) {
-            json = json.substring(jsonStartIndex);
-            log.debug("移除了开头的前言文字，JSON 长度: {}", json.length());
-        }
-        
-        return json;
-    }
+
 }
