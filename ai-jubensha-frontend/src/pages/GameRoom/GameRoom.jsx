@@ -1,299 +1,823 @@
-import {useEffect, useState} from 'react'
+/**
+ * @fileoverview GameRoom 组件 - Film Noir 侦探事务所风格
+ * @description 游戏房间主组件，采用复古黑色电影美学
+ *
+ * 设计灵感：1940年代私人侦探事务所
+ * - 深色木质纹理与金属质感
+ * - 档案柜、打字机、台灯元素
+ * - 烟雾、光影、百叶窗投影
+ */
+
+import React, {memo, Suspense, useCallback, useEffect, useMemo, useState} from 'react'
 import {useNavigate, useParams} from 'react-router-dom'
 import {useQuery} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
 import {gameApi} from '../../services/api'
 import Loading from '../../components/common/Loading'
-import {GAME_PHASE, GAME_PHASE_TEXT, WS_MESSAGE_TYPE} from '../../utils/constants'
 import {useWebSocket} from '../../hooks/useWebSocket'
-import {Bug} from 'lucide-react'
+import {Bug, ChevronLeft, Clock, FileText, FolderOpen, LogOut, Radio, X} from 'lucide-react'
 
-// 阶段组件导入
-import PhaseIntroduction from './components/PhaseIntroduction'
-import PhaseSearch from './components/PhaseSearch'
-import PhaseDiscussion from './components/PhaseDiscussion'
-import PhaseVoting from './components/PhaseVoting'
-import PhaseEnding from './components/PhaseEnding'
+// 阶段系统导入
+import {DEFAULT_PHASE_SEQUENCE, PHASE_CONFIG, PHASE_TYPE, usePhaseManager,} from './phases'
 
-// 可复用组件导入
-import PhaseStepper from './components/PhaseStepper'
-import ActionBar from './components/ActionBar'
+// 调试模式导入
+import {useDebugMode} from './hooks/useDebugMode'
+
+// =============================================================================
+// 延迟加载阶段组件
+// =============================================================================
+
+const PhaseComponents = {
+  [PHASE_TYPE.SCRIPT_OVERVIEW]: React.lazy(() => import('./phases/ScriptOverview')),
+  [PHASE_TYPE.CHARACTER_ASSIGNMENT]: React.lazy(() => import('./phases/CharacterAssignment')),
+  [PHASE_TYPE.SCRIPT_READING]: React.lazy(() => import('./phases/ScriptReading')),
+  [PHASE_TYPE.INVESTIGATION]: React.lazy(() => import('./phases/Investigation')),
+  [PHASE_TYPE.DISCUSSION]: React.lazy(() => import('./phases/Discussion')),
+  [PHASE_TYPE.SUMMARY]: React.lazy(() => import('./phases/Summary')),
+}
+
+// =============================================================================
+// 常量配置
+// =============================================================================
+
+const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8088'
+const DEFAULT_DEBUG_MODE = import.meta.env.DEV || import.meta.env.VITE_DEBUG_MODE === 'true'
+
+const TRANSITION_CONFIG = {
+  initial: {opacity: 0, y: 10},
+  animate: {opacity: 1, y: 0},
+  exit: {opacity: 0, y: -10},
+  transition: {duration: 0.2, ease: 'easeOut'},
+}
+
+// =============================================================================
+// Film Noir 风格子组件
+// =============================================================================
 
 /**
- * 阶段组件映射表 - 策略模式
+ * 侦探事务所招牌
  */
-const PHASE_COMPONENTS = {
-    [GAME_PHASE.INTRODUCTION]: PhaseIntroduction,
-    [GAME_PHASE.SEARCH]: PhaseSearch,
-    [GAME_PHASE.DISCUSSION]: PhaseDiscussion,
-    [GAME_PHASE.VOTING]: PhaseVoting,
-    [GAME_PHASE.ENDING]: PhaseEnding,
+const OfficeSign = memo(() => (
+    <div className="flex items-center gap-3">
+      <div className="relative">
+        {/* 台灯效果 */}
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-20 h-20 bg-amber-500/10 rounded-full blur-xl"/>
+        <div
+            className="w-10 h-10 bg-gradient-to-br from-amber-700 to-amber-900 rounded-lg flex items-center justify-center border border-amber-600/50 shadow-lg shadow-amber-900/20">
+          <span className="text-amber-100 font-serif text-lg font-bold">N</span>
+        </div>
+      </div>
+      <div className="hidden sm:block">
+        <h1 className="text-amber-100 font-serif text-sm tracking-wider">NOIR</h1>
+        <p className="text-stone-500 text-xs tracking-widest">DETECTIVE AGENCY</p>
+      </div>
+    </div>
+))
+
+OfficeSign.displayName = 'OfficeSign'
+
+/**
+ * 档案文件夹标签
+ */
+const CaseFileTab = memo(({currentPhase, sequence}) => {
+  const currentIndex = sequence.indexOf(currentPhase)
+
+  return (
+      <div className="flex items-center">
+        <FolderOpen className="w-4 h-4 text-amber-600/60 mr-2"/>
+        <div className="flex items-center gap-1">
+          {sequence.map((phase, index) => {
+            const config = PHASE_CONFIG[phase]
+            const isActive = index === currentIndex
+            const isCompleted = index < currentIndex
+
+            return (
+                <div key={phase} className="flex items-center">
+                  <motion.button
+                      whileHover={{scale: 1.05}}
+                      className={`
+                  relative px-3 py-1.5 text-xs font-serif transition-all duration-200
+                  ${isActive
+                          ? 'bg-amber-900/40 text-amber-200 border border-amber-700/50'
+                          : isCompleted
+                              ? 'bg-stone-800/50 text-stone-400 border border-stone-700'
+                              : 'bg-stone-900/30 text-stone-600 border border-stone-800'
+                      }
+                `}
+                  >
+                    <span className="hidden lg:inline">{config.title}</span>
+                    <span className="lg:hidden">{String(index + 1).padStart(2, '0')}</span>
+                    {isActive && (
+                        <motion.div
+                            layoutId="activeTab"
+                            className="absolute inset-0 border-2 border-amber-500/30"
+                            transition={{type: 'spring', stiffness: 500, damping: 30}}
+                        />
+                    )}
+                  </motion.button>
+                  {index < sequence.length - 1 && (
+                      <div className="w-4 h-px bg-stone-700 mx-0.5"/>
+                  )}
+                </div>
+            )
+          })}
+        </div>
+      </div>
+  )
+})
+
+CaseFileTab.displayName = 'CaseFileTab'
+
+/**
+ * 无线电状态指示器
+ */
+const RadioStatus = memo(({isConnected, isDebugMode}) => {
+  return (
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-900/50 border border-stone-700">
+        <Radio
+            className={`w-3.5 h-3.5 ${isDebugMode ? 'text-amber-500' : isConnected ? 'text-green-500' : 'text-red-500'}`}/>
+        <div className="flex flex-col">
+        <span
+            className={`text-[10px] uppercase tracking-wider ${isDebugMode ? 'text-amber-500' : isConnected ? 'text-green-400' : 'text-red-400'}`}>
+          {isDebugMode ? 'SIMULATION' : isConnected ? 'ONLINE' : 'OFFLINE'}
+        </span>
+          <div className="flex gap-0.5 mt-0.5">
+            {[1, 2, 3].map((i) => (
+                <motion.div
+                    key={i}
+                    className={`w-1 h-1 ${isDebugMode ? 'bg-amber-500' : isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+                    animate={{opacity: [0.3, 1, 0.3]}}
+                    transition={{duration: 1.5, repeat: Infinity, delay: i * 0.2}}
+                />
+            ))}
+          </div>
+        </div>
+      </div>
+  )
+})
+
+RadioStatus.displayName = 'RadioStatus'
+
+/**
+ * 打字机风格的案件编号
+ */
+const CaseNumber = memo(({id}) => (
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-900/50 border border-stone-700">
+      <FileText className="w-3.5 h-3.5 text-stone-500"/>
+      <div className="flex flex-col">
+        <span className="text-[10px] text-stone-500 uppercase tracking-wider">Case No.</span>
+        <span className="text-xs text-stone-300 font-mono">#{String(id).padStart(4, '0')}</span>
+      </div>
+    </div>
+))
+
+CaseNumber.displayName = 'CaseNumber'
+
+/**
+ * 阶段加载占位符 - 打字机风格
+ */
+const PhaseLoadingPlaceholder = memo(() => (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative">
+          <div className="w-16 h-16 border-2 border-amber-700/30 rounded-lg flex items-center justify-center">
+            <motion.div
+                animate={{opacity: [0.3, 1, 0.3]}}
+                transition={{duration: 1.5, repeat: Infinity}}
+                className="text-amber-600/60 font-serif text-2xl"
+            >
+              T
+            </motion.div>
+          </div>
+          <motion.div
+              className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-600/20 rounded-full"
+              animate={{scale: [1, 1.2, 1]}}
+              transition={{duration: 2, repeat: Infinity}}
+          />
+        </div>
+        <p className="text-stone-500 text-sm font-serif">Loading file...</p>
+      </div>
+    </div>
+))
+
+PhaseLoadingPlaceholder.displayName = 'PhaseLoadingPlaceholder'
+
+/**
+ * 阶段包装器
+ */
+const PhaseWrapper = memo(({phase, children}) => (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.div
+          key={phase}
+          {...TRANSITION_CONFIG}
+          className="h-full will-change-transform"
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+))
+
+PhaseWrapper.displayName = 'PhaseWrapper'
+
+/**
+ * Film Noir 背景 - 百叶窗光影效果
+ */
+const NoirBackground = memo(({color}) => {
+  return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {/* 基础渐变 */}
+        <div className="absolute inset-0 bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950"/>
+
+        {/* 百叶窗光影 */}
+        <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              background: `repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 40px,
+            rgba(255,255,255,0.1) 40px,
+            rgba(255,255,255,0.1) 41px
+          )`,
+            }}
+        />
+
+        {/* 烟雾效果 */}
+        <div
+            className="absolute top-0 left-1/4 w-96 h-96 rounded-full opacity-20"
+            style={{
+              background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)',
+              filter: 'blur(60px)',
+            }}
+        />
+        <div
+            className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full opacity-20"
+            style={{
+              background: 'radial-gradient(circle, rgba(245,158,11,0.1) 0%, transparent 70%)',
+              filter: 'blur(60px)',
+            }}
+        />
+
+        {/* 台灯聚光效果 */}
+        <div
+            className="absolute top-0 right-0 w-1/2 h-1/2 opacity-30"
+            style={{
+              background: `radial-gradient(ellipse at top right, ${getNoirColor(color)}20 0%, transparent 60%)`,
+            }}
+        />
+
+        {/* 噪点纹理 */}
+        <div
+            className="absolute inset-0 opacity-[0.02]"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+            }}
+        />
+
+        {/* 扫描线 */}
+        <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)',
+            }}
+        />
+      </div>
+  )
+})
+
+NoirBackground.displayName = 'NoirBackground'
+
+// 辅助函数
+function getNoirColor(colorClass) {
+  const colorMap = {
+    'from-blue-500 to-cyan-500': '#3b82f6',
+    'from-violet-500 to-purple-500': '#8b5cf6',
+    'from-emerald-500 to-teal-500': '#10b981',
+    'from-amber-500 to-orange-500': '#f59e0b',
+    'from-rose-500 to-pink-500': '#f43f5e',
+    'from-indigo-500 to-blue-500': '#6366f1',
+  }
+  return colorMap[colorClass] || '#3b82f6'
 }
 
 /**
- * 游戏房间主组件
- * 全屏布局，无滚动，使用阶段条展示游戏进度
+ * 档案抽屉式调试面板
  */
+const DetectiveNotes = memo(({
+                               isOpen,
+                               onClose,
+                               currentPhase,
+                               onPhaseChange,
+                               isDebugMode,
+                               onToggleDebug,
+                             }) => {
+  if (!isOpen) return null
+
+  return (
+      <motion.div
+          initial={{opacity: 0, y: 20, scale: 0.95}}
+          animate={{opacity: 1, y: 0, scale: 1}}
+          exit={{opacity: 0, y: 20, scale: 0.95}}
+          transition={{duration: 0.2}}
+          className="fixed bottom-4 right-4 z-50 w-80 bg-stone-900 border-2 border-stone-700 shadow-2xl shadow-black/50"
+      >
+        {/* 抽屉把手 */}
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-3 bg-stone-700 rounded-t-sm"/>
+
+        {/* 头部 */}
+        <div className="flex items-center justify-between px-4 py-3 bg-stone-800 border-b border-stone-700">
+          <div className="flex items-center gap-2">
+            <Bug className="w-4 h-4 text-amber-600"/>
+            <span className="text-sm font-serif text-stone-300">Detective&apos;s Notes</span>
+          </div>
+          <button
+              onClick={onClose}
+              className="p-1 hover:bg-stone-700 text-stone-500 hover:text-stone-300 transition-colors"
+          >
+            <X className="w-4 h-4"/>
+          </button>
+        </div>
+
+        {/* 内容 */}
+        <div className="p-4 space-y-4">
+          {/* 调试模式开关 */}
+          <div className="flex items-center justify-between p-3 bg-stone-800/50 border border-stone-700">
+            <span className="text-sm text-stone-400">Simulation Mode</span>
+            <button
+                onClick={onToggleDebug}
+                className={`relative w-12 h-6 border transition-colors ${
+                    isDebugMode ? 'border-amber-600 bg-amber-900/30' : 'border-stone-600 bg-stone-800'
+                }`}
+            >
+              <motion.div
+                  initial={false}
+                  animate={{x: isDebugMode ? 26 : 2}}
+                  transition={{duration: 0.2}}
+                  className="absolute top-1 w-3 h-3 bg-stone-400"
+              />
+            </button>
+          </div>
+
+          {/* 阶段切换 */}
+          {isDebugMode && (
+              <>
+                <div className="border-t border-stone-700 pt-4">
+                  <p className="text-xs text-stone-500 uppercase tracking-widest mb-3">
+                    Jump to Phase
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {DEFAULT_PHASE_SEQUENCE.map((phase) => (
+                        <button
+                            key={phase}
+                            onClick={() => onPhaseChange(phase)}
+                            className={`
+                      px-3 py-2 text-xs font-serif transition-all
+                      ${currentPhase === phase
+                                ? 'bg-amber-900/30 text-amber-400 border border-amber-700/50'
+                                : 'bg-stone-800/50 text-stone-400 border border-stone-700 hover:border-stone-600'
+                            }
+                    `}
+                        >
+                          {PHASE_CONFIG[phase]?.title}
+                        </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-stone-700 pt-4">
+                  <p className="text-xs text-stone-500 uppercase tracking-widest mb-2">
+                    Current Phase
+                  </p>
+                  <div className="p-3 bg-stone-950 border border-stone-800">
+                    <code className="text-xs text-amber-600/80 font-mono">{currentPhase}</code>
+                  </div>
+                </div>
+              </>
+          )}
+
+          {!isDebugMode && (
+              <p className="text-xs text-stone-600 text-center font-serif italic">
+                &quot;Sometimes the best clues are hidden in plain sight...&quot;
+              </p>
+          )}
+        </div>
+
+        {/* 底部档案标签 */}
+        <div className="px-4 py-2 bg-stone-800 border-t border-stone-700 flex justify-between items-center">
+          <span className="text-[10px] text-stone-500 uppercase">Confidential</span>
+          <div className="w-16 h-4 bg-stone-700/50"/>
+        </div>
+      </motion.div>
+  )
+})
+
+DetectiveNotes.displayName = 'DetectiveNotes'
+
+/**
+ * 底部状态栏 - 侦探事务所风格
+ */
+const OfficeStatusBar = memo(({currentPhase, progress, canGoBack, onBack, gameStatus}) => {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'playing':
+        return 'text-green-400'
+      case 'waiting':
+        return 'text-amber-400'
+      default:
+        return 'text-stone-400'
+    }
+  }
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'playing':
+        return 'ACTIVE CASE'
+      case 'waiting':
+        return 'PENDING'
+      default:
+        return 'CLOSED'
+    }
+  }
+
+  return (
+      <div
+          className="relative z-10 flex-none px-4 sm:px-6 py-3 border-t-2 border-stone-800 bg-stone-900/95 backdrop-blur-xl">
+        {/* 装饰线 */}
+        <div
+            className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-700/30 to-transparent"/>
+
+        <div className="flex items-center justify-between text-xs sm:text-sm">
+          <div className="flex items-center gap-4">
+            {/* 当前阶段 */}
+            <div className="flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5 text-stone-500"/>
+              <span className="text-stone-500">Now:</span>
+              <span className="text-amber-200 font-serif">{PHASE_CONFIG[currentPhase]?.title}</span>
+            </div>
+
+            {/* 返回按钮 */}
+            {canGoBack && (
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-1 text-stone-500 hover:text-stone-300 transition-colors"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5"/>
+                  <span>Review</span>
+                </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-6">
+            {/* 进度 */}
+            <div className="flex items-center gap-2">
+              <span className="text-stone-500">Progress:</span>
+              <div className="w-24 h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                <motion.div
+                    className="h-full bg-gradient-to-r from-amber-700 to-amber-500"
+                    initial={{width: 0}}
+                    animate={{width: `${progress}%`}}
+                    transition={{duration: 0.5}}
+                />
+              </div>
+              <span className="text-stone-300 font-mono">{progress}%</span>
+            </div>
+
+            {/* 状态 */}
+            <div className="flex items-center gap-2">
+              <span className="text-stone-500">Status:</span>
+              <span className={`font-medium ${getStatusColor(gameStatus)}`}>
+              {getStatusText(gameStatus)}
+            </span>
+            </div>
+          </div>
+        </div>
+      </div>
+  )
+})
+
+OfficeStatusBar.displayName = 'OfficeStatusBar'
+
+// =============================================================================
+// 主组件
+// =============================================================================
+
 function GameRoom() {
-    const {id} = useParams()
-    const navigate = useNavigate()
+  const {id} = useParams()
+  const navigate = useNavigate()
 
-    // 当前阶段状态（预留：后续从 API/WebSocket 获取）
-    const [currentPhase, setCurrentPhase] = useState(GAME_PHASE.INTRODUCTION)
+  // 调试模式
+  const [showDebugPanel, setShowDebugPanel] = useState(false)
 
-    // 阶段信息列表（预留：从 API 获取）
-    const [phaseInfo, setPhaseInfo] = useState(null)
+  const {
+    isDebugMode,
+    isLoading: debugIsLoading,
+    gameData: debugGameData,
+    playerData: debugPlayerData,
+    isConnected: debugIsConnected,
+    sendMessage: debugSendMessage,
+    onMessage: debugOnMessage,
+    toggleDebugMode,
+    forcePhaseChange,
+  } = useDebugMode({enabled: DEFAULT_DEBUG_MODE})
 
-    // 调试面板状态
-    const [showDebugPanel, setShowDebugPanel] = useState(false)
+  // 阶段管理
+  const {
+    currentPhase,
+    currentConfig,
+    sequence,
+    progress,
+    goToNext,
+    goToPrevious,
+    canGoBack,
+    updatePhaseData,
+    getPhaseData,
+    goToPhase,
+  } = usePhaseManager({
+    sequence: DEFAULT_PHASE_SEQUENCE,
+    onPhaseChange: (newPhase, prevPhase) => {
+      console.log(`[GameRoom] Phase: ${prevPhase} -> ${newPhase}`)
+    },
+    onComplete: () => {
+      console.log('[GameRoom] Case closed')
+    },
+  })
 
-    // WebSocket 连接
-    const {isConnected, sendMessage, onMessage, offMessage} = useWebSocket(`ws://localhost:8088/ws`)
+  // 数据获取
+  const {
+    data: apiGameData,
+    isLoading: apiIsLoading,
+    error: apiError,
+  } = useQuery({
+    queryKey: ['game', id],
+    queryFn: () => gameApi.getGame(id),
+    staleTime: 30000,
+    enabled: !isDebugMode,
+  })
 
-    // 获取游戏数据
-    const {data: game, isLoading, error} = useQuery({
-        queryKey: ['game', id],
-        queryFn: () => gameApi.getGame(id),
+  const {
+    data: apiPlayerData,
+  } = useQuery({
+    queryKey: ['player', id],
+    queryFn: () => gameApi.getPlayer(id),
+    enabled: !isDebugMode && !!id,
+    staleTime: 60000,
+  })
+
+  // 合并数据
+  const gameData = useMemo(() =>
+          isDebugMode ? {data: debugGameData} : apiGameData,
+      [isDebugMode, debugGameData, apiGameData]
+  )
+
+  const playerData = useMemo(() =>
+          isDebugMode ? {data: debugPlayerData} : apiPlayerData,
+      [isDebugMode, debugPlayerData, apiPlayerData]
+  )
+
+  const isLoading = isDebugMode ? debugIsLoading : apiIsLoading
+  const error = isDebugMode ? null : apiError
+
+  // WebSocket
+  const wsUrl = useMemo(() => `${WS_BASE_URL}/ws/game/${id}`, [id])
+
+  const {
+    isConnected: apiIsConnected,
+    sendMessage: apiSendMessage,
+    onMessage: apiOnMessage,
+  } = useWebSocket(isDebugMode ? null : wsUrl)
+
+  const isConnected = isDebugMode ? debugIsConnected : apiIsConnected
+  const sendMessage = isDebugMode ? debugSendMessage : apiSendMessage
+  const onMessage = isDebugMode ? debugOnMessage : apiOnMessage
+
+  // WebSocket 监听
+  useEffect(() => {
+    const handleServerPhaseChange = (data) => {
+      if (data?.phase && data.phase !== currentPhase) {
+        console.log('[GameRoom] Server phase change:', data)
+        goToPhase(data.phase)
+      }
+    }
+
+    const handleGameUpdate = (data) => {
+      console.log('[GameRoom] Game update:', data)
+    }
+
+    const unsubPhase = onMessage('PHASE_CHANGE', handleServerPhaseChange)
+    const unsubGame = onMessage('GAME_UPDATE', handleGameUpdate)
+
+    return () => {
+      unsubPhase?.()
+      unsubGame?.()
+    }
+  }, [onMessage, currentPhase, goToPhase])
+
+  // 事件处理
+  const handlePhaseComplete = useCallback(() => goToNext(), [goToNext])
+  const handlePhaseSkip = useCallback(() => goToNext(), [goToNext])
+  const handlePhaseBack = useCallback(() => goToPrevious(), [goToPrevious])
+
+  const handleAction = useCallback((action, payload) => {
+    sendMessage({
+      type: 'PLAYER_ACTION',
+      action,
+      payload,
+      timestamp: Date.now(),
     })
 
-    // 预留：从 API 获取阶段信息
-    useEffect(() => {
-        // TODO: 调用 API 获取阶段信息
-        // const fetchPhaseInfo = async () => {
-        //     const response = await gameApi.getPhaseInfo(id)
-        //     setPhaseInfo(response.data)
-        //     setCurrentPhase(response.data.currentPhase)
-        // }
-        // fetchPhaseInfo()
-    }, [id])
+    updatePhaseData(currentPhase, {[action]: payload})
 
-    // WebSocket 消息监听
-    useEffect(() => {
-        // 监听阶段变化消息
-        onMessage(WS_MESSAGE_TYPE.PHASE_CHANGE, (data) => {
-            console.log('收到阶段变化消息:', data)
-            setCurrentPhase(data.phase)
-        })
+    if (action === 'return_home') navigate('/')
+    if (action === 'play_again') navigate('/games')
+  }, [currentPhase, navigate, sendMessage, updatePhaseData])
 
-        // 监听游戏更新消息
-        onMessage(WS_MESSAGE_TYPE.GAME_UPDATE, (data) => {
-            console.log('收到游戏更新消息:', data)
-        })
-
-        return () => {
-            offMessage(WS_MESSAGE_TYPE.PHASE_CHANGE)
-            offMessage(WS_MESSAGE_TYPE.GAME_UPDATE)
-        }
-    }, [onMessage, offMessage])
-
-    // 发送消息
-    const handleSendMessage = (message) => {
-        if (isConnected) {
-            sendMessage(message)
-        }
+  const handleExit = useCallback(() => {
+    if (window.confirm('Close the case file? Unsaved progress will be lost.')) {
+      sendMessage({type: 'GAME_LEAVE', gameId: id})
+      navigate('/games')
     }
+  }, [id, navigate, sendMessage])
 
-    // 调试：手动切换阶段
-    const handleDebugPhaseChange = (phase) => {
-        setCurrentPhase(phase)
-        console.log(`[Debug] 切换到阶段: ${GAME_PHASE_TEXT[phase]}`)
+  const handleDebugPhaseChange = useCallback((phase) => {
+    if (isDebugMode) {
+      forcePhaseChange(phase)
+      goToPhase(phase, false)
     }
+  }, [isDebugMode, forcePhaseChange, goToPhase])
 
-    // 处理操作按钮点击
-    const handleAction = (actionId) => {
-        switch (actionId) {
-            case 'exit':
-                if (confirm('确定要退出游戏吗？')) {
-                    // TODO: 调用 API 退出游戏
-                    navigate('/games')
-                }
-                break
-            case 'script':
-                console.log('查看剧本')
-                break
-            case 'players':
-                console.log('查看玩家')
-                break
-            case 'chat':
-                console.log('打开聊天')
-                break
-            case 'settings':
-                console.log('打开设置')
-                break
-            default:
-                console.log('未知操作:', actionId)
-        }
+  // 渲染当前阶段
+  const renderCurrentPhase = useCallback(() => {
+    const PhaseComponent = PhaseComponents[currentPhase]
+
+    if (!PhaseComponent) {
+      return (
+          <div className="h-full flex items-center justify-center text-stone-500 font-serif">
+            <p>Unknown case file: {currentPhase}</p>
+          </div>
+      )
     }
-
-    if (isLoading) {
-        return <Loading fullScreen text="加载游戏房间..."/>
-    }
-
-    if (error) {
-        return (
-            <div className="h-screen w-screen flex items-center justify-center bg-slate-900">
-                <div className="text-center">
-                    <h3 className="text-2xl font-bold text-slate-200 mb-2">加载失败</h3>
-                    <p className="text-slate-500">无法获取游戏信息，请稍后重试</p>
-                </div>
-            </div>
-        )
-    }
-
-    const gameData = game?.data
-    const CurrentPhaseComponent = PHASE_COMPONENTS[currentPhase] || PhaseIntroduction
 
     return (
-        <div className="h-screen w-screen bg-slate-900 flex flex-col overflow-hidden">
-            {/* 背景装饰 */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden">
-                <div
-                    className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(rgba(30,41,59,0.8)_1px,transparent_1px),linear-gradient(90deg,rgba(30,41,59,0.8)_1px,transparent_1px)] bg-[size:60px_60px]"/>
-                <div className="absolute top-20 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"/>
-                <div className="absolute bottom-20 left-20 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"/>
+        <PhaseComponent
+            config={currentConfig}
+            gameData={gameData?.data}
+            playerData={playerData?.data}
+            phaseData={getPhaseData(currentPhase)}
+            onComplete={handlePhaseComplete}
+            onSkip={handlePhaseSkip}
+            onBack={handlePhaseBack}
+            onAction={handleAction}
+        />
+    )
+  }, [
+    currentPhase,
+    currentConfig,
+    gameData,
+    playerData,
+    getPhaseData,
+    handlePhaseComplete,
+    handlePhaseSkip,
+    handlePhaseBack,
+    handleAction,
+  ])
+
+  // 渲染状态
+  if (isLoading) {
+    return (
+        <Loading
+            fullScreen
+            text="Opening case file..."
+            className="bg-stone-950 text-amber-100"
+        />
+    )
+  }
+
+  if (error) {
+    return (
+        <div className="h-screen w-screen flex items-center justify-center bg-stone-950">
+          <div className="text-center border-2 border-stone-800 p-8 bg-stone-900/50">
+            <h2 className="text-2xl font-serif text-amber-100 mb-2">Case File Missing</h2>
+            <p className="text-stone-500 mb-4 font-serif">The records could not be located.</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                  onClick={() => navigate('/games')}
+                  className="px-4 py-2 border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors font-serif"
+              >
+                Back to Archives
+              </button>
+              <button
+                  onClick={() => toggleDebugMode()}
+                  className="px-4 py-2 border border-amber-700/50 text-amber-500 hover:bg-amber-900/20 transition-colors font-serif"
+              >
+                Open Simulation
+              </button>
             </div>
-
-            {/* 顶部栏 */}
-            <header
-                className="relative z-10 flex-none px-6 py-4 border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-xl">
-                <div className="flex items-center justify-between">
-                    {/* 左侧：游戏信息 */}
-                    <div className="flex items-center gap-4">
-                        <div
-                            className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                            {gameData?.name?.[0] || 'G'}
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-bold text-white">
-                                {gameData?.name || `游戏房间 #${id}`}
-                            </h1>
-                            <p className="text-xs text-slate-300">
-                                {gameData?.scriptName || '未选择剧本'} · {gameData?.currentPlayers || 0}/{gameData?.maxPlayers || 8}人
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* 中间：阶段条 */}
-                    <div className="flex-1 max-w-2xl mx-8">
-                        <PhaseStepper
-                            currentPhase={currentPhase}
-                            phases={phaseInfo?.phases}
-                        />
-                    </div>
-
-                    {/* 右侧：操作按钮 */}
-                    <ActionBar onAction={handleAction}/>
-                </div>
-            </header>
-
-            {/* 主内容区 */}
-            <main className="relative z-10 flex-1 p-6 min-h-0">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={currentPhase}
-                        initial={{opacity: 0, y: 20}}
-                        animate={{opacity: 1, y: 0}}
-                        exit={{opacity: 0, y: -20}}
-                        transition={{duration: 0.3}}
-                        className="h-full glass rounded-2xl border border-slate-700/50 overflow-hidden"
-                    >
-                        <CurrentPhaseComponent
-                            gameData={gameData}
-                            sendMessage={handleSendMessage}
-                        />
-                    </motion.div>
-                </AnimatePresence>
-            </main>
-
-            {/* 底部状态栏 */}
-            <footer
-                className="relative z-10 flex-none px-6 py-3 border-t border-slate-800/50 bg-slate-900/80 backdrop-blur-xl">
-                <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-6">
-                        {/* 当前阶段文本 */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-slate-500">当前阶段:</span>
-                            <span className="font-medium text-blue-400">
-                                {GAME_PHASE_TEXT[currentPhase]}
-                            </span>
-                        </div>
-
-                        {/* WebSocket 状态 */}
-                        <div className="flex items-center gap-2">
-                            <div
-                                className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}/>
-                            <span className={`${isConnected ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {isConnected ? '已连接' : '未连接'}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* 游戏状态 */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-slate-500">游戏状态:</span>
-                        <span className={`font-medium ${
-                            gameData?.status === 'waiting' ? 'text-amber-400' :
-                                gameData?.status === 'playing' ? 'text-emerald-400' :
-                                    'text-slate-400'
-                        }`}>
-                            {gameData?.status === 'waiting' ? '等待中' :
-                                gameData?.status === 'playing' ? '游戏中' : '已结束'}
-                        </span>
-                    </div>
-                </div>
-            </footer>
-
-            {/* 调试面板 */}
-            <motion.div
-                initial={false}
-                animate={{y: showDebugPanel ? 0 : 'calc(100% - 40px)'}}
-                className="fixed bottom-0 right-6 z-50 w-80"
-            >
-                <div
-                    className="bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-t-xl shadow-2xl overflow-hidden">
-                    {/* 调试面板头部 */}
-                    <button
-                        onClick={() => setShowDebugPanel(!showDebugPanel)}
-                        className="w-full px-4 py-2 flex items-center justify-between bg-slate-700/50 hover:bg-slate-700/80 transition-colors"
-                    >
-                        <div className="flex items-center gap-2">
-                            <Bug className="w-4 h-4 text-amber-400"/>
-                            <span className="text-sm font-medium text-slate-200">阶段调试</span>
-                        </div>
-                        <motion.div
-                            animate={{rotate: showDebugPanel ? 180 : 0}}
-                            className="text-slate-400"
-                        >
-                            ▼
-                        </motion.div>
-                    </button>
-
-                    {/* 调试面板内容 */}
-                    <div className="p-4 space-y-3">
-                        <p className="text-xs text-slate-500">点击按钮切换阶段：</p>
-                        <div className="grid grid-cols-2 gap-2">
-                            {Object.values(GAME_PHASE).map((phase) => (
-                                <button
-                                    key={phase}
-                                    onClick={() => handleDebugPhaseChange(phase)}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                                        currentPhase === phase
-                                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                                            : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                                    }`}
-                                >
-                                    {GAME_PHASE_TEXT[phase]}
-                                </button>
-                            ))}
-                        </div>
-                        <p className="text-xs text-slate-600 text-center pt-2 border-t border-slate-700/50">
-                            仅用于开发调试
-                        </p>
-                    </div>
-                </div>
-            </motion.div>
+          </div>
         </div>
     )
+  }
+
+  const game = gameData?.data
+
+  return (
+      <div className="h-screen w-screen bg-stone-950 flex flex-col overflow-hidden">
+        {/* Film Noir 背景 */}
+        <NoirBackground color={currentConfig.color}/>
+
+        {/* 顶部导航栏 - 侦探事务所风格 */}
+        <header
+            className="relative z-10 flex-none px-4 sm:px-6 py-4 border-b-2 border-stone-800 bg-stone-900/95 backdrop-blur-xl">
+          {/* 装饰线 */}
+          <div
+              className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-700/30 to-transparent"/>
+
+          <div className="flex items-center justify-between gap-4">
+            {/* 左侧：事务所招牌 + 档案标签 */}
+            <div className="flex items-center gap-6">
+              <OfficeSign/>
+              <div className="hidden md:block">
+                <CaseFileTab currentPhase={currentPhase} sequence={sequence}/>
+              </div>
+            </div>
+
+            {/* 右侧：案件编号 + 无线电状态 + 操作 */}
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:block">
+                <CaseNumber id={id}/>
+              </div>
+              <RadioStatus isConnected={isConnected} isDebugMode={isDebugMode}/>
+
+              {/* 调试面板开关 */}
+              <button
+                  onClick={() => setShowDebugPanel(!showDebugPanel)}
+                  className={`
+                p-2 border transition-colors
+                ${showDebugPanel
+                      ? 'border-amber-600 bg-amber-900/20 text-amber-400'
+                      : 'border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-600'
+                  }
+              `}
+                  title="Detective's Notes"
+              >
+                <Bug className="w-4 h-4"/>
+              </button>
+
+              {/* 退出按钮 */}
+              <button
+                  onClick={handleExit}
+                  className="flex items-center gap-2 px-3 py-2 border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors"
+              >
+                <LogOut className="w-4 h-4"/>
+                <span className="hidden sm:inline text-sm">Close</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 移动端阶段标签 */}
+          <div className="md:hidden mt-3 overflow-x-auto pb-1">
+            <CaseFileTab currentPhase={currentPhase} sequence={sequence}/>
+          </div>
+        </header>
+
+        {/* 主内容区 - 档案文件夹风格 */}
+        <main className="relative z-10 flex-1 px-4 sm:px-6 pb-4 sm:pb-6 pt-8 sm:pt-10 min-h-0">
+          <div
+              className="h-full bg-stone-900/80 border-2 border-stone-700 shadow-2xl shadow-black/50 overflow-hidden relative">
+            {/* 内容区域 */}
+            <div className="h-full p-4 sm:p-6">
+              <PhaseWrapper phase={currentPhase}>
+                <Suspense fallback={<PhaseLoadingPlaceholder/>}>
+                  {renderCurrentPhase()}
+                </Suspense>
+              </PhaseWrapper>
+            </div>
+          </div>
+        </main>
+
+        {/* 底部状态栏 */}
+        <OfficeStatusBar
+            currentPhase={currentPhase}
+            progress={progress}
+            canGoBack={canGoBack}
+            onBack={handlePhaseBack}
+            gameStatus={game?.status}
+        />
+
+        {/* 调试面板 */}
+        <AnimatePresence>
+          {showDebugPanel && (
+              <DetectiveNotes
+                  isOpen={showDebugPanel}
+                  onClose={() => setShowDebugPanel(false)}
+                  currentPhase={currentPhase}
+                  onPhaseChange={handleDebugPhaseChange}
+                  isDebugMode={isDebugMode}
+                  onToggleDebug={toggleDebugMode}
+              />
+          )}
+        </AnimatePresence>
+      </div>
+  )
 }
 
-export default GameRoom
+export default memo(GameRoom)
