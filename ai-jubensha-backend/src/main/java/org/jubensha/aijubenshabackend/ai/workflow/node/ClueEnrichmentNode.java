@@ -28,7 +28,7 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
  * 线索丰富节点
  * 用于在场景加载之前生成迷惑线索，确保每个场景有4-6个线索
  *
- * @author luobo
+ * @author zewang
  * @date 2026-02-22
  */
 
@@ -101,7 +101,7 @@ public class ClueEnrichmentNode {
                     for (Scene scene : scenes) {
                         List<Clue> sceneClues = new ArrayList<>();
                         for (Clue clue : allClues) {
-                            if (clue.getScene() != null && clue.getScene().contains(scene.getName())) {
+                            if (clue.getScene() != null && clue.getScene().equals(scene.getName())) {
                                 sceneClues.add(clue);
                             }
                         }
@@ -110,10 +110,17 @@ public class ClueEnrichmentNode {
 
                     // 为每个场景生成迷惑线索，确保每个场景有4-6个线索
                     List<Clue> generatedClues = new ArrayList<>();
+                    Map<String, Integer> sceneClueCountMap = new HashMap<>();
+                    
                     for (Scene scene : scenes) {
                         List<Clue> currentClues = sceneClueMap.getOrDefault(scene.getName(), new ArrayList<>());
                         int currentCount = currentClues.size();
                         int targetCount = new Random().nextInt(3) + 4; // 4-6个线索
+                        
+                        // 记录场景线索数量
+                        sceneClueCountMap.put(scene.getName(), currentCount);
+                        
+                        log.info("场景 {} 当前线索数量: {}, 目标线索数量: {}", scene.getName(), currentCount, targetCount);
 
                         if (currentCount < targetCount) {
                             int neededClues = targetCount - currentCount;
@@ -125,10 +132,30 @@ public class ClueEnrichmentNode {
                                 generatedClues.add(decoyClue);
                                 clueService.createClue(decoyClue);
                             }
+                        } else {
+                            log.info("场景 {} 线索数量已满足要求（{}个），无需生成迷惑线索", scene.getName(), currentCount);
                         }
                     }
 
+                    // 计算最终线索数量
+                    Map<String, Integer> finalSceneClueCountMap = new HashMap<>();
+                    List<Clue> updatedAllClues = clueService.getCluesByScriptId(scriptId);
+                    for (Scene scene : scenes) {
+                        int finalCount = 0;
+                        for (Clue clue : updatedAllClues) {
+                            if (clue.getScene() != null && clue.getScene().equals(scene.getName())) {
+                                finalCount++;
+                            }
+                        }
+                        finalSceneClueCountMap.put(scene.getName(), finalCount);
+                        log.info("场景 {} 最终线索数量: {}", scene.getName(), finalCount);
+                    }
+
                     log.info("线索丰富完成，为 {} 个场景生成了 {} 个迷惑线索", scenes.size(), generatedClues.size());
+                    
+                    // 将线索统计信息保存到WorkflowContext
+                    context.setSceneClueCountMap(finalSceneClueCountMap);
+                    context.setGeneratedClueCount(generatedClues.size());
                 } else {
                     log.warn("没有找到场景，无法丰富线索");
                 }

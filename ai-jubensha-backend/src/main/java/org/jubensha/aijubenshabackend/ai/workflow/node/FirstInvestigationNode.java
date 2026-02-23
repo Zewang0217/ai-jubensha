@@ -9,8 +9,12 @@ import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.entity.Clue;
+import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.service.clue.ClueService;
+import org.jubensha.aijubenshabackend.service.game.GameService;
+import org.jubensha.aijubenshabackend.service.investigation.InvestigationService;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
 import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
 
@@ -24,7 +28,7 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
  * 第一轮搜证节点
  *
  * @author zewang
- * @author luobo
+ * @author zewang
  * @version 1.0
  * @date 2026-02-01
  * @since 2026
@@ -74,6 +78,8 @@ public class FirstInvestigationNode {
                 WebSocketService webSocketService = SpringContextUtil.getBean(WebSocketService.class);
                 // 获取消息队列服务
                 MessageQueueService messageQueueService = SpringContextUtil.getBean(MessageQueueService.class);
+                // 获取游戏服务
+                GameService gameService = SpringContextUtil.getBean(GameService.class);
 
                 // 获取RAG服务
                 RAGService ragService = SpringContextUtil.getBean(RAGService.class);
@@ -121,7 +127,14 @@ public class FirstInvestigationNode {
                     playerIds.add(playerId);
                 }
                 context.initInvestigationCounts(playerIds);
+                context.setCurrentInvestigationPhase("FIRST_INVESTIGATION");
                 log.info("已初始化 {} 个玩家的搜证次数，每轮 {} 次", playerIds.size(), WorkflowContext.DEFAULT_INVESTIGATION_LIMIT);
+                log.info("[状态转换] 进入第一轮搜证阶段，当前阶段: {}", context.getCurrentInvestigationPhase());
+
+                // 保存工作流上下文到InvestigationService缓存
+                InvestigationService investigationService = SpringContextUtil.getBean(InvestigationService.class);
+                investigationService.saveWorkflowContext(context.getGameId(), context);
+                log.info("[上下文管理] 已保存工作流上下文到InvestigationService缓存，游戏ID: {}", context.getGameId());
 
                 /*
                 Map<String, Object> assignment = Map.of(
@@ -147,17 +160,24 @@ public class FirstInvestigationNode {
                     investigationData.put("round", 1);
 
                     if ("AI".equals(playerType)) {
-                        // 准备场景ID列表
-                        List<Long> sceneIds = new ArrayList<>();
+                        // 准备线索ID和名称列表
+                        List<Map<String, Object>> clueOptions = new ArrayList<>();
                         for (Scene scene : scenes) {
-                            sceneIds.add(scene.getId());
+                            List<Clue> sceneClues = clueService.getCluesByScene(scene.getName());
+                            for (Clue clue : sceneClues) {
+                                Map<String, Object> clueOption = new java.util.HashMap<>();
+                                clueOption.put("clueId", clue.getId());
+                                clueOption.put("clueName", clue.getName());
+                                clueOption.put("sceneName", scene.getName());
+                                clueOptions.add(clueOption);
+                            }
                         }
                         
                         // 通过消息队列通知AI玩家开始搜证
                         messageQueueService.sendInvestigationNotification(
                                 context.getGameId(),
                                 playerId,
-                                sceneIds,
+                                clueOptions,
                                 WorkflowContext.DEFAULT_INVESTIGATION_LIMIT
                         );
                         // 线索信息已经存储到global_memory中，不需要再存储到对话记忆
@@ -181,6 +201,70 @@ public class FirstInvestigationNode {
                 context.setSuccess(true);
 
                 log.info("第一轮搜证开始，共 {} 个场景可供搜证", scenes.size());
+                log.info("[状态监控] 开始监控玩家搜证完成状态，等待所有玩家完成搜证");
+
+                // 等待所有玩家完成搜证
+                int waitCount = 0;
+                int maxWaitTime = 3600; // 最大等待时间，单位：秒
+                int checkInterval = 5; // 检查间隔，单位：秒
+                boolean allCompleted = false;
+                
+                // 使用之前获取的InvestigationService
+                
+                while (!allCompleted && waitCount < maxWaitTime) {
+                    // 从缓存中获取最新的WorkflowContext状态
+                    WorkflowContext latestContext = investigationService.getWorkflowContext(context.getGameId());
+                    if (latestContext != null) {
+                        // 更新当前上下文为最新状态
+                        context = latestContext;
+                        allCompleted = context.isAllInvestigationCompleted();
+                        
+                        log.info("[状态监控] 等待玩家完成搜证，当前状态: {}", context.getPlayerInvestigationCompleted());
+                        log.info("[状态监控] 剩余搜证次数: {}", context.getAllInvestigationCounts());
+                        log.info("[状态监控] 已等待时间: {}秒，最大等待时间: {}秒", waitCount, maxWaitTime);
+                    } else {
+                        log.warn("[状态监控] 无法获取最新的WorkflowContext状态");
+                    }
+                    
+                    if (!allCompleted) {
+                        Thread.sleep(checkInterval * 1000);
+                        waitCount += checkInterval;
+                    }
+                }
+
+                if (allCompleted) {
+                    log.info("[状态转换] 所有玩家已完成搜证，准备进入讨论阶段");
+                    log.info("[状态监控] 最终搜证状态: {}", context.getPlayerInvestigationCompleted());
+                    log.info("[状态监控] 总等待时间: {}秒", waitCount);
+                    
+                    // 更新游戏状态为讨论阶段
+                    if (context.getGameId() != null) {
+                        var gameOpt = gameService.getGameById(context.getGameId());
+                        if (gameOpt.isPresent()) {
+                            Game game = gameOpt.get();
+                            game.setCurrentPhase(GamePhase.DISCUSSION);
+                            gameService.updateGame(context.getGameId(), game);
+                            log.info("[状态转换] 游戏状态已更新为: DISCUSSION");
+                        }
+                    }
+                } else {
+                    log.warn("[状态监控] 等待超时，强制进入讨论阶段");
+                    log.warn("[状态监控] 最终搜证状态: {}", context.getPlayerInvestigationCompleted());
+                    log.warn("[状态监控] 已等待时间: {}秒，超过最大等待时间: {}秒", waitCount, maxWaitTime);
+                    
+                    // 超时后强制更新游戏状态为讨论阶段
+                    if (context.getGameId() != null) {
+                        var gameOpt = gameService.getGameById(context.getGameId());
+                        if (gameOpt.isPresent()) {
+                            Game game = gameOpt.get();
+                            game.setCurrentPhase(GamePhase.DISCUSSION);
+                            gameService.updateGame(context.getGameId(), game);
+                            log.info("[状态转换] 游戏状态已更新为: DISCUSSION (超时强制)");
+                        }
+                    }
+                }
+
+                log.info("[状态转换] 第一轮搜证阶段结束，准备进入讨论阶段");
 
             } catch (Exception e) {
                 log.error("开始第一轮搜证失败: {}", e.getMessage(), e);
