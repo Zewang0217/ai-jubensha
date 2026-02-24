@@ -86,7 +86,7 @@ public class MemoryServiceImpl implements MemoryService {
                 gameId, playerId, clueId, discoveredBy);
         
         // 线索应该存储到全局记忆中，而不是对话记忆中
-        Long storedId = ragService.insertGlobalClueMemory(gameId, clueId, content);
+        Long storedId = ragService.insertGlobalClueMemory(gameId, clueId, content, playerId);
         
         if (storedId != null) {
             log.info("[搜证环节] 线索存储成功，存储ID: {}", storedId);
@@ -103,9 +103,9 @@ public class MemoryServiceImpl implements MemoryService {
     }
 
     @Override
-    public void storeGlobalClueMemory(Long scriptId, Long characterId, String content) {
+    public void storeGlobalClueMemory(Long scriptId, Long characterId, String content, Long playerId) {
         // 使用RAGService存储全局线索记忆
-        ragService.insertGlobalClueMemory(scriptId, characterId, content);
+        ragService.insertGlobalClueMemory(scriptId, characterId, content, playerId);
         log.info("存储全局线索记忆，剧本ID: {}, 角色ID: {}", scriptId, characterId);
     }
 

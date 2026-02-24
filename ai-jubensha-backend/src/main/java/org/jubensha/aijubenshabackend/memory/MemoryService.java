@@ -85,7 +85,7 @@ public interface MemoryService {
      * @param characterId 角色ID
      * @param content     线索内容
      */
-    void storeGlobalClueMemory(Long scriptId, Long characterId, String content);
+    void storeGlobalClueMemory(Long scriptId, Long characterId, String content, Long playerId);
 
     /**
      * 检索全局线索记忆（跨游戏）
