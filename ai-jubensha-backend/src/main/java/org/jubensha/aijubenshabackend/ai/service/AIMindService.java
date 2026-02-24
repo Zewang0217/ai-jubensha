@@ -118,7 +118,7 @@ public class AIMindService {
 
                 // 5. 检查是否需要继续思考
                 if (analysisResult.isComplete()) {
-                    log.debug("思考完成，轮次: {}", round);
+//                    log.debug("思考完成，轮次: {}", round);
                     finalResults = retrievalResults;
                     break;
                 }
@@ -566,7 +566,7 @@ public class AIMindService {
      */
     public List<Map<String, Object>> executeActiveMemoryRetrieval(Long gameId, Long playerId, String task, String context) {
         try {
-            log.info("执行主动记忆检索，游戏ID: {}, 玩家ID: {}, 任务: {}", gameId, playerId, task);
+//            log.info("执行主动记忆检索，游戏ID: {}, 玩家ID: {}, 任务: {}", gameId, playerId, task);
 
             // 1. 分析任务类型，选择检索策略
             RetrievalStrategy strategy = selectRetrievalStrategy(task, context);
@@ -577,7 +577,7 @@ public class AIMindService {
             // 3. 对结果进行重排
             List<Map<String, Object>> rerankedResults = rerankingService.twoStepRetrieval(task, results, 15);
 
-            log.info("主动记忆检索完成，游戏ID: {}, 玩家ID: {}, 返回 {} 条结果", gameId, playerId, rerankedResults.size());
+//            log.info("主动记忆检索完成，游戏ID: {}, 玩家ID: {}, 返回 {} 条结果", gameId, playerId, rerankedResults.size());
             return rerankedResults;
 
         } catch (Exception e) {
@@ -677,7 +677,7 @@ public class AIMindService {
      */
     public ReasoningChain buildReasoningChain(Long gameId, Long playerId, String query) {
         try {
-            log.info("构建推理链，游戏ID: {}, 玩家ID: {}, 查询: {}", gameId, playerId, query);
+//            log.info("构建推理链，游戏ID: {}, 玩家ID: {}, 查询: {}", gameId, playerId, query);
 
             ReasoningChain reasoningChain = new ReasoningChain(gameId, playerId, query);
 
