@@ -37,6 +37,10 @@ public class MessageChunker {
     private static final int PLAYER_MESSAGE_CHUNK_SIZE = 450;     // 玩家消息分块大小
     private static final int AI_PLAYER_MESSAGE_CHUNK_SIZE = 450;  // AI玩家消息分块大小
     private static final int SYSTEM_MESSAGE_CHUNK_SIZE = 300;     // 系统消息分块大小
+    
+    // 短块切分策略（用于父子文档检索）
+    private static final int SHORT_CHUNK_MIN_SIZE = 30;           // 短块最小大小
+    private static final int SHORT_CHUNK_MAX_SIZE = 50;           // 短块最大大小
 
     /**
      * 智能分块消息
@@ -164,7 +168,8 @@ public class MessageChunker {
         if (senderName.equals("DM") || senderName.equals("主持人")) {
             // 检查消息内容是否包含DM特征
             if (message.contains("阶段") || message.contains("规则") || message.contains("话术") || 
-                message.contains("流程") || message.contains("操作手册")) {
+                message.contains("流程") || message.contains("操作手册") ||
+                message.contains("宣布") || message.contains("开始") || message.contains("结束")) {
                 return MessageType.DM_MESSAGE;
             }
         }
@@ -177,6 +182,11 @@ public class MessageChunker {
 
         // 识别AI玩家消息
         if (senderName.startsWith("AI_") || senderName.contains("AI") || senderName.contains("智能")) {
+            // 检查是否是AI玩家的最终响应
+            if (message.contains("陈述已生成") || message.contains("已完成结构化陈述") || 
+                (message.length() < 200 && (message.contains("包括:") || message.contains("包含:")))) {
+                return MessageType.SYSTEM_MESSAGE;
+            }
             return MessageType.AI_PLAYER_MESSAGE;
         }
 
@@ -198,9 +208,10 @@ public class MessageChunker {
             case PLAYER_MESSAGE:
                 return true;  // 玩家消息必须存储
             case DM_MESSAGE:
-                return false; // DM消息选择性存储（可选）
+                return false;  // DM消息不存储，主要是规则说明和流程引导
             case SYSTEM_MESSAGE:
-                return false; // 系统消息不存储
+                // 系统消息选择性存储，只存储包含游戏状态更新的消息
+                return false;
             default:
                 return false;
         }
@@ -240,5 +251,99 @@ public class MessageChunker {
         }
 
         return result;
+    }
+    
+    /**
+     * 短块切分（用于父子文档检索）
+     * 将消息切分为30-50 tokens的短块，适合向量相似度搜索
+     *
+     * @param message 原始消息
+     * @return 短块列表
+     */
+    public List<String> chunkForParentChildRetrieval(String message) {
+        if (message == null || message.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        List<String> shortChunks = new ArrayList<>();
+        
+        // 按句号、逗号等标点符号切分
+        String[] sentences = message.split("[。，！？；]");
+        
+        StringBuilder currentChunk = new StringBuilder();
+        int currentTokens = 0;
+        
+        for (String sentence : sentences) {
+            sentence = sentence.trim();
+            if (sentence.isEmpty()) {
+                continue;
+            }
+            
+            int sentenceTokens = tokenUtils.estimateTokens(sentence);
+            
+            // 如果当前块加上这个句子超过最大大小，先保存当前块
+            if (currentTokens + sentenceTokens > SHORT_CHUNK_MAX_SIZE) {
+                if (currentChunk.length() > 0) {
+                    shortChunks.add(currentChunk.toString().trim());
+                    currentChunk = new StringBuilder();
+                    currentTokens = 0;
+                }
+                
+                // 如果句子本身就很长，单独作为一个块
+                if (sentenceTokens > SHORT_CHUNK_MAX_SIZE) {
+                    String[] subSentences = sentence.split(" ");
+                    StringBuilder subChunk = new StringBuilder();
+                    int subTokens = 0;
+                    
+                    for (String subSentence : subSentences) {
+                        int subSentenceTokens = tokenUtils.estimateTokens(subSentence);
+                        if (subTokens + subSentenceTokens > SHORT_CHUNK_MAX_SIZE) {
+                            if (subChunk.length() > 0) {
+                                shortChunks.add(subChunk.toString().trim());
+                                subChunk = new StringBuilder();
+                                subTokens = 0;
+                            }
+                        }
+                        subChunk.append(subSentence).append(" ");
+                        subTokens += subSentenceTokens;
+                    }
+                    
+                    if (subChunk.length() > 0) {
+                        shortChunks.add(subChunk.toString().trim());
+                    }
+                } else {
+                    currentChunk.append(sentence).append("。");
+                    currentTokens = sentenceTokens;
+                }
+            } else {
+                currentChunk.append(sentence).append("。");
+                currentTokens += sentenceTokens;
+            }
+        }
+        
+        // 添加最后一个块
+        if (currentChunk.length() > 0) {
+            shortChunks.add(currentChunk.toString().trim());
+        }
+        
+        // 过滤掉过短的块
+        List<String> filteredChunks = new ArrayList<>();
+        for (String chunk : shortChunks) {
+            int chunkTokens = tokenUtils.estimateTokens(chunk);
+            if (chunkTokens >= SHORT_CHUNK_MIN_SIZE || shortChunks.size() == 1) {
+                filteredChunks.add(chunk);
+            }
+        }
+        
+        return filteredChunks;
+    }
+    
+    /**
+     * 获取短块大小范围
+     *
+     * @return 短块大小范围数组 [min, max]
+     */
+    public int[] getShortChunkSizeRange() {
+        return new int[]{SHORT_CHUNK_MIN_SIZE, SHORT_CHUNK_MAX_SIZE};
     }
 }

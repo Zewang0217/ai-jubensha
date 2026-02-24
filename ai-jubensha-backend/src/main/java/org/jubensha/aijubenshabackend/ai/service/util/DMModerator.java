@@ -11,6 +11,7 @@ import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -52,6 +53,9 @@ public class DMModerator {
 
     @Autowired
     private CharacterService characterService;
+
+    @Autowired
+    private RAGService ragService;
 
     // 线程池
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
@@ -139,12 +143,17 @@ public class DMModerator {
                                 gameId.toString(),
                                 playerId.toString(),
                                 character.getId().toString(),
-                                character.getName()
+                                character.getName(),
+                                scriptId.toString(),
+                                character.getBackgroundStory() != null ? character.getBackgroundStory() : "暂无背景故事",
+                                character.getSecret() != null ? character.getSecret() : "暂无秘密信息",
+                                character.getTimeline() != null ? character.getTimeline() : "暂无时间线信息"
                         );
                         
                         // 发送陈述消息
                         if (statement != null && !statement.isEmpty()) {
                             log.info("AI玩家陈述，玩家ID: {}, 角色: {}, 内容: {}", playerId, character.getName(), statement);
+                            // 通过sendDiscussionMessageTool发送消息，会自动处理存储逻辑
                             sendDiscussionMessageTool.executeSendDiscussionMessage(statement, gameId, playerId, playerIds);
                         }
                     }

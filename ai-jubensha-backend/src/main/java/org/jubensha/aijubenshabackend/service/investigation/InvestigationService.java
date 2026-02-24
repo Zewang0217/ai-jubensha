@@ -14,7 +14,7 @@ import java.util.Map;
  * 搜证服务接口
  * 定义玩家搜证相关的业务逻辑
  *
- * @author luobo
+ * @author zewang
  * @date 2026-02-10
  */
 public interface InvestigationService {

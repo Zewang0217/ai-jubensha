@@ -11,7 +11,7 @@ import java.util.Map;
  * 搜证响应数据传输对象
  * 用于返回搜证结果给前端
  *
- * @author luobo
+ * @author zewang
  * @date 2026-02-10
  */
 @Data

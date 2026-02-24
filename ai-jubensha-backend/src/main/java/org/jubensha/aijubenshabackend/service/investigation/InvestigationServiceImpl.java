@@ -8,8 +8,10 @@ import org.jubensha.aijubenshabackend.models.dto.InvestigationRequestDTO;
 import org.jubensha.aijubenshabackend.models.dto.InvestigationResponseDTO;
 import org.jubensha.aijubenshabackend.models.dto.InvestigationStatusDTO;
 import org.jubensha.aijubenshabackend.models.entity.Clue;
+import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
+import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
 import org.jubensha.aijubenshabackend.service.clue.ClueService;
 import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
@@ -24,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 搜证服务实现类
  * 实现玩家搜证相关的业务逻辑
  *
- * @author luobo
+ * @author luobo zewang
  * @date 2026-02-10
  */
 @Slf4j
@@ -42,16 +44,19 @@ public class InvestigationServiceImpl implements InvestigationService {
     private final ClueService clueService;
     private final SceneService sceneService;
     private final WebSocketService webSocketService;
+    private final RAGService ragService;
 
     @Autowired
     public InvestigationServiceImpl(GameService gameService,
                                     ClueService clueService,
                                     SceneService sceneService,
-                                    WebSocketService webSocketService) {
+                                    WebSocketService webSocketService,
+                                    RAGService ragService) {
         this.gameService = gameService;
         this.clueService = clueService;
         this.sceneService = sceneService;
         this.webSocketService = webSocketService;
+        this.ragService = ragService;
     }
 
     /**
@@ -91,21 +96,76 @@ public class InvestigationServiceImpl implements InvestigationService {
             throw InvalidInvestigationException.invalidScene(sceneId);
         }
 
-        // 6. 扣减搜证次数
+        // 6. 更新线索状态并保存到向量数据库
+        if (clue.getVisibility() == ClueVisibility.UNDISCOVERED) {
+            // 7. 将线索保存到向量数据库
+            try {
+                // 构建线索内容，包含线索名称和描述
+                String clueContent = clue.getName() + ": " + clue.getDescription();
+                
+                // 确定线索的可见性和对应的玩家ID
+                Long characterId;
+                if (clue.getImportance() != null && clue.getImportance() >= 5) {
+                    // 重要线索默认为公开线索
+                    clue.setVisibility(ClueVisibility.PUBLIC);
+                    characterId = 0L;
+                } else {
+                    // 普通线索为非公开线索
+                    clue.setVisibility(ClueVisibility.PRIVATE);
+                    characterId = playerId;
+                }
+                
+                // 更新线索状态
+                clueService.updateClue(clue.getId(), clue);
+                log.info("线索 {} 状态已更新为 {}", clue.getName(), clue.getVisibility());
+                
+                // 保存到全局线索记忆
+                Long ragId = ragService.insertGlobalClueMemory(clue.getScriptId(), characterId, clueContent);
+                if (ragId != null) {
+                    log.info("线索 {} 已成功保存到向量数据库，RAG ID: {}, 玩家ID: {}", clue.getName(), ragId, characterId);
+                } else {
+                    log.warn("线索 {} 保存到向量数据库失败", clue.getName());
+                }
+            } catch (Exception e) {
+                log.error("保存线索到向量数据库失败: {}", e.getMessage(), e);
+                // 继续执行，不中断搜证流程
+            }
+        } else if (clue.getVisibility() == ClueVisibility.PUBLIC) {
+            // 公开线索直接保存到向量数据库，player_id 为 0
+            try {
+                String clueContent = clue.getName() + ": " + clue.getDescription();
+                Long ragId = ragService.insertGlobalClueMemory(clue.getScriptId(), 0L, clueContent);
+                if (ragId != null) {
+                    log.info("公开线索 {} 已成功保存到向量数据库，RAG ID: {}", clue.getName(), ragId);
+                } else {
+                    log.warn("公开线索 {} 保存到向量数据库失败", clue.getName());
+                }
+            } catch (Exception e) {
+                log.error("保存公开线索到向量数据库失败: {}", e.getMessage(), e);
+            }
+        }
+
+        // 7. 扣减搜证次数
         boolean consumed = context.consumeInvestigationChance(playerId);
         if (!consumed) {
             log.error("扣减玩家 {} 搜证次数失败", playerId);
             throw new NoInvestigationChanceException(playerId, 0);
         }
 
-        // 7. 记录搜证历史
+        // 8. 检查玩家是否已用完所有搜证次数，如果是，标记为已完成搜证
+        int remainingChances = context.getRemainingInvestigationCount(playerId);
+        if (remainingChances <= 0) {
+            context.markInvestigationCompleted(playerId);
+            log.info("玩家 {} 已用完所有搜证次数，标记为已完成搜证", playerId);
+        }
+
+        // 9. 记录搜证历史
         context.recordInvestigationHistory(playerId, sceneId, clue.getId(), clue.getName());
 
-        // 8. 保存更新后的上下文
+        // 10. 保存更新后的上下文
         saveWorkflowContext(gameId, context);
 
-        // 9. 构建响应
-        int remainingChances = context.getRemainingInvestigationCount(playerId);
+        // 10. 构建响应
         InvestigationResponseDTO response = InvestigationResponseDTO.success(
                 clue, remainingChances, WorkflowContext.DEFAULT_INVESTIGATION_LIMIT
         );

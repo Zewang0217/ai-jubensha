@@ -9,6 +9,7 @@ import org.jubensha.aijubenshabackend.ai.factory.ScriptGenerateServiceFactory;
 import org.jubensha.aijubenshabackend.ai.service.ScriptGenerateService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.ScriptCreationState;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
+import org.jubensha.aijubenshabackend.core.util.JsonValidationUtil;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 
 import java.util.*;
@@ -110,46 +111,44 @@ public class CharacterGenNode {
                                     characterRole + (characterArchetype != null && !characterArchetype.isEmpty() ? "，性格：" + characterArchetype : ""), 
                                     outlineJson);
                             
-                            // 生成角色剧本
-                            AtomicReference<String> characterScriptBuilder = new AtomicReference<>("");
-                            CompletableFuture<Void> streamFuture = new CompletableFuture<>();
-                            
-                            generateService.generateCharacterMemoir(userMessage)
-                                    .doOnNext(chunk -> {
-                                        characterScriptBuilder.updateAndGet(current -> current + chunk);
-//                                        log.debug("收到角色 {} 生成chunk，长度: {}", characterName, chunk.length());
-                                    })
-                                    .doOnComplete(() -> {
-                                        log.info("角色 {} 生成完成，总长度: {}", characterName, characterScriptBuilder.get().length());
-                                        streamFuture.complete(null);
-                                    })
-                                    .doOnError(error -> {
-                                        log.error("角色 {} 生成失败: {}", characterName, error.getMessage(), error);
-                                        streamFuture.completeExceptionally(error);
-                                    })
-                                    .subscribe();
-                            
-                            // 等待流式生成完成
-                            streamFuture.orTimeout(600, java.util.concurrent.TimeUnit.SECONDS).join();
-                            
-                            String characterScript = characterScriptBuilder.get();
-                            
-                            // 验证生成结果
-                            if (characterScript == null || characterScript.isEmpty()) {
-                                throw new IllegalStateException("角色 " + characterName + " 生成结果为空");
-                            }
-                            
-                            // 预处理 JSON
-                            characterScript = preprocessJson(characterScript);
-                            
-                            // 验证 JSON 格式
-                            try {
-                                objectMapper.readTree(characterScript);
-                                log.debug("角色 {} JSON 格式验证通过", characterName);
-                            } catch (Exception e) {
-                                log.error("角色 {} JSON 格式验证失败: {}", characterName, e.getMessage());
-                                throw new IllegalStateException("角色 " + characterName + " JSON 格式错误", e);
-                            }
+                            // 使用带重试的 JSON 生成与验证
+                            String characterScript = JsonValidationUtil.generateWithRetry(() -> {
+                                // 生成角色剧本
+                                AtomicReference<String> characterScriptBuilder = new AtomicReference<>("");
+                                CompletableFuture<Void> streamFuture = new CompletableFuture<>();
+                                
+                                generateService.generateCharacterMemoir(userMessage)
+                                        .doOnNext(chunk -> {
+                                            characterScriptBuilder.updateAndGet(current -> current + chunk);
+//                                            log.debug("收到角色 {} 生成chunk，长度: {}", characterName, chunk.length());
+                                        })
+                                        .doOnComplete(() -> {
+                                            log.info("角色 {} 生成完成，总长度: {}", characterName, characterScriptBuilder.get().length());
+                                            streamFuture.complete(null);
+                                        })
+                                        .doOnError(error -> {
+                                            log.error("角色 {} 生成失败: {}", characterName, error.getMessage(), error);
+                                            streamFuture.completeExceptionally(error);
+                                        })
+                                        .subscribe();
+                                
+                                // 等待流式生成完成
+                                try {
+                                    streamFuture.orTimeout(600, java.util.concurrent.TimeUnit.SECONDS).join();
+                                } catch (Exception e) {
+                                    log.error("角色 {} 流式生成超时或失败: {}", characterName, e.getMessage());
+                                    throw e;
+                                }
+                                
+                                String script = characterScriptBuilder.get();
+                                
+                                // 验证生成结果
+                                if (script == null || script.isEmpty()) {
+                                    throw new IllegalStateException("角色 " + characterName + " 生成结果为空");
+                                }
+                                
+                                return script;
+                            });
                             
                             // 保存角色剧本
                             synchronized (characterScripts) {
@@ -216,41 +215,5 @@ public class CharacterGenNode {
         return creationState;
     }
     
-    /**
-     * 预处理 JSON，移除代码块标记并修复不完整的 JSON
-     */
-    private static String preprocessJson(String json) {
-        if (json == null || json.isEmpty()) {
-            log.warn("输入 JSON 为空");
-            return "{}";
-        }
-        
-        // 移除开头的代码块标记
-        if (json.startsWith("```json")) {
-            json = json.substring(7);
-            log.debug("移除了开头的 JSON 代码块标记");
-        } else if (json.startsWith("```")) {
-            json = json.substring(3);
-            log.debug("移除了开头的代码块标记");
-        }
-        
-        // 移除结尾的代码块标记
-        if (json.endsWith("```")) {
-            json = json.substring(0, json.length() - 3);
-            log.debug("移除了结尾的代码块标记");
-        }
-        
-        // 去除首尾空白
-        json = json.trim();
-        log.debug("去除首尾空白后的 JSON 长度: {}", json.length());
-        
-        // 移除开头的前言文字，只保留 JSON 内容
-        int jsonStartIndex = json.indexOf('{');
-        if (jsonStartIndex != -1) {
-            json = json.substring(jsonStartIndex);
-            log.debug("移除了开头的前言文字，JSON 长度: {}", json.length());
-        }
-        
-        return json;
-    }
+
 }
