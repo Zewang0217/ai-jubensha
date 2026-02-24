@@ -24,6 +24,7 @@ public class ClueResponseDTO {
     private String imageUrl;
     private Integer importance;
     private LocalDateTime createTime;
+    private Long playerId;
 
     /**
      * 从实体对象创建响应DTO
@@ -44,6 +45,7 @@ public class ClueResponseDTO {
         dto.setImageUrl(clue.getImageUrl());
         dto.setImportance(clue.getImportance());
         dto.setCreateTime(clue.getCreateTime());
+        dto.setPlayerId(clue.getPlayerId());
         return dto;
     }
 }
