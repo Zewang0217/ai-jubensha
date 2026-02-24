@@ -8,6 +8,7 @@ import org.jubensha.aijubenshabackend.ai.factory.ScriptGenerateServiceFactory;
 import org.jubensha.aijubenshabackend.ai.service.ScriptGenerateService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.ScriptCreationState;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
+import org.jubensha.aijubenshabackend.core.util.JsonValidationUtil;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import reactor.core.publisher.Flux;
 
@@ -62,47 +63,45 @@ public class OutlineNode {
                     throw new IllegalStateException("获取剧本生成服务失败");
                 }
                 
-                // 生成大纲
+                // 生成大纲（带重试功能）
                 log.info("开始生成大纲");
-                AtomicReference<String> outlineBuilder = new AtomicReference<>("");
-                CompletableFuture<Void> streamFuture = new CompletableFuture<>();
                 
-                generateService.generateWorldOutline(userPrompt)
-                        .doOnNext(chunk -> {
-                            outlineBuilder.updateAndGet(current -> current + chunk);
-//                            log.debug("收到大纲生成chunk，长度: {}", chunk.length());
-                        })
-                        .doOnComplete(() -> {
-                            log.info("大纲生成完成，总长度: {}", outlineBuilder.get().length());
-                            streamFuture.complete(null);
-                        })
-                        .doOnError(error -> {
-                            log.error("大纲生成失败: {}", error.getMessage(), error);
-                            streamFuture.completeExceptionally(error);
-                        })
-                        .subscribe();
-                
-                // 等待流式生成完成
-                streamFuture.orTimeout(300, java.util.concurrent.TimeUnit.SECONDS).join();
-                
-                String outlineJson = outlineBuilder.get();
-                
-                // 验证生成结果
-                if (outlineJson == null || outlineJson.isEmpty()) {
-                    throw new IllegalStateException("大纲生成结果为空");
-                }
-                
-                // 预处理 JSON
-                outlineJson = preprocessJson(outlineJson);
-                
-                // 验证 JSON 格式
-                try {
-                    objectMapper.readTree(outlineJson);
-                    log.debug("大纲 JSON 格式验证通过");
-                } catch (Exception e) {
-                    log.error("大纲 JSON 格式验证失败: {}", e.getMessage());
-                    throw new IllegalStateException("大纲 JSON 格式错误", e);
-                }
+                // 使用JSON验证与重试工具类
+                String outlineJson = JsonValidationUtil.generateWithRetry(() -> {
+                    AtomicReference<String> outlineBuilder = new AtomicReference<>("");
+                    CompletableFuture<Void> streamFuture = new CompletableFuture<>();
+                    
+                    generateService.generateWorldOutline(userPrompt)
+                            .doOnNext(chunk -> {
+                                outlineBuilder.updateAndGet(current -> current + chunk);
+                            })
+                            .doOnComplete(() -> {
+                                log.info("大纲生成完成，总长度: {}", outlineBuilder.get().length());
+                                streamFuture.complete(null);
+                            })
+                            .doOnError(error -> {
+                                log.error("大纲生成失败: {}", error.getMessage(), error);
+                                streamFuture.completeExceptionally(error);
+                            })
+                            .subscribe();
+                    
+                    // 等待流式生成完成
+                    try {
+                        streamFuture.orTimeout(300, java.util.concurrent.TimeUnit.SECONDS).join();
+                    } catch (Exception e) {
+                        log.error("流式生成大纲超时或失败: {}", e.getMessage());
+                        throw new RuntimeException("流式生成大纲失败", e);
+                    }
+                    
+                    String result = outlineBuilder.get();
+                    
+                    // 验证生成结果
+                    if (result == null || result.isEmpty()) {
+                        throw new IllegalStateException("大纲生成结果为空");
+                    }
+                    
+                    return result;
+                });
                 
                 // 保存大纲到状态
                 creationState.setOutlineJson(outlineJson);
@@ -139,41 +138,5 @@ public class OutlineNode {
         return creationState;
     }
     
-    /**
-     * 预处理 JSON，移除代码块标记并修复不完整的 JSON
-     */
-    private static String preprocessJson(String json) {
-        if (json == null || json.isEmpty()) {
-            log.warn("输入 JSON 为空");
-            return "{}";
-        }
-        
-        // 移除开头的代码块标记
-        if (json.startsWith("```json")) {
-            json = json.substring(7);
-            log.debug("移除了开头的 JSON 代码块标记");
-        } else if (json.startsWith("```")) {
-            json = json.substring(3);
-            log.debug("移除了开头的代码块标记");
-        }
-        
-        // 移除结尾的代码块标记
-        if (json.endsWith("```")) {
-            json = json.substring(0, json.length() - 3);
-            log.debug("移除了结尾的代码块标记");
-        }
-        
-        // 去除首尾空白
-        json = json.trim();
-        log.debug("去除首尾空白后的 JSON 长度: {}", json.length());
-        
-        // 移除开头的前言文字，只保留 JSON 内容
-        int jsonStartIndex = json.indexOf('{');
-        if (jsonStartIndex != -1) {
-            json = json.substring(jsonStartIndex);
-            log.debug("移除了开头的前言文字，JSON 长度: {}", json.length());
-        }
-        
-        return json;
-    }
+
 } 

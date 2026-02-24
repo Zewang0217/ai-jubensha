@@ -255,7 +255,7 @@ public class AssemblyNode {
                     try {
                         clue.setVisibility(ClueVisibility.valueOf(clueNode.path("visibility").asText().toUpperCase()));
                     } catch (Exception e) {
-                        clue.setVisibility(ClueVisibility.PUBLIC);
+                        clue.setVisibility(ClueVisibility.UNDISCOVERED);
                     }
                     
                     clue.setScene(clueNode.path("location").asText(""));

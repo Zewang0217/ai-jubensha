@@ -487,8 +487,8 @@ public class ScriptGeneratorNode {
                 try {
                     clue.setVisibility(ClueVisibility.valueOf(clueNode.path("visibility").asText().toUpperCase()));
                 } catch (Exception e) {
-                    // 默认可见性
-                    clue.setVisibility(ClueVisibility.PUBLIC);
+                    // 默认可见性为未发现
+                    clue.setVisibility(ClueVisibility.UNDISCOVERED);
                 }
                 clue.setScene(clueNode.path("scene").asText());
                 clue.setImageUrl(emptyString);
