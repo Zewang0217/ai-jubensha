@@ -244,3 +244,6 @@ ALTER TABLE clues MODIFY COLUMN visibility ENUM('PUBLIC', 'DISCOVERED', 'PRIVATE
 
 -- 更新线索表的type字段，使其与ClueType枚举类保持一致
 ALTER TABLE clues MODIFY COLUMN type ENUM('PHYSICAL', 'DOCUMENT', 'MEDIA', 'OTHER') DEFAULT 'OTHER' COMMENT '线索类型';
+
+-- 为线索表添加player_id列，存储发现线索的玩家ID
+ALTER TABLE clues ADD COLUMN player_id BIGINT DEFAULT NULL COMMENT '发现线索的玩家ID';
