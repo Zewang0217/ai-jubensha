@@ -5,7 +5,6 @@
  * 设计灵感：1940年代私人侦探事务所
  * - 深色木质纹理与金属质感
  * - 档案柜、打字机、台灯元素
- * - 烟雾、光影、百叶窗投影
  */
 
 import React, {memo, Suspense, useCallback, useEffect, useMemo, useState} from 'react'
@@ -15,13 +14,17 @@ import {AnimatePresence, motion} from 'framer-motion'
 import {gameApi} from '../../services/api'
 import Loading from '../../components/common/Loading'
 import {useWebSocket} from '../../hooks/useWebSocket'
-import {Bug, ChevronLeft, Clock, FileText, FolderOpen, LogOut, Radio, X} from 'lucide-react'
+import {Bug, X} from 'lucide-react'
 
 // 阶段系统导入
 import {DEFAULT_PHASE_SEQUENCE, PHASE_CONFIG, PHASE_TYPE, usePhaseManager,} from './phases'
 
 // 调试模式导入
 import {useDebugMode} from './hooks/useDebugMode'
+
+// 布局组件导入
+import GameRoomHeader from './components/GameRoomHeader'
+import GameRoomFooter from './components/GameRoomFooter'
 
 // =============================================================================
 // 延迟加载阶段组件
@@ -53,125 +56,6 @@ const TRANSITION_CONFIG = {
 // =============================================================================
 // Film Noir 风格子组件
 // =============================================================================
-
-/**
- * 侦探事务所招牌
- */
-const OfficeSign = memo(() => (
-    <div className="flex items-center gap-3">
-      <div className="relative">
-        {/* 台灯效果 */}
-        <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-20 h-20 bg-amber-500/10 rounded-full blur-xl"/>
-        <div
-            className="w-10 h-10 bg-gradient-to-br from-amber-700 to-amber-900 rounded-lg flex items-center justify-center border border-amber-600/50 shadow-lg shadow-amber-900/20">
-          <span className="text-amber-100 font-serif text-lg font-bold">N</span>
-        </div>
-      </div>
-      <div className="hidden sm:block">
-        <h1 className="text-amber-100 font-serif text-sm tracking-wider">NOIR</h1>
-        <p className="text-stone-500 text-xs tracking-widest">DETECTIVE AGENCY</p>
-      </div>
-    </div>
-))
-
-OfficeSign.displayName = 'OfficeSign'
-
-/**
- * 档案文件夹标签
- */
-const CaseFileTab = memo(({currentPhase, sequence}) => {
-  const currentIndex = sequence.indexOf(currentPhase)
-
-  return (
-      <div className="flex items-center">
-        <FolderOpen className="w-4 h-4 text-amber-600/60 mr-2"/>
-        <div className="flex items-center gap-1">
-          {sequence.map((phase, index) => {
-            const config = PHASE_CONFIG[phase]
-            const isActive = index === currentIndex
-            const isCompleted = index < currentIndex
-
-            return (
-                <div key={phase} className="flex items-center">
-                  <motion.button
-                      whileHover={{scale: 1.05}}
-                      className={`
-                  relative px-3 py-1.5 text-xs font-serif transition-all duration-200
-                  ${isActive
-                          ? 'bg-amber-900/40 text-amber-200 border border-amber-700/50'
-                          : isCompleted
-                              ? 'bg-stone-800/50 text-stone-400 border border-stone-700'
-                              : 'bg-stone-900/30 text-stone-600 border border-stone-800'
-                      }
-                `}
-                  >
-                    <span className="hidden lg:inline">{config.title}</span>
-                    <span className="lg:hidden">{String(index + 1).padStart(2, '0')}</span>
-                    {isActive && (
-                        <motion.div
-                            layoutId="activeTab"
-                            className="absolute inset-0 border-2 border-amber-500/30"
-                            transition={{type: 'spring', stiffness: 500, damping: 30}}
-                        />
-                    )}
-                  </motion.button>
-                  {index < sequence.length - 1 && (
-                      <div className="w-4 h-px bg-stone-700 mx-0.5"/>
-                  )}
-                </div>
-            )
-          })}
-        </div>
-      </div>
-  )
-})
-
-CaseFileTab.displayName = 'CaseFileTab'
-
-/**
- * 无线电状态指示器
- */
-const RadioStatus = memo(({isConnected, isDebugMode}) => {
-  return (
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-900/50 border border-stone-700">
-        <Radio
-            className={`w-3.5 h-3.5 ${isDebugMode ? 'text-amber-500' : isConnected ? 'text-green-500' : 'text-red-500'}`}/>
-        <div className="flex flex-col">
-        <span
-            className={`text-[10px] uppercase tracking-wider ${isDebugMode ? 'text-amber-500' : isConnected ? 'text-green-400' : 'text-red-400'}`}>
-          {isDebugMode ? 'SIMULATION' : isConnected ? 'ONLINE' : 'OFFLINE'}
-        </span>
-          <div className="flex gap-0.5 mt-0.5">
-            {[1, 2, 3].map((i) => (
-                <motion.div
-                    key={i}
-                    className={`w-1 h-1 ${isDebugMode ? 'bg-amber-500' : isConnected ? 'bg-green-500' : 'bg-red-500'}`}
-                    animate={{opacity: [0.3, 1, 0.3]}}
-                    transition={{duration: 1.5, repeat: Infinity, delay: i * 0.2}}
-                />
-            ))}
-          </div>
-        </div>
-      </div>
-  )
-})
-
-RadioStatus.displayName = 'RadioStatus'
-
-/**
- * 打字机风格的案件编号
- */
-const CaseNumber = memo(({id}) => (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-900/50 border border-stone-700">
-      <FileText className="w-3.5 h-3.5 text-stone-500"/>
-      <div className="flex flex-col">
-        <span className="text-[10px] text-stone-500 uppercase tracking-wider">Case No.</span>
-        <span className="text-xs text-stone-300 font-mono">#{String(id).padStart(4, '0')}</span>
-      </div>
-    </div>
-))
-
-CaseNumber.displayName = 'CaseNumber'
 
 /**
  * 阶段加载占位符 - 打字机风格
@@ -222,83 +106,16 @@ PhaseWrapper.displayName = 'PhaseWrapper'
 /**
  * Film Noir 背景 - 百叶窗光影效果
  */
-const NoirBackground = memo(({color}) => {
+const NoirBackground = memo(() => {
   return (
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         {/* 基础渐变 */}
         <div className="absolute inset-0 bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950"/>
-
-        {/* 百叶窗光影 */}
-        <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              background: `repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 40px,
-            rgba(255,255,255,0.1) 40px,
-            rgba(255,255,255,0.1) 41px
-          )`,
-            }}
-        />
-
-        {/* 烟雾效果 */}
-        <div
-            className="absolute top-0 left-1/4 w-96 h-96 rounded-full opacity-20"
-            style={{
-              background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)',
-              filter: 'blur(60px)',
-            }}
-        />
-        <div
-            className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full opacity-20"
-            style={{
-              background: 'radial-gradient(circle, rgba(245,158,11,0.1) 0%, transparent 70%)',
-              filter: 'blur(60px)',
-            }}
-        />
-
-        {/* 台灯聚光效果 */}
-        <div
-            className="absolute top-0 right-0 w-1/2 h-1/2 opacity-30"
-            style={{
-              background: `radial-gradient(ellipse at top right, ${getNoirColor(color)}20 0%, transparent 60%)`,
-            }}
-        />
-
-        {/* 噪点纹理 */}
-        <div
-            className="absolute inset-0 opacity-[0.02]"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-            }}
-        />
-
-        {/* 扫描线 */}
-        <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)',
-            }}
-        />
       </div>
   )
 })
 
 NoirBackground.displayName = 'NoirBackground'
-
-// 辅助函数
-function getNoirColor(colorClass) {
-  const colorMap = {
-    'from-blue-500 to-cyan-500': '#3b82f6',
-    'from-violet-500 to-purple-500': '#8b5cf6',
-    'from-emerald-500 to-teal-500': '#10b981',
-    'from-amber-500 to-orange-500': '#f59e0b',
-    'from-rose-500 to-pink-500': '#f43f5e',
-    'from-indigo-500 to-blue-500': '#6366f1',
-  }
-  return colorMap[colorClass] || '#3b82f6'
-}
 
 /**
  * 档案抽屉式调试面板
@@ -412,90 +229,6 @@ const DetectiveNotes = memo(({
 })
 
 DetectiveNotes.displayName = 'DetectiveNotes'
-
-/**
- * 底部状态栏 - 侦探事务所风格
- */
-const OfficeStatusBar = memo(({currentPhase, progress, canGoBack, onBack, gameStatus}) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'playing':
-        return 'text-green-400'
-      case 'waiting':
-        return 'text-amber-400'
-      default:
-        return 'text-stone-400'
-    }
-  }
-
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'playing':
-        return 'ACTIVE CASE'
-      case 'waiting':
-        return 'PENDING'
-      default:
-        return 'CLOSED'
-    }
-  }
-
-  return (
-      <div
-          className="relative z-10 flex-none px-4 sm:px-6 py-3 border-t-2 border-stone-800 bg-stone-900/95 backdrop-blur-xl">
-        {/* 装饰线 */}
-        <div
-            className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-700/30 to-transparent"/>
-
-        <div className="flex items-center justify-between text-xs sm:text-sm">
-          <div className="flex items-center gap-4">
-            {/* 当前阶段 */}
-            <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-stone-500"/>
-              <span className="text-stone-500">Now:</span>
-              <span className="text-amber-200 font-serif">{PHASE_CONFIG[currentPhase]?.title}</span>
-            </div>
-
-            {/* 返回按钮 */}
-            {canGoBack && (
-                <button
-                    onClick={onBack}
-                    className="flex items-center gap-1 text-stone-500 hover:text-stone-300 transition-colors"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5"/>
-                  <span>Review</span>
-                </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-6">
-            {/* 进度 */}
-            <div className="flex items-center gap-2">
-              <span className="text-stone-500">Progress:</span>
-              <div className="w-24 h-1.5 bg-stone-800 rounded-full overflow-hidden">
-                <motion.div
-                    className="h-full bg-gradient-to-r from-amber-700 to-amber-500"
-                    initial={{width: 0}}
-                    animate={{width: `${progress}%`}}
-                    transition={{duration: 0.5}}
-                />
-              </div>
-              <span className="text-stone-300 font-mono">{progress}%</span>
-            </div>
-
-            {/* 状态 */}
-            <div className="flex items-center gap-2">
-              <span className="text-stone-500">Status:</span>
-              <span className={`font-medium ${getStatusColor(gameStatus)}`}>
-              {getStatusText(gameStatus)}
-            </span>
-            </div>
-          </div>
-        </div>
-      </div>
-  )
-})
-
-OfficeStatusBar.displayName = 'OfficeStatusBar'
 
 // =============================================================================
 // 主组件
@@ -722,62 +455,19 @@ function GameRoom() {
   return (
       <div className="h-screen w-screen bg-stone-950 flex flex-col overflow-hidden">
         {/* Film Noir 背景 */}
-        <NoirBackground color={currentConfig.color}/>
+        <NoirBackground/>
 
-        {/* 顶部导航栏 - 侦探事务所风格 */}
-        <header
-            className="relative z-10 flex-none px-4 sm:px-6 py-4 border-b-2 border-stone-800 bg-stone-900/95 backdrop-blur-xl">
-          {/* 装饰线 */}
-          <div
-              className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-700/30 to-transparent"/>
-
-          <div className="flex items-center justify-between gap-4">
-            {/* 左侧：事务所招牌 + 档案标签 */}
-            <div className="flex items-center gap-6">
-              <OfficeSign/>
-              <div className="hidden md:block">
-                <CaseFileTab currentPhase={currentPhase} sequence={sequence}/>
-              </div>
-            </div>
-
-            {/* 右侧：案件编号 + 无线电状态 + 操作 */}
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:block">
-                <CaseNumber id={id}/>
-              </div>
-              <RadioStatus isConnected={isConnected} isDebugMode={isDebugMode}/>
-
-              {/* 调试面板开关 */}
-              <button
-                  onClick={() => setShowDebugPanel(!showDebugPanel)}
-                  className={`
-                p-2 border transition-colors
-                ${showDebugPanel
-                      ? 'border-amber-600 bg-amber-900/20 text-amber-400'
-                      : 'border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-600'
-                  }
-              `}
-                  title="Detective's Notes"
-              >
-                <Bug className="w-4 h-4"/>
-              </button>
-
-              {/* 退出按钮 */}
-              <button
-                  onClick={handleExit}
-                  className="flex items-center gap-2 px-3 py-2 border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors"
-              >
-                <LogOut className="w-4 h-4"/>
-                <span className="hidden sm:inline text-sm">Close</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 移动端阶段标签 */}
-          <div className="md:hidden mt-3 overflow-x-auto pb-1">
-            <CaseFileTab currentPhase={currentPhase} sequence={sequence}/>
-          </div>
-        </header>
+        {/* 顶部导航栏 */}
+        <GameRoomHeader
+            id={id}
+            currentPhase={currentPhase}
+            sequence={sequence}
+            isConnected={isConnected}
+            isDebugMode={isDebugMode}
+            showDebugPanel={showDebugPanel}
+            onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
+            onExit={handleExit}
+        />
 
         {/* 主内容区 - 档案文件夹风格 */}
         <main className="relative z-10 flex-1 px-4 sm:px-6 pb-4 sm:pb-6 pt-8 sm:pt-10 min-h-0">
@@ -795,7 +485,7 @@ function GameRoom() {
         </main>
 
         {/* 底部状态栏 */}
-        <OfficeStatusBar
+        <GameRoomFooter
             currentPhase={currentPhase}
             progress={progress}
             canGoBack={canGoBack}
