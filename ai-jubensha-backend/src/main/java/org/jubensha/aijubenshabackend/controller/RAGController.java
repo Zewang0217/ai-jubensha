@@ -282,10 +282,11 @@ public class RAGController {
             Long characterId = Long.parseLong(request.get("characterId").toString());
             String content = (String) request.get("content");
             String type = (String) request.get("type"); // "clue" 或 "timeline"
+            Long playerId = Long.parseLong(request.get("playerId").toString());
 
             Long recordId;
             if ("clue".equals(type)) {
-                recordId = ragService.insertGlobalClueMemory(scriptId, characterId, content);
+                recordId = ragService.insertGlobalClueMemory(scriptId, characterId, content, playerId);
             } else if ("timeline".equals(type)) {
                 String timestamp = (String) request.get("timestamp");
                 recordId = ragService.insertGlobalTimelineMemory(scriptId, characterId, content, timestamp);

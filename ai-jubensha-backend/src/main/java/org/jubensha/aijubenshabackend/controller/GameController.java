@@ -2,6 +2,7 @@ package org.jubensha.aijubenshabackend.controller;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
 import org.jubensha.aijubenshabackend.ai.workflow.jubenshaWorkflow;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.models.dto.GameCreateDTO;
@@ -30,10 +31,12 @@ public class GameController {
 
     private final GameService gameService;
     private final jubenshaWorkflow workflow;
+    private final DiscussionService discussionService;
 
-    public GameController(GameService gameService, jubenshaWorkflow workflow) {
+    public GameController(GameService gameService, jubenshaWorkflow workflow, DiscussionService discussionService) {
         this.gameService = gameService;
         this.workflow = workflow;
+        this.discussionService = discussionService;
     }
 
     /**
@@ -367,6 +370,141 @@ public class GameController {
             log.error("启动工作流失败: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to start workflow", "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 单独验证答题环节
+     *
+     * @param request 包含游戏ID、玩家ID列表、DM ID和Judge ID的请求
+     * @return 验证结果，包含答案生成和评分信息
+     */
+    @PostMapping("/verify-answer-phase")
+    public ResponseEntity<?> verifyAnswerPhase(@RequestBody Map<String, Object> request) {
+        try {
+            // 获取游戏参数
+            Object gameIdObj = request.get("gameId");
+            if (gameIdObj == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "gameId is required"));
+            }
+            Long gameId = gameIdObj instanceof Number ? ((Number) gameIdObj).longValue() : Long.parseLong(gameIdObj.toString());
+
+            // 获取玩家ID列表
+            List<Long> playerIds = new java.util.ArrayList<>();
+            Object playerIdsObj = request.get("playerIds");
+            if (playerIdsObj instanceof List) {
+                for (Object obj : (List<?>) playerIdsObj) {
+                    if (obj instanceof Number) {
+                        playerIds.add(((Number) obj).longValue());
+                    } else if (obj instanceof String) {
+                        playerIds.add(Long.parseLong((String) obj));
+                    }
+                }
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "playerIds is required and must be a list"));
+            }
+
+            // 获取DM ID
+            Object dmIdObj = request.get("dmId");
+            if (dmIdObj == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "dmId is required"));
+            }
+            Long dmId = dmIdObj instanceof Number ? ((Number) dmIdObj).longValue() : Long.parseLong(dmIdObj.toString());
+
+            // 获取Judge ID
+            Object judgeIdObj = request.get("judgeId");
+            if (judgeIdObj == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "judgeId is required"));
+            }
+            Long judgeId = judgeIdObj instanceof Number ? ((Number) judgeIdObj).longValue() : Long.parseLong(judgeIdObj.toString());
+
+            log.info("开始验证答题环节，游戏ID: {}, 玩家数量: {}, DM ID: {}, Judge ID: {}", gameId, playerIds.size(), dmId, judgeId);
+
+            // 调用DiscussionService的verifyAnswerPhase方法
+            Map<String, Object> result = discussionService.verifyAnswerPhase(gameId, playerIds, dmId, judgeId);
+
+            // 构建响应
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("success", true);
+            response.put("result", result);
+            response.put("gameId", gameId);
+            response.put("playerCount", playerIds.size());
+
+            return ResponseEntity.ok(response);
+        } catch (NumberFormatException e) {
+            log.error("ID格式错误: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Invalid ID format", "message", e.getMessage()));
+        } catch (Exception e) {
+            log.error("验证答题环节失败: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to verify answer phase", "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 测试DM评分功能
+     *
+     * @param request 包含DM ID和玩家答案列表的请求
+     * @return 评分结果，包含每个玩家的评分和评论
+     */
+    @PostMapping("/test-dm-score")
+    public ResponseEntity<?> testDMScore(@RequestBody Map<String, Object> request) {
+        try {
+            // 获取DM ID
+            Object dmIdObj = request.get("dmId");
+            if (dmIdObj == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "dmId is required"));
+            }
+            Long dmId = dmIdObj instanceof Number ? ((Number) dmIdObj).longValue() : Long.parseLong(dmIdObj.toString());
+
+            // 获取玩家答案列表
+            List<Map<String, Object>> answers = new java.util.ArrayList<>();
+            Object answersObj = request.get("answers");
+            if (answersObj instanceof List) {
+                for (Object obj : (List<?>) answersObj) {
+                    if (obj instanceof Map) {
+                        Map<String, Object> answerMap = new java.util.HashMap<>();
+                        Map<?, ?> sourceMap = (Map<?, ?>) obj;
+                        for (Map.Entry<?, ?> entry : sourceMap.entrySet()) {
+                            if (entry.getKey() instanceof String) {
+                                answerMap.put((String) entry.getKey(), entry.getValue());
+                            }
+                        }
+                        answers.add(answerMap);
+                    }
+                }
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "answers is required and must be a list"));
+            }
+
+            log.info("开始测试DM评分功能，DM ID: {}, 玩家答案数量: {}", dmId, answers.size());
+
+            // 调用DiscussionService的testDMScore方法
+            String scoreResult = discussionService.testDMScore(dmId, answers);
+
+            // 构建响应
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("success", true);
+            response.put("scoreResult", scoreResult);
+            response.put("dmId", dmId);
+            response.put("answerCount", answers.size());
+
+            return ResponseEntity.ok(response);
+        } catch (NumberFormatException e) {
+            log.error("ID格式错误: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Invalid ID format", "message", e.getMessage()));
+        } catch (Exception e) {
+            log.error("测试DM评分功能失败: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to test DM score", "message", e.getMessage()));
         }
     }
 }

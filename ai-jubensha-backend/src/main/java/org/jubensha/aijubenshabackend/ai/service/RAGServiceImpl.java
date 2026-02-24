@@ -907,34 +907,34 @@ public class RAGServiceImpl implements RAGService {
 
         // 4. 提取并存储事实到全局记忆
         // 尝试从缓存获取事实提取结果
-        String factCacheKey = "fact:" + content.hashCode();
-        List<Map<String, Object>> facts = factExtractionCache.getIfPresent(factCacheKey);
-        
-        if (facts == null) {
-            // 缓存未命中，提取事实
-            facts = factExtractor.extractFacts(content);
-            if (!facts.isEmpty()) {
-                // 存入缓存
-                factExtractionCache.put(factCacheKey, facts);
-                log.debug("缓存事实提取结果，键: {}, 数量: {}", factCacheKey, facts.size());
-            }
-        } else {
-            log.debug("从缓存获取事实提取结果，键: {}", factCacheKey);
-        }
-        
-        if (!facts.isEmpty()) {
-            log.debug("提取事实完成，数量: {}", facts.size());
-            for (Map<String, Object> fact : facts) {
-                String factContent = (String) fact.get("content");
-                if (factContent != null && !factContent.isEmpty()) {
-                    // 存储事实到全局记忆
-                    insertGlobalClueMemory(gameId, playerId, factContent);
-                }
-            }
-        }
+//        String factCacheKey = "fact:" + content.hashCode();
+//        List<Map<String, Object>> facts = factExtractionCache.getIfPresent(factCacheKey);
+//
+//        if (facts == null) {
+//            // 缓存未命中，提取事实
+////            facts = factExtractor.extractFacts(content);
+//            if (!facts.isEmpty()) {
+//                // 存入缓存
+//                factExtractionCache.put(factCacheKey, facts);
+//                log.debug("缓存事实提取结果，键: {}, 数量: {}", factCacheKey, facts.size());
+//            }
+//        } else {
+//            log.debug("从缓存获取事实提取结果，键: {}", factCacheKey);
+//        }
+//
+//        if (!facts.isEmpty()) {
+//            log.debug("提取事实完成，数量: {}", facts.size());
+//            for (Map<String, Object> fact : facts) {
+//                String factContent = (String) fact.get("content");
+//                if (factContent != null && !factContent.isEmpty()) {
+//                    // 存储事实到全局记忆
+//                    insertGlobalClueMemory(gameId, playerId, factContent, playerId);
+//                }
+//            }
+//        }
 
-        log.info("父子文档存储完成，父文档ID: {}, 总块数: {}, 成功: {}, 失败: {}, 提取事实数: {}", 
-                parentId, shortChunks.size(), successCount, shortChunks.size() - successCount, facts.size());
+        log.info("父子文档存储完成，父文档ID: {}, 总块数: {}, 成功: {}, 失败: {}",
+                parentId, shortChunks.size(), successCount, shortChunks.size() - successCount);
 
         return firstId;
     }
@@ -1022,7 +1022,7 @@ public class RAGServiceImpl implements RAGService {
     }
 
     @Override
-    public Long insertGlobalClueMemory(Long scriptId, Long characterId, String content) {
+    public Long insertGlobalClueMemory(Long scriptId, Long characterId, String content, Long playerId) {
         String collectionName = schemaConfig.getGlobalMemoryCollectionName();
 
         // 确保集合存在
@@ -1042,6 +1042,7 @@ public class RAGServiceImpl implements RAGService {
         JsonObject data = new JsonObject();
         data.addProperty("script_id", scriptId);
         data.addProperty("character_id", characterId);
+        data.addProperty("player_id", playerId);
         data.addProperty("type", "clue");
         data.addProperty("content", content);
         data.addProperty("timestamp", String.valueOf(System.currentTimeMillis()));

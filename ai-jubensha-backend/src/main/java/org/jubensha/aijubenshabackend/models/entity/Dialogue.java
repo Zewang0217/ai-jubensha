@@ -24,7 +24,7 @@ public class Dialogue {
     private Player player;
 
     @ManyToOne
-    @JoinColumn(name = "character_id", nullable = false)
+    @JoinColumn(name = "character_id", nullable = true)
     private Character character;
 
     @Column(columnDefinition = "TEXT", nullable = false)

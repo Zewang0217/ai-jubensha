@@ -114,7 +114,7 @@ public interface RAGService {
      * @param content     线索内容
      * @return 插入的记录ID
      */
-    Long insertGlobalClueMemory(Long scriptId, Long characterId, String content);
+    Long insertGlobalClueMemory(Long scriptId, Long characterId, String content, Long playerId);
 
     /**
      * 插入全局时间线记忆

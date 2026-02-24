@@ -34,6 +34,37 @@ public interface DMAgent {
     @UserMessage("讨论状态：{{discussionState}}")
     String moderateDiscussion(String discussionState);
 
-    @UserMessage("玩家答案：{{answers}}")
+    @UserMessage("""
+玩家答案：{{answers}}
+
+请基于玩家的答题内容和游戏表现，为每个玩家生成评分和评论。
+
+评分标准：
+- 凶手身份判断准确性：0-40分
+- 作案动机分析：0-20分
+- 作案手法分析：0-20分
+- 关键线索分析：0-20分
+
+请严格返回以下JSON格式的评分结果：
+{
+  "scores": [
+    {
+      "playerId": "玩家ID",
+      "score": 总分,
+      "breakdown": {
+        "motive": 动机分,
+        "method": 手法分,
+        "clues": 线索分,
+        "accuracy": 准确性分
+      },
+      "comment": "对该玩家的评论，包括答题质量和游戏表现"
+    },
+    ...
+  ],
+  "summary": "整体游戏表现总结"
+}
+
+请确保JSON格式正确，评分合理，评论内容符合玩家表现。
+""")
     String scoreAnswers(List<Map<String, Object>> answers);
 }
