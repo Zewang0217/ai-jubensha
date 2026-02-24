@@ -73,4 +73,21 @@ public interface ClueService {
     void deleteClue(Long id);
 
     String updateClueImage(Long id, String url);
+
+    /**
+     * 根据玩家ID获取线索
+     *
+     * @param playerId 玩家ID
+     * @return 线索列表
+     */
+    List<Clue> getCluesByPlayerId(Long playerId);
+
+    /**
+     * 获取玩家可见的线索
+     * 公开线索对所有玩家可见，私有线索仅对发现玩家可见
+     *
+     * @param playerId 玩家ID
+     * @return 可见线索列表
+     */
+    List<Clue> getVisibleClues(Long playerId);
 }

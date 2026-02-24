@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 搜证服务实现类
  * 实现玩家搜证相关的业务逻辑
  *
- * @author luobo zewang
+ * @author luobo
  * @date 2026-02-10
  */
 @Slf4j
@@ -120,7 +120,7 @@ public class InvestigationServiceImpl implements InvestigationService {
                 log.info("线索 {} 状态已更新为 {}", clue.getName(), clue.getVisibility());
                 
                 // 保存到全局线索记忆
-                Long ragId = ragService.insertGlobalClueMemory(clue.getScriptId(), characterId, clueContent);
+                Long ragId = ragService.insertGlobalClueMemory(clue.getScriptId(), characterId, clueContent, playerId);
                 if (ragId != null) {
                     log.info("线索 {} 已成功保存到向量数据库，RAG ID: {}, 玩家ID: {}", clue.getName(), ragId, characterId);
                 } else {
@@ -134,7 +134,7 @@ public class InvestigationServiceImpl implements InvestigationService {
             // 公开线索直接保存到向量数据库，player_id 为 0
             try {
                 String clueContent = clue.getName() + ": " + clue.getDescription();
-                Long ragId = ragService.insertGlobalClueMemory(clue.getScriptId(), 0L, clueContent);
+                Long ragId = ragService.insertGlobalClueMemory(clue.getScriptId(), 0L, clueContent, playerId);
                 if (ragId != null) {
                     log.info("公开线索 {} 已成功保存到向量数据库，RAG ID: {}", clue.getName(), ragId);
                 } else {

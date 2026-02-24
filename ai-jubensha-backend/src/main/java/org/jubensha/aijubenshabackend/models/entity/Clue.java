@@ -57,6 +57,9 @@ public class Clue implements Serializable {
 
     private LocalDateTime createTime;
 
+    // 发现线索的玩家ID
+    private Long playerId;
+
     @PrePersist
     protected void onCreate() {
         createTime = LocalDateTime.now();
@@ -64,6 +67,6 @@ public class Clue implements Serializable {
     
     @Override
     public String toString() {
-        return "Clue{id=" + id + ", name='" + name + "', scriptId=" + scriptId + ", sceneId=" + sceneId + '}';
+        return "Clue{id=" + id + ", name='" + name + "', scriptId=" + scriptId + ", sceneId=" + sceneId + ", playerId=" + playerId + '}';
     }
 }
