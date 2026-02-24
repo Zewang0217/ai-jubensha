@@ -95,9 +95,25 @@ public class GetDiscussionHistoryTool extends BaseTool {
             for (Map<String, Object> message : history) {
                 String playerName = (String) message.getOrDefault("player_name", "未知玩家");
                 String content = (String) message.getOrDefault("content", "");
-                Long timestamp = (Long) message.getOrDefault("timestamp", System.currentTimeMillis());
+                long timestampMillis = System.currentTimeMillis();
                 
-                String timeStr = dateFormat.format(new Date(timestamp));
+                // 处理 timestamp 字段，支持 LocalDateTime 和 Long 类型
+                Object timestampObj = message.get("timestamp");
+                if (timestampObj != null) {
+                    if (timestampObj instanceof java.time.LocalDateTime) {
+                        // 处理 LocalDateTime 类型
+                        java.time.LocalDateTime localDateTime = (java.time.LocalDateTime) timestampObj;
+                        timestampMillis = localDateTime.toInstant(java.time.ZoneOffset.of("+8")).toEpochMilli();
+                    } else if (timestampObj instanceof Long) {
+                        // 处理 Long 类型
+                        timestampMillis = (Long) timestampObj;
+                    } else if (timestampObj instanceof Number) {
+                        // 处理其他数字类型
+                        timestampMillis = ((Number) timestampObj).longValue();
+                    }
+                }
+                
+                String timeStr = dateFormat.format(new Date(timestampMillis));
                 result.append(String.format("[%s] %s: %s\n", timeStr, playerName, content));
             }
 

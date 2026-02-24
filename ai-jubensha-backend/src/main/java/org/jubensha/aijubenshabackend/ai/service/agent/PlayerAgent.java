@@ -71,12 +71,12 @@ public interface PlayerAgent {
     String reasonAndDiscuss(String gameId, String playerId, String phase);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。")
-    String analyzeTopic(String gameId, String playerId, String topic);
+    String analyzeTopic(@V("gameId") String gameId, @V("playerId") String playerId, @V("topic") String topic);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请通过调用工具分析当前讨论情况和其他玩家状态，决定是否需要发起单聊，并选择合适的目标玩家。")
     String decidePrivateChat(String gameId, String playerId);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n角色ID：{{characterId}}\n角色名称：{{characterName}}\n剧本ID：{{scriptId}}\n\n【角色信息】\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请作为{{characterName}}角色，基于以上角色信息，通过调用工具获取以下信息：\n1. 讨论历史，了解当前游戏进展\n2. 你的角色线索，掌握关键信息（使用剧本ID：{{scriptId}}）\n3. 其他玩家状态，掌握全局情况\n\n请以自然、流畅的语言风格，像真人一样进行陈述，内容包括：\n- 你的自我介绍和背景\n- 案发时间前后你的行动\n- 你发现的重要线索\n- 你对案件的分析\n- 你对其他玩家的观察\n\n请保持{{characterName}}的性格特点，语言自然真实，逻辑清晰，信息准确。确保你的陈述基于角色设定和通过工具获取的真实信息，而不是虚构内容。请直接开始你的陈述，不需要任何开场白或引言。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n角色ID：{{characterId}}\n角色名称：{{characterName}}\n剧本ID：{{scriptId}}\n\n【角色信息】\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请作为{{characterName}}角色，基于以上角色信息，通过调用工具获取以下信息：\n1. 讨论历史，了解当前游戏进展\n2. 你的角色线索，掌握关键信息（使用剧本ID：{{scriptId}}）\n3. 其他玩家状态，掌握全局情况\n\n请以自然、流畅的语言风格，像真人一样进行陈述，内容包括：\n- 你的自我介绍和背景\n- 案发时间前后你的行动\n- 你发现的重要线索\n- 你对案件的分析\n- 你对其他玩家的观察\n\n请保持{{characterName}}的性格特点，语言自然真实，逻辑清晰，信息准确。确保你的陈述基于角色设定和通过工具获取的真实信息，而不是虚构内容。请直接开始你的陈述，不需要任何开场白或引言。每一次都请返回完整的,没有任何开场白的陈述")
     String generateStatement(@V("gameId") String gameId,
                            @V("playerId") String playerId,
                            @V("characterId") String characterId,
@@ -96,6 +96,7 @@ public interface PlayerAgent {
         你的时间线：{{timeline}}
         
         请作为{{characterName}}角色，基于以上信息，通过调用工具获取最新的游戏动态，然后生成自然、真实的发言。请直接开始发言，不需要任何开场白，保持语言流畅自然，符合角色性格特点。
+        备注:如果在发言历史中看见同样角色的发言,请记住,那就是你的发言.
         """)
     String speakWithReasoning(
         @V("gameId") String gameId,
@@ -116,7 +117,7 @@ public interface PlayerAgent {
         @V("scriptContent") String scriptContent
     );
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n\n【角色信息】\n角色名称：{{characterName}}\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。\n讨论内容要符合你作为{{characterName}}的角色设定，基于你的背景故事、秘密和时间线。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n\n【角色信息】\n角色名称：{{characterName}}\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。\n讨论内容要符合你作为{{characterName}}的角色设定，基于你的背景故事、秘密和时间线。备注:如果在发言历史中看见同样角色的发言,请记住,那就是你的发言.")
     String discussWithCharacterInfo(
         @V("gameId") String gameId,
         @V("playerId") String playerId,
@@ -191,4 +192,27 @@ public interface PlayerAgent {
 请确保返回的JSON格式正确，decision字段只能是"公开"或"不公开"。
 """)
     String decideToReveal(@V("gameId") String gameId, @V("playerId") String playerId, @V("characterName") String characterName, @V("clueId") String clueId, @V("clueContent") String clueContent);
+
+    @UserMessage("""
+游戏ID：{{gameId}}
+玩家ID：{{playerId}}
+角色名称：{{characterName}}
+
+请作为{{characterName}}角色，通过调用工具获取以下信息：
+1. 讨论历史，了解当前游戏进展和其他玩家的观点
+2. 你的角色线索，掌握关键信息
+3. 其他玩家状态，了解全局情况
+
+基于以上信息，分析整个案件，包括：
+- 凶手身份
+- 作案动机
+- 作案手法
+- 关键线索分析
+- 对其他玩家的怀疑理由
+
+请生成一个全面、详细的案件答案，确保答案基于通过工具获取的真实信息，而不是虚构内容。
+
+请直接开始你的答案，不需要任何开场白或引言。
+""")
+    String answer(@V("gameId") String gameId, @V("playerId") String playerId, @V("characterName") String characterName);
 }
