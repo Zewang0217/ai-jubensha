@@ -39,7 +39,7 @@ public class RerankingService {
      */
     public List<Map<String, Object>> rerank(String query, List<Map<String, Object>> results, int topK) {
         try {
-            log.info("开始重排搜索结果，查询: {}, 结果数量: {}", query, results.size());
+//            log.info("开始重排搜索结果，查询: {}, 结果数量: {}", query, results.size());
 
             // 检查结果是否为空
             if (results.isEmpty()) {
@@ -62,7 +62,7 @@ public class RerankingService {
                     .limit(topK)
                     .collect(Collectors.toList());
 
-            log.info("重排完成，返回 {} 条结果", rerankedResults.size());
+//            log.info("重排完成，返回 {} 条结果", rerankedResults.size());
             return rerankedResults;
 
         } catch (Exception e) {
@@ -211,15 +211,39 @@ public class RerankingService {
      */
     public List<Map<String, Object>> twoStepRetrieval(String query, List<Map<String, Object>> candidateResults, int topK) {
         try {
-            log.info("执行两步检索策略，查询: {}, 候选结果数量: {}", query, candidateResults.size());
+//            log.info("执行两步检索策略，查询: {}, 候选结果数量: {}", query, candidateResults.size());
 
-            // 第一步：获取更多候选结果
+            // 检查结果是否为空
+            if (candidateResults.isEmpty()) {
+                return candidateResults;
+            }
+
+            // 对于讨论相关的查询，确保保留所有玩家的发言信息
+            if (query.contains("讨论") || query.contains("发言") || query.contains("回应")) {
+                // 按时间戳排序，确保获取最新的发言
+                List<Map<String, Object>> timeSortedResults = candidateResults.stream()
+                        .sorted((a, b) -> {
+                            // 按时间戳排序，最新的在前
+                            Object timestampA = a.getOrDefault("timestamp", System.currentTimeMillis());
+                            Object timestampB = b.getOrDefault("timestamp", System.currentTimeMillis());
+                            if (timestampA instanceof Long && timestampB instanceof Long) {
+                                return ((Long) timestampB).compareTo((Long) timestampA);
+                            }
+                            return 0;
+                        })
+                        .collect(Collectors.toList());
+
+                // 重排并返回结果，但确保保留所有玩家的发言
+                return rerank(query, timeSortedResults, Math.max(topK, timeSortedResults.size()));
+            }
+
+            // 对于其他查询，使用正常的两步检索策略
             int candidateTopK = Math.min(topK * 3, candidateResults.size());
             List<Map<String, Object>> candidates = candidateResults.stream()
                     .limit(candidateTopK)
                     .collect(Collectors.toList());
 
-            // 第二步：重排候选结果
+            // 重排候选结果
             return rerank(query, candidates, topK);
 
         } catch (Exception e) {

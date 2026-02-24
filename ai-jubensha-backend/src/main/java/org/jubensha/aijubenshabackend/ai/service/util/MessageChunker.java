@@ -166,31 +166,9 @@ public class MessageChunker {
 
         // 识别DM消息
         if (senderName.equals("DM") || senderName.equals("主持人")) {
-            // 检查消息内容是否包含DM特征
-            if (message.contains("阶段") || message.contains("规则") || message.contains("话术") || 
-                message.contains("流程") || message.contains("操作手册") ||
-                message.contains("宣布") || message.contains("开始") || message.contains("结束")) {
-                return MessageType.DM_MESSAGE;
-            }
+            return MessageType.DM_MESSAGE;
         }
 
-        // 识别系统消息
-        if (message.contains("系统") || message.contains("通知") || message.contains("更新") || 
-            message.contains("状态") || message.contains("错误")) {
-            return MessageType.SYSTEM_MESSAGE;
-        }
-
-        // 识别AI玩家消息
-        if (senderName.startsWith("AI_") || senderName.contains("AI") || senderName.contains("智能")) {
-            // 检查是否是AI玩家的最终响应
-            if (message.contains("陈述已生成") || message.contains("已完成结构化陈述") || 
-                (message.length() < 200 && (message.contains("包括:") || message.contains("包含:")))) {
-                return MessageType.SYSTEM_MESSAGE;
-            }
-            return MessageType.AI_PLAYER_MESSAGE;
-        }
-
-        // 默认玩家消息
         return MessageType.PLAYER_MESSAGE;
     }
 
