@@ -39,7 +39,7 @@ public class GamePlayerServiceImpl implements GamePlayerService {
 
     @Override
     public Optional<GamePlayer> getGamePlayerByGameIdAndPlayerId(Long gameId, Long playerId) {
-        logger.info("Getting game player by gameId={} and playerId={}", gameId, playerId);
+//        logger.info("Getting game player by gameId={} and playerId={}", gameId, playerId);
         return gamePlayerRepository.findByGameIdAndPlayerId(gameId, playerId);
     }
 
