@@ -28,7 +28,7 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
  * 线索丰富节点
  * 用于在场景加载之前生成迷惑线索，确保每个场景有4-6个线索
  *
- * @author zewang
+ * @author luobo
  * @date 2026-02-22
  */
 

@@ -106,7 +106,7 @@ public class SendDiscussionMessageTool extends BaseTool {
             // 智能处理消息
             String processedMessage = processMessage(message, playerName);
 
-            log.debug("发送讨论消息，玩家ID: {}, 游戏ID: {}, 接收者数量: {}, 消息长度: {}", 
+            log.debug("发送讨论消息，玩家ID: {}, 游戏ID: {}, 接收者数量: {}, 消息长度: {}",
                     playerId, gameId, recipientIds.size(), processedMessage.length());
 
             // 发送消息到消息队列
@@ -141,14 +141,21 @@ public class SendDiscussionMessageTool extends BaseTool {
     /**
      * 智能处理消息
      * 检查消息长度，识别消息类型，确保消息符合要求
+     * 注意：父文档需要完整存储，不进行截断
      *
      * @param message    原始消息
      * @param playerName 发送者名称
-     * @return 处理后的消息
+     * @return 处理后的消息（保持完整）
      */
     private String processMessage(String message, String playerName) {
         if (message == null || message.isEmpty()) {
             return message;
+        }
+
+        // 检查消息是否是一个工具调用的JSON字符串
+        String processedMessage = extractMessageFromToolCall(message);
+        if (processedMessage != null) {
+            message = processedMessage;
         }
 
         // 检查消息长度
@@ -157,32 +164,51 @@ public class SendDiscussionMessageTool extends BaseTool {
 
         // 识别消息类型
         MessageChunker.MessageType messageType = messageChunker.identifyMessageType(message, playerName);
-        
+
         // 确保AI玩家的消息被正确识别为AI_PLAYER_MESSAGE
         if (playerName != null && (playerName.startsWith("AI_") || playerName.contains("AI") || playerName.contains("智能"))) {
             messageType = MessageChunker.MessageType.AI_PLAYER_MESSAGE;
         }
-        
+
         log.debug("识别消息类型: {}", messageType);
 
-        // 检查是否需要处理
-        if (tokenUtils.exceedsSafeThreshold(message)) {
-            log.warn("消息长度超过安全阈值，进行智能处理，原始长度: {}, token数: {}", message.length(), tokenCount);
-            
-            // 根据消息类型选择处理策略
-            if (messageType == MessageChunker.MessageType.DM_MESSAGE) {
-                // DM消息：保留核心信息，截断详细说明
-                log.warn("DM消息已处理，可能包含规则说明等详细内容");
-            } else if (messageType == MessageChunker.MessageType.SYSTEM_MESSAGE) {
-                // 系统消息：保留关键信息，简化格式
-                log.warn("系统消息已处理，可能包含状态更新等信息");
-            }
-
-            // 智能截断
-            return tokenUtils.truncateText(message);
-        }
+        // 父文档需要完整存储，不进行截断
+        // 子文档的截断处理会在RAGServiceImpl中进行
+        log.debug("父文档保持完整，原始长度: {}, token数: {}", message.length(), tokenCount);
 
         return message;
+    }
+
+    /**
+     * 从工具调用的JSON字符串中提取消息内容
+     * 处理AI可能返回工具调用格式而不是直接返回消息内容的情况
+     *
+     * @param message 原始消息
+     * @return 提取的消息内容，如果不是工具调用的JSON字符串则返回null
+     */
+    private String extractMessageFromToolCall(String message) {
+        try {
+            // 检查消息是否以{开头，可能是一个JSON对象
+            if (message.trim().startsWith("{")) {
+                // 尝试解析JSON
+                cn.hutool.json.JSONObject jsonObject = new cn.hutool.json.JSONObject(message.trim());
+                
+                // 检查是否是一个工具调用的JSON字符串
+                if (jsonObject.containsKey("toolcall")) {
+                    cn.hutool.json.JSONObject toolcall = jsonObject.getJSONObject("toolcall");
+                    if (toolcall.containsKey("params") && toolcall.getJSONObject("params").containsKey("message")) {
+                        // 提取消息内容
+                        String extractedMessage = toolcall.getJSONObject("params").getStr("message");
+                        log.debug("从工具调用JSON中提取消息内容，长度: {}", extractedMessage.length());
+                        return extractedMessage;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // 不是有效的JSON，直接返回null
+            log.debug("消息不是有效的工具调用JSON: {}", e.getMessage());
+        }
+        return null;
     }
 
     /**
@@ -192,13 +218,13 @@ public class SendDiscussionMessageTool extends BaseTool {
     private String truncateMessage(String message) {
         // 设置最大字符数（512 tokens * 4 chars/token = 2048 chars）
         final int MAX_CHARS = 2048;
-        
+
         if (message.length() > MAX_CHARS) {
             // 截断消息并添加省略号
             message = message.substring(0, MAX_CHARS - 3) + "...";
             log.warn("消息长度超过限制，已截断: {}", message.length());
         }
-        
+
         return message;
     }
 

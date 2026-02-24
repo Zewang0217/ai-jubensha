@@ -118,9 +118,6 @@ public class DiscussionServiceImpl implements DiscussionService {
     // 最后发言时间
     private final Map<Long, LocalDateTime> lastSpeakTimes = new ConcurrentHashMap<>();
     
-    // 发言锁定
-    private final AtomicBoolean speakingLock = new AtomicBoolean(false);
-    
     // 发言阈值
     private static final int SPEAK_THRESHOLD = 20;
 
@@ -855,7 +852,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         } catch (Exception e) {
             log.warn("计算话题相关度失败: {}", e.getMessage());
         }
-        return 0;
+        return 20; // 即使获取失败，也给予基础分数，确保玩家能够更容易地开始发言
     }
     
     /**
@@ -871,12 +868,18 @@ public class DiscussionServiceImpl implements DiscussionService {
             
             // 每秒钟增加2分，最多增加120分
             int compensation = Math.min((int) seconds * 2, 120);
+            
+            // 初始状态下，给予基础补偿，确保玩家能够更容易地开始发言
+            if (seconds < 5) { // 前5秒
+                compensation = Math.max(compensation, 15); // 给予至少15分的基础补偿
+            }
+            
             log.debug("[沉默时间补偿] 玩家 {} 沉默时间: {}秒，补偿: {}分", getCharacterName(playerId), seconds, compensation);
             return compensation;
         } catch (Exception e) {
             log.warn("计算沉默时间补偿失败: {}", e.getMessage());
         }
-        return 0;
+        return 15; // 异常情况下，给予基础补偿
     }
     
     /**
@@ -893,14 +896,14 @@ public class DiscussionServiceImpl implements DiscussionService {
                 Character character = gamePlayer.getCharacter();
                 if (character != null) {
                     // 这里应该根据角色性格返回不同的因子
-                    // 简化实现，返回随机值
-                    return (int) (Math.random() * 20 - 10); // -10到10之间
+                    // 简化实现，返回随机值，但调整范围，避免过度降低欲望值
+                    return (int) (Math.random() * 15 - 5); // -5到10之间，更倾向于正数
                 }
             }
         } catch (Exception e) {
             log.warn("获取性格因子失败: {}", e.getMessage());
         }
-        return 0;
+        return 5; // 异常情况下，给予正数基础分，确保玩家能够更容易地开始发言
     }
     
     /**
@@ -908,15 +911,21 @@ public class DiscussionServiceImpl implements DiscussionService {
      */
     private void tick() {
         try {
-            // 检查是否正在发言或讨论已完成
-            if (speakingLock.get() || discussionCompleted) {
-                log.debug("中央调度器跳过执行：正在发言={}, 讨论已完成={}", speakingLock.get(), discussionCompleted);
+            // 检查讨论是否已完成
+            if (discussionCompleted) {
+                log.debug("中央调度器跳过执行：讨论已完成={}", discussionCompleted);
                 return;
             }
             
             // 检查当前是否为自由讨论阶段
             if (!"FREE_DISCUSSION".equals(currentPhase)) {
                 log.debug("中央调度器跳过执行：当前阶段不是自由讨论，而是: {}", currentPhase);
+                return;
+            }
+            
+            // 检查是否有玩家
+            if (playerIds == null || playerIds.isEmpty()) {
+                log.warn("中央调度器跳过执行：没有玩家");
                 return;
             }
             
@@ -934,51 +943,37 @@ public class DiscussionServiceImpl implements DiscussionService {
             // 选择下一个发言的玩家
             Long nextSpeakerId = selectNextSpeaker(currentScores);
             if (nextSpeakerId != null) {
-                // 锁定发言状态
-                if (speakingLock.compareAndSet(false, true)) {
+                log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 发言阈值: {}", 
+                        getCharacterName(nextSpeakerId), currentScores.get(nextSpeakerId), SPEAK_THRESHOLD);
+                
+                // 执行发言（移除发言锁定，根据用户建议）
+                executorService.submit(() -> {
                     try {
-                        log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 发言阈值: {}", 
-                                getCharacterName(nextSpeakerId), currentScores.get(nextSpeakerId), SPEAK_THRESHOLD);
+                        log.info("[中央调度器] 开始处理玩家 {} 的发言", getCharacterName(nextSpeakerId));
+                        // 生成讨论内容
+                        String discussionContent = executeThinkingAndGenerateResponse(
+                                nextSpeakerId, "分析当前讨论并生成回应"
+                        );
                         
-                        // 执行发言
-                        executorService.submit(() -> {
-                            try {
-                                log.info("[中央调度器] 开始处理玩家 {} 的发言", getCharacterName(nextSpeakerId));
-                                // 生成讨论内容
-                                String discussionContent = executeThinkingAndGenerateResponse(
-                                        nextSpeakerId, "分析当前讨论并生成回应"
-                                );
-                                
-                                // 发送讨论消息
-                                if (discussionContent != null && !discussionContent.isEmpty()) {
-                                    log.info("[中央调度器] 玩家 {} 生成发言内容，长度: {}", getCharacterName(nextSpeakerId), discussionContent.length());
-                                    sendDiscussionMessage(nextSpeakerId, discussionContent);
-                                } else {
-                                    log.warn("[中央调度器] 玩家 {} 未能生成发言内容，尝试备用方案", getCharacterName(nextSpeakerId));
-                                    // 备用方案：使用讨论推理管理器
-                                    String backupContent = discussionReasoningManager.processReasoningAndDiscussion(gameId, nextSpeakerId);
-                                    if (!backupContent.isEmpty()) {
-                                        log.info("[中央调度器] 玩家 {} 使用备用方案生成发言内容，长度: {}", getCharacterName(nextSpeakerId), backupContent.length());
-                                        sendDiscussionMessage(nextSpeakerId, backupContent);
-                                    } else {
-                                        log.warn("[中央调度器] 玩家 {} 备用方案也未能生成发言内容", getCharacterName(nextSpeakerId));
-                                    }
-                                }
-                            } catch (Exception e) {
-                                log.error("[中央调度器] 处理AI玩家发言失败: {}", e.getMessage(), e);
-                            } finally {
-                                // 解锁发言状态
-                                speakingLock.set(false);
-                                log.debug("[中央调度器] 解锁发言状态");
+                        // 发送讨论消息
+                        if (discussionContent != null && !discussionContent.isEmpty()) {
+                            log.info("[中央调度器] 玩家 {} 生成发言内容，长度: {}", getCharacterName(nextSpeakerId), discussionContent.length());
+                            sendDiscussionMessage(nextSpeakerId, discussionContent);
+                        } else {
+                            log.warn("[中央调度器] 玩家 {} 未能生成发言内容，尝试备用方案", getCharacterName(nextSpeakerId));
+                            // 备用方案：使用讨论推理管理器
+                            String backupContent = discussionReasoningManager.processReasoningAndDiscussion(gameId, nextSpeakerId);
+                            if (!backupContent.isEmpty()) {
+                                log.info("[中央调度器] 玩家 {} 使用备用方案生成发言内容，长度: {}", getCharacterName(nextSpeakerId), backupContent.length());
+                                sendDiscussionMessage(nextSpeakerId, backupContent);
+                            } else {
+                                log.warn("[中央调度器] 玩家 {} 备用方案也未能生成发言内容", getCharacterName(nextSpeakerId));
                             }
-                        });
+                        }
                     } catch (Exception e) {
-                        log.error("[中央调度器] 执行发言失败: {}", e.getMessage(), e);
-                        speakingLock.set(false);
+                        log.error("[中央调度器] 处理AI玩家发言失败: {}", e.getMessage(), e);
                     }
-                } else {
-                    log.debug("[中央调度器] 发言状态已被锁定，跳过本次发言");
-                }
+                });
             } else {
                 log.debug("[中央调度器] 没有玩家的发言欲望值超过阈值 {}", SPEAK_THRESHOLD);
                 // 打印所有玩家的欲望值，以便调试
@@ -1011,13 +1006,33 @@ public class DiscussionServiceImpl implements DiscussionService {
             }
         }
         
-        // 如果最高分数超过阈值或没有玩家发言过，选择该玩家
-        if (selectedPlayerId != null && (maxScore >= SPEAK_THRESHOLD || lastSpeakTimes.isEmpty())) {
-            log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 发言阈值: {}", getCharacterName(selectedPlayerId), maxScore, SPEAK_THRESHOLD);
+        // 检查是否有玩家
+        if (selectedPlayerId == null) {
+            log.warn("[中央调度器] 没有玩家可以选择发言");
+            return null;
+        }
+        
+        // 降低初始发言的阈值要求，确保玩家能够更容易地开始发言
+        // 对于第一轮发言，降低阈值要求
+        boolean hasAnyPlayerSpoken = false;
+        for (LocalDateTime time : lastSpeakTimes.values()) {
+            if (time != null) {
+                hasAnyPlayerSpoken = true;
+                break;
+            }
+        }
+        
+        // 初始发言阈值降低到10，后续发言保持20
+        int effectiveThreshold = hasAnyPlayerSpoken ? SPEAK_THRESHOLD : 10;
+        
+        // 如果最高分数超过有效阈值或没有玩家发言过，选择该玩家
+        if (maxScore >= effectiveThreshold || !hasAnyPlayerSpoken) {
+            log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 有效发言阈值: {}", 
+                    getCharacterName(selectedPlayerId), maxScore, effectiveThreshold);
             return selectedPlayerId;
         }
         
-        log.debug("[中央调度器] 没有玩家的发言欲望值超过阈值 {}，最高分数: {}", SPEAK_THRESHOLD, maxScore);
+        log.debug("[中央调度器] 没有玩家的发言欲望值超过阈值 {}，最高分数: {}", effectiveThreshold, maxScore);
         return null;
     }
 

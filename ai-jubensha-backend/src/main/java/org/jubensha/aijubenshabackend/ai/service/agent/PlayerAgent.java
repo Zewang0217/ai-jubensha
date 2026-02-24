@@ -76,7 +76,7 @@ public interface PlayerAgent {
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请通过调用工具分析当前讨论情况和其他玩家状态，决定是否需要发起单聊，并选择合适的目标玩家。")
     String decidePrivateChat(String gameId, String playerId);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n角色ID：{{characterId}}\n角色名称：{{characterName}}\n剧本ID：{{scriptId}}\n\n【角色信息】\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请作为{{characterName}}角色，基于以上角色信息，通过调用工具获取以下信息：\n1. 讨论历史，了解当前游戏进展\n2. 你的角色线索，掌握关键信息（使用剧本ID：{{scriptId}}）\n3. 其他玩家状态，掌握全局情况\n\n基于获取的信息和角色设定，生成一个结构化的陈述，包括：\n- 自我介绍和角色背景\n- 案发时间前后的行动轨迹\n- 你发现的关键线索\n- 你对案件的初步分析\n- 你对其他玩家的观察\n\n陈述要符合{{characterName}}的性格特点，逻辑清晰，信息准确。请确保你的陈述基于角色设定和通过工具获取的真实信息，而不是虚构内容。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n角色ID：{{characterId}}\n角色名称：{{characterName}}\n剧本ID：{{scriptId}}\n\n【角色信息】\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请作为{{characterName}}角色，基于以上角色信息，通过调用工具获取以下信息：\n1. 讨论历史，了解当前游戏进展\n2. 你的角色线索，掌握关键信息（使用剧本ID：{{scriptId}}）\n3. 其他玩家状态，掌握全局情况\n\n请以自然、流畅的语言风格，像真人一样进行陈述，内容包括：\n- 你的自我介绍和背景\n- 案发时间前后你的行动\n- 你发现的重要线索\n- 你对案件的分析\n- 你对其他玩家的观察\n\n请保持{{characterName}}的性格特点，语言自然真实，逻辑清晰，信息准确。确保你的陈述基于角色设定和通过工具获取的真实信息，而不是虚构内容。请直接开始你的陈述，不需要任何开场白或引言。")
     String generateStatement(@V("gameId") String gameId,
                            @V("playerId") String playerId,
                            @V("characterId") String characterId,
@@ -88,20 +88,14 @@ public interface PlayerAgent {
 
     @UserMessage("""
         游戏ID：{{gameId}}
-                玩家ID：{{playerId}}
-               
-                【你的内心深层思考】
-                {{reasoningResult}}
-               
-                [你的秘密]
-                {{secret}}
-               
-                [你的背景信息]
-                {{backgroundStory}}
-               
-                [你的时间线]
-                {{timeline}}
-                请基于以上内容，结合当前局势,通过调用工具来获取最新的线索和时间线以及对话内容，生成对外的发言或行动。
+        玩家ID：{{playerId}}
+        
+        你的内心思考：{{reasoningResult}}
+        你的秘密：{{secret}}
+        你的背景：{{backgroundStory}}
+        你的时间线：{{timeline}}
+        
+        请作为{{characterName}}角色，基于以上信息，通过调用工具获取最新的游戏动态，然后生成自然、真实的发言。请直接开始发言，不需要任何开场白，保持语言流畅自然，符合角色性格特点。
         """)
     String speakWithReasoning(
         @V("gameId") String gameId,
@@ -137,12 +131,10 @@ public interface PlayerAgent {
 游戏ID：{{gameId}}
 玩家ID：{{playerId}}
 角色名称：{{characterName}}
-线索选项列表：{{sceneIds}}
+线索ID列表: {{sceneIds}}
 最大搜证次数：{{maxChances}}
 
-请作为{{characterName}}角色，分析当前游戏状态，从提供的线索选项中选择你想要搜索的线索，并生成搜证计划。
-
-每个线索选项的格式为："线索ID: 线索名称"
+请作为{{characterName}}角色，分析当前游戏状态，决定在哪些场景进行搜证，并生成搜证计划。
 
 请严格返回以下JSON格式的搜证请求：
 {
