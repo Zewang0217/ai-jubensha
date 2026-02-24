@@ -572,7 +572,7 @@ public class ScriptController {
                 try {
                     clue.setVisibility(ClueVisibility.valueOf(clueNode.path("visibility").asText().toUpperCase()));
                 } catch (Exception e) {
-                    clue.setVisibility(ClueVisibility.PUBLIC); // 默认可见性
+                    clue.setVisibility(ClueVisibility.UNDISCOVERED); // 默认可见性为未发现
                 }
                 clue.setScene(clueNode.path("scene").asText());
                 clue.setImportance(clueNode.path("importance").asInt(1));

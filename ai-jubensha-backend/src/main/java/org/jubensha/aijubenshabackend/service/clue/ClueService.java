@@ -51,6 +51,11 @@ public interface ClueService {
     List<Clue> getCluesByScene(String scene);
 
     /**
+     * 根据场景ID获取线索
+     */
+    List<Clue> getCluesBySceneId(Long sceneId);
+
+    /**
      * 获取重要线索
      *
      * @param importanceThreshold 重要度阈值

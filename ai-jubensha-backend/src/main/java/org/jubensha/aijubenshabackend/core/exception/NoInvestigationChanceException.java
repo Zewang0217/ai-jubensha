@@ -6,7 +6,7 @@ import org.jubensha.aijubenshabackend.core.exception.enums.ErrorCodeEnum;
  * 搜证次数不足异常
  * 当玩家搜证次数已用完时抛出
  *
- * @author luobo
+ * @author zewang
  * @date 2026-02-10
  */
 public class NoInvestigationChanceException extends BusinessException {
