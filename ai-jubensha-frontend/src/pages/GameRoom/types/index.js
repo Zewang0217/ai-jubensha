@@ -23,8 +23,6 @@ export const PHASE_TYPE = {
     INVESTIGATION: 'investigation',
     /** 讨论阶段 */
     DISCUSSION: 'discussion',
-    /** 投票阶段 */
-    VOTING: 'voting',
     /** 总结阶段 */
     SUMMARY: 'summary',
 }
@@ -43,8 +41,6 @@ export const PHASE_CONFIG = {
         id: PHASE_TYPE.SCRIPT_OVERVIEW,
         title: '剧本概览',
         description: '了解剧本基本信息',
-        color: 'from-blue-500 to-cyan-500',
-        bgColor: 'bg-blue-500/10',
         icon: 'BookOpen',
         allowSkip: false,
         allowBack: false,
@@ -53,8 +49,6 @@ export const PHASE_CONFIG = {
         id: PHASE_TYPE.CHARACTER_ASSIGNMENT,
         title: '角色分配',
         description: '查看你的角色和任务',
-        color: 'from-violet-500 to-purple-500',
-        bgColor: 'bg-violet-500/10',
         icon: 'User',
         allowSkip: false,
         allowBack: true,
@@ -63,8 +57,6 @@ export const PHASE_CONFIG = {
         id: PHASE_TYPE.SCRIPT_READING,
         title: '阅读剧本',
         description: '阅读剧本内容',
-        color: 'from-emerald-500 to-teal-500',
-        bgColor: 'bg-emerald-500/10',
         icon: 'Scroll',
         allowSkip: true,
         allowBack: true,
@@ -73,8 +65,6 @@ export const PHASE_CONFIG = {
         id: PHASE_TYPE.INVESTIGATION,
         title: '线索搜证',
         description: '探索场景收集线索',
-        color: 'from-amber-500 to-orange-500',
-        bgColor: 'bg-amber-500/10',
         icon: 'Search',
         allowSkip: false,
         allowBack: true,
@@ -83,28 +73,14 @@ export const PHASE_CONFIG = {
         id: PHASE_TYPE.DISCUSSION,
         title: '推理讨论',
         description: '分享线索推理真相',
-        color: 'from-rose-500 to-pink-500',
-        bgColor: 'bg-rose-500/10',
         icon: 'MessageCircle',
         allowSkip: false,
         allowBack: true,
-    },
-    [PHASE_TYPE.VOTING]: {
-        id: PHASE_TYPE.VOTING,
-        title: '投票指认',
-        description: '指认你认为的凶手',
-        color: 'from-red-500 to-rose-500',
-        bgColor: 'bg-red-500/10',
-        icon: 'Vote',
-        allowSkip: false,
-        allowBack: false,
     },
     [PHASE_TYPE.SUMMARY]: {
         id: PHASE_TYPE.SUMMARY,
         title: '真相揭晓',
         description: '查看最终结果',
-        color: 'from-indigo-500 to-blue-500',
-        bgColor: 'bg-indigo-500/10',
         icon: 'Trophy',
         allowSkip: false,
         allowBack: false,
@@ -160,8 +136,6 @@ export const PHASE_ACTION = {
  * @property {string} id - 阶段唯一标识
  * @property {string} title - 阶段标题
  * @property {string} description - 阶段描述
- * @property {string} color - 渐变色类名
- * @property {string} bgColor - 背景色类名
  * @property {string} icon - 图标名称
  * @property {boolean} allowSkip - 是否允许跳过
  * @property {boolean} allowBack - 是否允许返回
