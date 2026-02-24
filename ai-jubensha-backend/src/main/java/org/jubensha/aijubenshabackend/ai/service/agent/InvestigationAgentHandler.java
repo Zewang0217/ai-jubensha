@@ -184,6 +184,44 @@ public class InvestigationAgentHandler {
                                         memoryService.storeClueMemory(gameId, playerId, clueId, clueContent, "AI玩家" + playerId);
                                         log.info("线索 {} 已存储到向量数据库，playerid={}", clueId, playerId);
                                     }
+                                    
+                                    // 扣减搜证次数
+                                    try {
+                                        // 获取工作流上下文
+                                        org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext context = investigationService.getWorkflowContext(gameId);
+                                        if (context != null) {
+                                            // 记录扣减前的剩余次数
+                                            int beforeCount = context.getRemainingInvestigationCount(playerId);
+//                                            log.info("扣减前剩余搜证次数: 玩家ID={}, 剩余次数={}", playerId, beforeCount);
+                                            
+                                            // 扣减搜证次数
+                                            boolean consumed = context.consumeInvestigationChance(playerId);
+                                            if (consumed) {
+                                                // 记录扣减后的剩余次数
+                                                int afterCount = context.getRemainingInvestigationCount(playerId);
+                                                log.info("扣减后剩余搜证次数: 玩家ID={}, 剩余次数={}", playerId, afterCount);
+                                                
+                                                // 检查是否已用完所有搜证次数
+                                                if (afterCount <= 0) {
+                                                    context.markInvestigationCompleted(playerId);
+                                                    log.info("玩家 {} 已用完所有搜证次数，标记为已完成搜证", playerId);
+                                                }
+                                                
+                                                // 保存更新后的上下文
+                                                investigationService.saveWorkflowContext(gameId, context);
+                                                log.info("已保存更新后的工作流上下文，游戏ID={}", gameId);
+                                            } else {
+                                                log.warn("扣减玩家 {} 搜证次数失败，可能已无剩余次数", playerId);
+                                            }
+                                        } else {
+                                            log.warn("游戏 {} 的工作流上下文不存在，无法扣减搜证次数", gameId);
+                                        }
+                                    } catch (Exception e) {
+                                        log.error("扣减搜证次数失败: {}", e.getMessage(), e);
+                                        // 扣减失败不影响整个搜证流程
+                                    }
+
+
                                 } catch (Exception e) {
                                     log.error("解析决定结果失败: {}", e.getMessage(), e);
                                 }

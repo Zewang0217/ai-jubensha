@@ -36,7 +36,7 @@ public class MessageQueueServiceImpl implements MessageQueueService {
 
     @Override
     public void sendDiscussionMessage(String message, List<Long> recipientIds) {
-        log.info("发送讨论消息: {}, 接收者数量: {}", message, recipientIds.size());
+//        log.info("发送讨论消息: {}, 接收者数量: {}", message, recipientIds.size());
 
         // 构建消息内容
         Map<String, Object> messageContent = Map.of(
