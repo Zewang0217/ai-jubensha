@@ -71,6 +71,15 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Resource
     private GamePlayerService gamePlayerService;
 
+    @Resource
+    private org.jubensha.aijubenshabackend.repository.dialogue.DialogueRepository dialogueRepository;
+
+    @Resource
+    private org.jubensha.aijubenshabackend.service.game.GameService gameService;
+
+    @Resource
+    private org.jubensha.aijubenshabackend.service.player.PlayerService playerService;
+
     // 讨论状态
     private final Map<String, Object> discussionState = new ConcurrentHashMap<>();
 
@@ -119,7 +128,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private final Map<Long, LocalDateTime> lastSpeakTimes = new ConcurrentHashMap<>();
     
     // 发言阈值
-    private static final int SPEAK_THRESHOLD = 20;
+    private static final int SPEAK_THRESHOLD = 120;
 
     /**
      * 线程池，用于并行处理AI推理任务
@@ -190,6 +199,9 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         // 启动讨论完成的监控
         startDiscussionCompletionMonitor();
+        
+        // 注意：DMModerator会在单独的线程中执行陈述阶段
+        // 陈述阶段结束后，自由讨论阶段将由中央调度器控制
     }
 
     @Override
@@ -243,26 +255,37 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public void startFreeDiscussionPhase() {
-        log.info("开始自由讨论阶段");
+        log.info("[自由讨论] 开始自由讨论阶段，游戏ID: {}, 玩家数量: {}, DM ID: {}", gameId, playerIds != null ? playerIds.size() : 0, dmId);
         currentPhase = "FREE_DISCUSSION";
         discussionState.put("currentPhase", currentPhase);
         discussionState.put("phaseStartTime", LocalDateTime.now());
+        log.debug("[自由讨论] 更新讨论状态为: FREE_DISCUSSION");
 
         // 切换到自由讨论阶段
+        log.debug("[自由讨论] 切换到自由讨论阶段");
         turnManager.switchPhase(gameId, TurnManager.PHASE_FREE_DISCUSSION);
+        log.debug("[自由讨论] 已切换到自由讨论阶段");
 
         // 通知DM开始自由讨论阶段
+        log.debug("[自由讨论] 通知DM开始自由讨论阶段");
         DMAgent dmAgent = aiService.getDMAgent(dmId);
         if (dmAgent != null) {
             String response = dmAgent.moderateDiscussion("开始自由讨论阶段，大家可以畅所欲言");
-            log.info("DM响应: {}", response);
+            log.info("[自由讨论] DM响应: {}", response);
+        } else {
+            log.warn("[自由讨论] 无法获取DM Agent");
         }
 
         // 启动中央调度器
+        log.debug("[自由讨论] 启动中央调度器");
         startCentralDirector();
+        log.info("[自由讨论] 中央调度器已启动，每1秒执行一次tick方法");
 
-        // 启动自由讨论阶段计时器（默认30分钟）
-        timerService.startTimer("FREE_DISCUSSION", 1800L, this::startPrivateChatPhase);
+        // 启动自由讨论阶段计时器（2分钟）
+        log.debug("[自由讨论] 启动自由讨论阶段计时器，时长: 2分钟");
+        timerService.startTimer("FREE_DISCUSSION", 120L, this::startAnswerPhase);
+        log.info("[自由讨论] 自由讨论阶段计时器已启动，2分钟后结束");
+        log.info("[自由讨论] 跳过单聊环节，直接进入答题阶段");
     }
 
     @Override
@@ -426,9 +449,9 @@ public class DiscussionServiceImpl implements DiscussionService {
                 answerMap.put("answer", entry.getValue());
                 answers.add(answerMap);
             }
-            String response = dmAgent.scoreAnswers(answers);
-            log.info("DM评分响应: {}", response);
-            discussionState.put("scoreResponse", response);
+            String scoreData = dmAgent.scoreAnswers(answers);
+            log.info("DM评分响应: {}", scoreData);
+            discussionState.put("scoreResponse", scoreData);
         }
 
         // 通知Judge总结讨论
@@ -470,29 +493,89 @@ public class DiscussionServiceImpl implements DiscussionService {
     public void sendDiscussionMessage(Long playerId, String message) {
         // 获取玩家名称（从GamePlayer关系中获取角色名称）
         String playerName = "AI玩家" + playerId;
+        Long characterId = null;
         try {
             Optional<GamePlayer> gamePlayerOpt = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
             if (gamePlayerOpt.isPresent()) {
                 GamePlayer gamePlayer = gamePlayerOpt.get();
                 if (gamePlayer.getCharacter() != null) {
                     playerName = gamePlayer.getCharacter().getName();
+                    characterId = gamePlayer.getCharacter().getId();
                 }
             }
         } catch (Exception e) {
-            log.warn("获取玩家角色名称失败: {}", e.getMessage());
+            log.warn("[消息发送] 获取玩家角色名称失败: {}", e.getMessage());
         }
-        log.info("{}发言: {}", playerName, message);
+        log.info("[消息发送] {}发言: {}", playerName, message);
+//        log.debug("[消息发送] 发言长度: {}字符", message.length());
 
         // 发送消息到所有玩家
+//        log.debug("[消息发送] 发送消息到所有玩家，接收者数量: {}", playerIds != null ? playerIds.size() : 0);
         messageQueueService.sendDiscussionMessage(message, playerIds);
+        log.info("[消息发送] 讨论消息已成功发送");
+        
+        // 存储讨论内容到数据库
+        storeDiscussionMessageToDatabase(playerId, characterId, message);
         
         // 更新最后发言时间
-        lastSpeakTimes.put(playerId, LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        lastSpeakTimes.put(playerId, now);
+        log.debug("[消息发送] 更新玩家 {} 的最后发言时间为: {}", playerName, now);
         
         // 重置该玩家的发言欲望值
         desireScores.put(playerId, 0);
-        
-        log.debug("更新玩家 {} 的最后发言时间并重置欲望值", playerName);
+        log.debug("[消息发送] 重置玩家 {} 的发言欲望值为: 0", playerName);
+    }
+    
+    /**
+     * 存储讨论消息到数据库
+     * 
+     * @param playerId 玩家ID
+     * @param characterId 角色ID
+     * @param message 消息内容
+     */
+    private void storeDiscussionMessageToDatabase(Long playerId, Long characterId, String message) {
+        try {
+            log.debug("[消息存储] 开始存储讨论消息，玩家ID: {}, 角色ID: {}", playerId, characterId);
+            
+            // 创建对话记录
+            org.jubensha.aijubenshabackend.models.entity.Dialogue dialogue = new org.jubensha.aijubenshabackend.models.entity.Dialogue();
+            
+            // 设置游戏信息
+            org.jubensha.aijubenshabackend.models.entity.Game game = gameService.getGameById(gameId).orElse(null);
+            if (game == null) {
+                log.warn("[消息存储] 游戏不存在，游戏ID: {}", gameId);
+                return;
+            }
+            dialogue.setGame(game);
+            
+            // 设置玩家信息
+            org.jubensha.aijubenshabackend.models.entity.Player player = playerService.getPlayerById(playerId).orElse(null);
+            if (player == null) {
+                log.warn("[消息存储] 玩家不存在，玩家ID: {}", playerId);
+                return;
+            }
+            dialogue.setPlayer(player);
+            
+            // 设置角色信息
+            if (characterId != null) {
+                org.jubensha.aijubenshabackend.models.entity.Character character = characterService.getCharacterById(characterId).orElse(null);
+                if (character != null) {
+                    dialogue.setCharacter(character);
+                }
+            }
+            
+            // 设置消息内容和类型
+            dialogue.setContent(message);
+            dialogue.setType(org.jubensha.aijubenshabackend.models.enums.DialogueType.CHAT);
+            
+            // 保存到数据库
+            dialogueRepository.save(dialogue);
+            log.info("[消息存储] 讨论消息已成功存储到数据库，对话ID: {}", dialogue.getId());
+            
+        } catch (Exception e) {
+            log.error("[消息存储] 存储讨论消息失败: {}", e.getMessage(), e);
+        }
     }
 
     @Override
@@ -635,26 +718,38 @@ public class DiscussionServiceImpl implements DiscussionService {
                     backgroundStory != null ? "有" : "无"
             );
             
-            // 生成发言
+            // 生成发言或答案
             try {
-                String response = playerAgent.speakWithReasoning(
-                        gameId.toString(),
-                        playerId.toString(),
-                        thinkingResult != null ? thinkingResult : "分析当前局势并生成回应",
-                        characterName,
-                        secret != null ? secret : "",
-                        timeline != null ? timeline : "",
-                        backgroundStory != null ? backgroundStory : ""
-                );
+                String response;
+                if ("分析所有信息并确定凶手".equals(thinkingTask)) {
+                    // 使用专门的answer方法生成答案
+                    response = playerAgent.answer(
+                            gameId.toString(),
+                            playerId.toString(),
+                            characterName
+                    );
+                    log.info("[答案生成] 玩家 {} 成功生成答案，长度: {}", getCharacterName(playerId), response != null ? response.length() : 0);
+                } else {
+                    // 使用speakWithReasoning方法生成普通发言
+                    response = playerAgent.speakWithReasoning(
+                            gameId.toString(),
+                            playerId.toString(),
+                            thinkingResult != null ? thinkingResult : "分析当前局势并生成回应",
+                            characterName,
+                            secret != null ? secret : "",
+                            timeline != null ? timeline : "",
+                            backgroundStory != null ? backgroundStory : ""
+                    );
+                    log.info("[发言生成] 玩家 {} 成功生成发言，长度: {}", getCharacterName(playerId), response != null ? response.length() : 0);
+                }
                 
                 if (response != null && !response.isEmpty()) {
-                    log.info("[发言生成] 玩家 {} 成功生成发言，长度: {}", getCharacterName(playerId), response.length());
                     return response;
                 } else {
-                    log.warn("[发言生成] 玩家 {} 生成的发言为空", getCharacterName(playerId));
+                    log.warn("[生成失败] 玩家 {} 生成的内容为空", getCharacterName(playerId));
                 }
             } catch (Exception e) {
-                log.error("[发言生成] 调用PlayerAgent.speakWithReasoning失败: {}", e.getMessage(), e);
+                log.error("[生成失败] 调用PlayerAgent方法失败: {}", e.getMessage(), e);
             }
             
         } catch (Exception e) {
@@ -724,25 +819,35 @@ public class DiscussionServiceImpl implements DiscussionService {
      * 启动中央调度器
      */
     private void startCentralDirector() {
-        log.info("启动中央调度器");
+        log.info("[中央调度器] 启动中央调度器");
+        
+        // 检查是否有玩家
+        if (playerIds == null || playerIds.isEmpty()) {
+            log.warn("[中央调度器] 没有玩家，无法启动中央调度器");
+            return;
+        }
         
         // 初始化欲望值和最后发言时间
+        log.debug("[中央调度器] 初始化欲望值和最后发言时间");
         resetDesireScores();
         LocalDateTime now = LocalDateTime.now();
         for (Long playerId : playerIds) {
             lastSpeakTimes.put(playerId, now);
+//            log.debug("[中央调度器] 初始化玩家 {} 的最后发言时间为: {}", getCharacterName(playerId), now);
         }
+        log.info("[中央调度器] 已初始化 {} 个玩家的欲望值和最后发言时间", playerIds.size());
         
         // 创建并启动中央调度器
+//        log.debug("[中央调度器] 创建并启动中央调度器线程");
         centralDirector = Executors.newSingleThreadScheduledExecutor();
         directorFuture = centralDirector.scheduleAtFixedRate(
             this::tick,
             0, // 初始延迟
-            5, // 每5秒执行一次
+            1, // 每1秒执行一次，减少发言滞后性
             TimeUnit.SECONDS
         );
         
-        log.info("中央调度器已启动，每5秒执行一次tick");
+        log.info("[中央调度器] 中央调度器已启动，每1秒执行一次tick方法，初始延迟: 0秒");
     }
     
     /**
@@ -770,9 +875,25 @@ public class DiscussionServiceImpl implements DiscussionService {
      * 重置所有玩家的欲望值
      */
     private void resetDesireScores() {
-        for (Long playerId : playerIds) {
-            desireScores.put(playerId, 0);
+        log.debug("[中央调度器] 重置所有玩家的欲望值");
+        if (playerIds == null || playerIds.isEmpty()) {
+            log.warn("[中央调度器] 没有玩家，无法重置欲望值");
+            return;
         }
+        
+        // 随机选择一个玩家设置为120，其他玩家依次下降
+        int randomIndex = new java.util.Random().nextInt(playerIds.size());
+        int baseScore = 120;
+        
+        for (int i = 0; i < playerIds.size(); i++) {
+            Long playerId = playerIds.get(i);
+            int score = i == randomIndex ? baseScore : baseScore - (i * 10);
+            // 确保分数不为负
+            score = Math.max(score, 0);
+            desireScores.put(playerId, score);
+            log.debug("[中央调度器] 重置玩家 {} 的欲望值为: {}", getCharacterName(playerId), score);
+        }
+        log.info("[中央调度器] 已重置 {} 个玩家的欲望值，随机选择的发言者初始值为: {}", playerIds.size(), baseScore);
     }
     
     /**
@@ -786,25 +907,25 @@ public class DiscussionServiceImpl implements DiscussionService {
         // 被提及 (+50)
         if (checkMentioned(playerId)) {
             score += 50;
-            log.debug("[欲望值计算] 玩家 {} 被提及，+50", getCharacterName(playerId));
+//            log.debug("[欲望值计算] 玩家 {} 被提及，+50", getCharacterName(playerId));
         }
         
         // 话题相关 (+30)
         int topicScore = calculateTopicRelevance(playerId);
         score += topicScore;
-        log.debug("[欲望值计算] 玩家 {} 话题相关度，+{}", getCharacterName(playerId), topicScore);
+//        log.debug("[欲望值计算] 玩家 {} 话题相关度，+{}", getCharacterName(playerId), topicScore);
         
         // 沉默时间补偿 (+2/sec，最高120)
         int silenceScore = calculateSilenceCompensation(playerId);
         score += silenceScore;
-        log.debug("[欲望值计算] 玩家 {} 沉默时间补偿，+{}", getCharacterName(playerId), silenceScore);
+//        log.debug("[欲望值计算] 玩家 {} 沉默时间补偿，+{}", getCharacterName(playerId), silenceScore);
         
         // 性格因子
         int personalityScore = getPersonalityFactor(playerId);
         score += personalityScore;
-        log.debug("[欲望值计算] 玩家 {} 性格因子，+{}", getCharacterName(playerId), personalityScore);
+//        log.debug("[欲望值计算] 玩家 {} 性格因子，+{}", getCharacterName(playerId), personalityScore);
         
-        log.info("[欲望值计算] 玩家 {} 最终欲望值: {}", getCharacterName(playerId), score);
+//        log.info("[欲望值计算] 玩家 {} 最终欲望值: {}", getCharacterName(playerId), score);
         return score;
     }
     
@@ -1041,5 +1162,69 @@ public class DiscussionServiceImpl implements DiscussionService {
      */
     public boolean isDiscussionCompleted() {
         return discussionCompleted;
+    }
+
+    @Override
+    public Map<String, Object> verifyAnswerPhase(Long gameId, List<Long> playerIds, Long dmId, Long judgeId) {
+        log.info("开始单独验证答题环节，游戏ID: {}, 玩家数量: {}, DM ID: {}, Judge ID: {}", gameId, playerIds.size(), dmId, judgeId);
+
+        // 初始化游戏信息
+        this.gameId = gameId;
+        this.playerIds = playerIds;
+        this.dmId = dmId;
+        this.judgeId = judgeId;
+
+        // 重置状态
+        discussionState.clear();
+        discussionState.put("gameId", gameId);
+        discussionState.put("playerIds", playerIds);
+        discussionState.put("dmId", dmId);
+        discussionState.put("judgeId", judgeId);
+        discussionState.put("startTime", LocalDateTime.now());
+        discussionState.put("currentPhase", "VERIFICATION");
+
+        playerAnswers.clear();
+        discussionCompleted = false;
+
+        // 直接进入答题阶段
+        startAnswerPhase();
+
+        // 等待答题完成（模拟）
+        try {
+            Thread.sleep(30000); // 等待30秒，让AI有时间生成答案
+        } catch (InterruptedException e) {
+            log.error("等待答题完成时被中断: {}", e.getMessage(), e);
+            Thread.currentThread().interrupt();
+        }
+
+        // 结束讨论，获取结果
+        Map<String, Object> result = endDiscussion();
+        log.info("答题环节验证完成，游戏ID: {}", gameId);
+
+        return result;
+    }
+
+    @Override
+    public String testDMScore(Long dmId, List<Map<String, Object>> answers) {
+        log.info("开始测试DM评分功能，DM ID: {}, 玩家答案数量: {}", dmId, answers.size());
+
+        // 获取DMAgent实例
+        DMAgent dmAgent = aiService.getDMAgent(dmId);
+        if (dmAgent == null) {
+            log.error("无法获取DM Agent，DM ID: {}", dmId);
+            return "{\"error\": \"无法获取DM Agent\"}";
+        }
+
+        try {
+            // 调用DMAgent的scoreAnswers方法
+            String scoreData = dmAgent.scoreAnswers(answers);
+            log.info("DM评分测试完成，评分结果长度: {}", scoreData.length());
+            log.debug("DM评分结果: {}", scoreData);
+
+            return scoreData;
+        } catch (Exception e) {
+            log.error("测试DM评分功能失败: {}", e.getMessage(), e);
+            return "{\"error\": \"测试DM评分功能失败: " + e.getMessage() + "\"}";
+        }
     }
 }

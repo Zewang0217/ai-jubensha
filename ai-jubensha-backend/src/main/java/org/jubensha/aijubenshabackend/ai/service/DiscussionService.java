@@ -95,4 +95,24 @@ public interface DiscussionService {
      * 开始第二轮讨论
      */
     void startSecondDiscussion();
+
+    /**
+     * 单独验证答题环节
+     *
+     * @param gameId     游戏ID
+     * @param playerIds  玩家ID列表
+     * @param dmId       DM ID
+     * @param judgeId    Judge ID
+     * @return 验证结果，包含答案生成和评分信息
+     */
+    Map<String, Object> verifyAnswerPhase(Long gameId, List<Long> playerIds, Long dmId, Long judgeId);
+
+    /**
+     * 测试DM评分功能
+     *
+     * @param dmId    DM ID
+     * @param answers 玩家答案列表
+     * @return 评分结果，包含每个玩家的评分和评论
+     */
+    String testDMScore(Long dmId, List<Map<String, Object>> answers);
 }

@@ -1,13 +1,20 @@
 package org.jubensha.aijubenshabackend.ai.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jubensha.aijubenshabackend.models.entity.Character;
+import org.jubensha.aijubenshabackend.models.entity.Dialogue;
+import org.jubensha.aijubenshabackend.models.enums.DialogueType;
+import org.jubensha.aijubenshabackend.repository.character.CharacterRepository;
+import org.jubensha.aijubenshabackend.repository.dialogue.DialogueRepository;
+import org.jubensha.aijubenshabackend.repository.game.GamePlayerRepository;
+import org.jubensha.aijubenshabackend.repository.game.GameRepository;
+import org.jubensha.aijubenshabackend.repository.player.PlayerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -23,7 +30,16 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 public class ParentDocumentServiceImpl implements ParentDocumentService {
 
     @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private DialogueRepository dialogueRepository;
+
+    @Autowired
+    private GameRepository gameRepository;
+
+    @Autowired
+    private PlayerRepository playerRepository;
+
+    @Autowired
+    private GamePlayerRepository gamePlayerRepository;
 
     // 父文档缓存，使用Caffeine提高性能
     private final Cache<Long, Map<String, Object>> parentDocumentCache = Caffeine.newBuilder()
@@ -40,16 +56,25 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
     @Override
     @Transactional
     public Long storeParentDocument(Long gameId, Long playerId, String playerName, String content, int totalChunks) {
-        // 注意：dialogues表格需要character_id字段，但ParentDocumentService接口没有提供
-        // 这里使用0作为默认值，表示未知角色
-        Long characterId = 0L;
+        // 创建Dialogue实体
+        Dialogue dialogue = new Dialogue();
         
-        // 插入到dialogues表格
-        String insertSql = "INSERT INTO dialogues (game_id, player_id, character_id, content, type) VALUES (?, ?, ?, ?, ?)";
-        jdbcTemplate.update(insertSql, gameId, playerId, characterId, content, "CHAT");
+        // 设置关联实体
+        dialogue.setGame(gameRepository.findById(gameId).orElse(null));
+        dialogue.setPlayer(playerRepository.findById(playerId).orElse(null));
         
-        // 获取自增ID
-        Long parentId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        // 获取角色信息
+        gamePlayerRepository.findByGameIdAndPlayerId(gameId, playerId).ifPresent(gamePlayer -> {
+            dialogue.setCharacter(gamePlayer.getCharacter());
+        });
+        
+        // 设置其他字段
+        dialogue.setContent(content);
+        dialogue.setType(DialogueType.CHAT);
+        
+        // 保存到数据库
+        Dialogue savedDialogue = dialogueRepository.save(dialogue);
+        Long parentId = savedDialogue.getId();
         
         log.debug("存储父文档成功，ID: {}, 游戏ID: {}, 总块数: {}", parentId, gameId, totalChunks);
         
@@ -66,16 +91,22 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
         }
         
         // 缓存未命中，从数据库查询
-        String selectSql = "SELECT id, game_id, player_id, content, timestamp FROM dialogues WHERE id = ?";
-        
         try {
-            parentDoc = jdbcTemplate.queryForMap(selectSql, parentId);
-            // 存入缓存
-            parentDocumentCache.put(parentId, parentDoc);
-            log.debug("从数据库获取并缓存父文档，ID: {}", parentId);
-            return parentDoc;
+            Optional<Dialogue> dialogueOpt = dialogueRepository.findById(parentId);
+            if (dialogueOpt.isPresent()) {
+                Dialogue dialogue = dialogueOpt.get();
+                // 转换为Map格式
+                parentDoc = convertToMap(dialogue);
+                // 存入缓存
+                parentDocumentCache.put(parentId, parentDoc);
+                log.debug("从数据库获取并缓存父文档，ID: {}", parentId);
+                return parentDoc;
+            } else {
+                log.warn("父文档不存在，ID: {}", parentId);
+                return null;
+            }
         } catch (Exception e) {
-            log.warn("父文档不存在，ID: {}", parentId);
+            log.warn("获取父文档失败，ID: {}", parentId, e);
             return null;
         }
     }
@@ -106,15 +137,13 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
         }
         
         // 缓存未命中的父文档，从数据库查询
-        String placeholders = String.join(",", Collections.nCopies(missingParentIds.size(), "?"));
-        String selectSql = "SELECT id, game_id, player_id, content, timestamp FROM dialogues WHERE id IN (" + placeholders + ")";
-        
         try {
-            List<Map<String, Object>> dbResults = jdbcTemplate.queryForList(selectSql, missingParentIds.toArray());
+            List<Dialogue> dialogues = dialogueRepository.findByIdIn(missingParentIds);
             
             // 存入缓存并添加到结果中
-            for (Map<String, Object> parentDoc : dbResults) {
-                Long parentId = ((Number) parentDoc.get("id")).longValue();
+            for (Dialogue dialogue : dialogues) {
+                Long parentId = dialogue.getId();
+                Map<String, Object> parentDoc = convertToMap(dialogue);
                 parentDocumentCache.put(parentId, parentDoc);
                 result.add(parentDoc);
                 log.debug("从数据库获取并缓存父文档，ID: {}", parentId);
@@ -122,7 +151,7 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
             
             return result;
         } catch (Exception e) {
-            log.error("批量获取父文档失败: {}", e.getMessage());
+            log.error("批量获取父文档失败: {}", e.getMessage(), e);
             return result; // 返回已从缓存获取的结果
         }
     }
@@ -141,10 +170,15 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
         }
         
         // 缓存未命中，从数据库查询
-        String selectSql = "SELECT id, game_id, player_id, content, timestamp FROM dialogues WHERE game_id = ? ORDER BY timestamp DESC LIMIT ?";
-        
         try {
-            parentDocs = jdbcTemplate.queryForList(selectSql, gameId, limit);
+            List<Dialogue> dialogues = dialogueRepository.findByGameIdOrderByTimestampDesc(
+                    gameId, PageRequest.of(0, limit));
+            
+            // 转换为Map列表
+            parentDocs = new ArrayList<>();
+            for (Dialogue dialogue : dialogues) {
+                parentDocs.add(convertToMap(dialogue));
+            }
             
             // 存入缓存
             gameParentDocumentsCache.put(gameId, parentDocs);
@@ -152,7 +186,7 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
             
             return parentDocs;
         } catch (Exception e) {
-            log.error("根据游戏ID获取父文档失败: {}", e.getMessage());
+            log.error("根据游戏ID获取父文档失败: {}", e.getMessage(), e);
             return new ArrayList<>();
         }
     }
@@ -160,26 +194,31 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
     @Override
     @Transactional
     public boolean updateParentDocument(Long parentId, String content) {
-        String updateSql = "UPDATE dialogues SET content = ? WHERE id = ?";
-        
-        int rowsAffected = jdbcTemplate.update(updateSql, content, parentId);
-        boolean success = rowsAffected > 0;
-        
-        if (success) {
-            // 更新成功，清除缓存
-            parentDocumentCache.invalidate(parentId);
-            // 同时清除游戏ID缓存，因为该游戏的父文档列表可能已变更
-            Map<String, Object> parentDoc = getParentDocument(parentId);
-            if (parentDoc != null) {
-                Long gameId = ((Number) parentDoc.get("game_id")).longValue();
-                gameParentDocumentsCache.invalidate(gameId);
+        try {
+            Optional<Dialogue> dialogueOpt = dialogueRepository.findById(parentId);
+            if (dialogueOpt.isPresent()) {
+                Dialogue dialogue = dialogueOpt.get();
+                dialogue.setContent(content);
+                dialogueRepository.save(dialogue);
+                
+                // 更新成功，清除缓存
+                parentDocumentCache.invalidate(parentId);
+                // 同时清除游戏ID缓存，因为该游戏的父文档列表可能已变更
+                Map<String, Object> parentDoc = getParentDocument(parentId);
+                if (parentDoc != null) {
+                    Long gameId = ((Number) parentDoc.get("game_id")).longValue();
+                    gameParentDocumentsCache.invalidate(gameId);
+                }
+                log.debug("更新父文档成功，ID: {}", parentId);
+                return true;
+            } else {
+                log.warn("父文档不存在，无法更新，ID: {}", parentId);
+                return false;
             }
-            log.debug("更新父文档成功，ID: {}", parentId);
-        } else {
-            log.warn("父文档不存在，无法更新，ID: {}", parentId);
+        } catch (Exception e) {
+            log.error("更新父文档失败，ID: {}", parentId, e);
+            return false;
         }
-        
-        return success;
     }
 
     @Override
@@ -188,12 +227,9 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
         // 先获取父文档信息，用于后续清除游戏ID缓存
         Map<String, Object> parentDoc = getParentDocument(parentId);
         
-        String deleteSql = "DELETE FROM dialogues WHERE id = ?";
-        
-        int rowsAffected = jdbcTemplate.update(deleteSql, parentId);
-        boolean success = rowsAffected > 0;
-        
-        if (success) {
+        try {
+            dialogueRepository.deleteById(parentId);
+            
             // 删除成功，清除缓存
             parentDocumentCache.invalidate(parentId);
             // 同时清除游戏ID缓存，因为该游戏的父文档列表已变更
@@ -201,28 +237,52 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
                 Long gameId = ((Number) parentDoc.get("game_id")).longValue();
                 gameParentDocumentsCache.invalidate(gameId);
             }
+            log.debug("删除父文档成功，ID: {}", parentId);
+            return true;
+        } catch (Exception e) {
+            log.error("删除父文档失败，ID: {}", parentId, e);
+            return false;
         }
-        
-        log.debug("删除父文档{}，ID: {}", success ? "成功" : "失败", parentId);
-        return success;
     }
 
     @Override
     @Transactional
     public int deleteParentDocumentsByGameId(Long gameId) {
-        String deleteSql = "DELETE FROM dialogues WHERE game_id = ?";
-        
-        int rowsAffected = jdbcTemplate.update(deleteSql, gameId);
-        
-        if (rowsAffected > 0) {
-            // 删除成功，清除游戏ID缓存
-            gameParentDocumentsCache.invalidate(gameId);
-            // 清除该游戏下所有父文档的缓存
-            // 注意：这里无法直接知道该游戏下有哪些父文档ID，所以不清除单个父文档缓存
-            // 单个父文档缓存会在过期后自动失效
+        try {
+            int rowsAffected = dialogueRepository.deleteByGameId(gameId);
+            
+            if (rowsAffected > 0) {
+                // 删除成功，清除游戏ID缓存
+                gameParentDocumentsCache.invalidate(gameId);
+                // 清除该游戏下所有父文档的缓存
+                // 注意：这里无法直接知道该游戏下有哪些父文档ID，所以不清除单个父文档缓存
+                // 单个父文档缓存会在过期后自动失效
+            }
+            
+            log.debug("根据游戏ID删除父文档完成，游戏ID: {}, 删除数量: {}", gameId, rowsAffected);
+            return rowsAffected;
+        } catch (Exception e) {
+            log.error("根据游戏ID删除父文档失败，游戏ID: {}", gameId, e);
+            return 0;
         }
-        
-        log.debug("根据游戏ID删除父文档完成，游戏ID: {}, 删除数量: {}", gameId, rowsAffected);
-        return rowsAffected;
+    }
+
+    /**
+     * 将Dialogue实体转换为Map格式
+     * <p>
+     * 用于保持与原有实现的兼容性
+     *
+     * @param dialogue Dialogue实体
+     * @return Map格式的父文档信息
+     */
+    private Map<String, Object> convertToMap(Dialogue dialogue) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", dialogue.getId());
+        map.put("game_id", dialogue.getGame() != null ? dialogue.getGame().getId() : null);
+        map.put("player_id", dialogue.getPlayer() != null ? dialogue.getPlayer().getId() : null);
+        map.put("player_name", dialogue.getPlayer() != null ? dialogue.getPlayer().getNickname() : null);
+        map.put("content", dialogue.getContent());
+        map.put("timestamp", dialogue.getTimestamp());
+        return map;
     }
 }
