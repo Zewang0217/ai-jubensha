@@ -217,4 +217,34 @@ public class ClueController {
                 .collect(Collectors.toList());
         return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
     }
+
+    /**
+     * 根据玩家ID查询线索
+     *
+     * @param playerId 玩家ID
+     * @return 线索响应DTO列表
+     */
+    @GetMapping("/player/{playerId}")
+    public ResponseEntity<List<ClueResponseDTO>> getCluesByPlayerId(@PathVariable Long playerId) {
+        List<Clue> clues = clueService.getCluesByPlayerId(playerId);
+        List<ClueResponseDTO> responseDTOs = clues.stream()
+                .map(ClueResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
+    }
+
+    /**
+     * 获取玩家可见的线索
+     *
+     * @param playerId 玩家ID
+     * @return 线索响应DTO列表
+     */
+    @GetMapping("/visible/{playerId}")
+    public ResponseEntity<List<ClueResponseDTO>> getVisibleClues(@PathVariable Long playerId) {
+        List<Clue> clues = clueService.getVisibleClues(playerId);
+        List<ClueResponseDTO> responseDTOs = clues.stream()
+                .map(ClueResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
+    }
 }
