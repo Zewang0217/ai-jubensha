@@ -113,7 +113,6 @@ const useTheme = () => {
  */
 const PhaseIndicator = memo(({currentPhase, isDark}) => {
   const colors = isDark ? DESIGN.colors.dark : DESIGN.colors.light
-  const accent = DESIGN.colors.accent
   const config = PHASE_CONFIG[currentPhase]
 
   return (
@@ -140,9 +139,7 @@ PhaseIndicator.displayName = 'PhaseIndicator'
 /**
  * WebSocket 连接指示器 - 简约风格
  */
-const ConnectionIndicator = memo(({isConnected, isDebugMode, isDark}) => {
-  const colors = isDark ? DESIGN.colors.dark : DESIGN.colors.light
-
+const ConnectionIndicator = memo(({isConnected, isDebugMode}) => {
   const status = isDebugMode ? 'debug' : isConnected ? 'connected' : 'disconnected'
 
   const config = {
@@ -205,18 +202,17 @@ ConnectionIndicator.displayName = 'ConnectionIndicator'
 
 const GameRoomFooter = memo(({
                                currentPhase,
-                               progress,
-                               canGoBack,
-                               onBack,
-                               gameStatus,
+                                 progress: _progress,
+                                 canGoBack: _canGoBack,
+                                 onBack: _onBack,
+                                 gameStatus: _gameStatus,
                                isConnected,
                                isDebugMode,
-                               onPhaseSelect,
-                               sequence = [],
+                                 onPhaseSelect: _onPhaseSelect,
+                                 sequence: _sequence = [],
                              }) => {
   const isDark = useTheme()
   const colors = isDark ? DESIGN.colors.dark : DESIGN.colors.light
-  const accent = DESIGN.colors.accent
 
   return (
       <footer className="relative z-50 flex-none">

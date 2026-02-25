@@ -156,9 +156,6 @@ const PhaseProgress = memo(({currentPhase, sequence, isDark}) => {
   const colors = isDark ? DESIGN.colors.dark : DESIGN.colors.light
   const accent = DESIGN.colors.accent
   const currentIndex = sequence.indexOf(currentPhase)
-  const progress = sequence.length > 1
-      ? ((currentIndex + 1) / sequence.length) * 100
-      : 100
 
   return (
       <motion.div
@@ -266,7 +263,7 @@ ConnectionStatus.displayName = 'ConnectionStatus'
 /**
  * 控制按钮 - 统一使用 GhostButton
  */
-const ControlButtons = memo(({showDebugPanel, onToggleDebugPanel, onExit, isDark}) => {
+const ControlButtons = memo(({showDebugPanel: _showDebugPanel, onToggleDebugPanel, onExit}) => {
   return (
       <motion.div
           className="flex items-center gap-1"
@@ -299,7 +296,7 @@ ControlButtons.displayName = 'ControlButtons'
 // =============================================================================
 
 const GameRoomHeader = memo(({
-                               id,
+                               id: _id,
                                currentPhase,
                                sequence,
                                isConnected,
@@ -307,11 +304,10 @@ const GameRoomHeader = memo(({
                                showDebugPanel,
                                onToggleDebugPanel,
                                onExit,
-                               onPhaseClick,
+                               onPhaseClick: _onPhaseClick,
                              }) => {
   const isDark = useTheme()
   const colors = isDark ? DESIGN.colors.dark : DESIGN.colors.light
-  const accent = DESIGN.colors.accent
 
   return (
       <header className="relative z-50 flex-none">
