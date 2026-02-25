@@ -1,202 +1,369 @@
 /**
- * @fileoverview GameRoomHeader 组件 - 顶部导航栏
- * @description 游戏房间顶部导航栏，包含事务所招牌、档案标签、案件编号、无线电状态和操作按钮
+ * @fileoverview GameRoomHeader 组件 - 现代扁平化 + 科技简约风 + 二次元萌系
+ * @description 游戏房间顶部导航栏
+ *
+ * 设计理念：现代扁平化 + 科技简约 + 二次元萌系
+ * - 浅灰、淡蓝等低饱和度冷色调为主
+ * - 少量亮色点缀（淡紫、淡粉）
+ * - 几何图形 + 圆角方形按钮
+ * - 兼顾黑白主题
  */
 
 import React, {memo} from 'react'
 import {motion} from 'framer-motion'
-import {Bug, FileText, FolderOpen, LogOut, Radio} from 'lucide-react'
+import {Hexagon, Settings, Sparkles, X} from 'lucide-react'
 import {PHASE_CONFIG} from '../phases'
+import GhostButton from './GameRoomButton'
+
+// =============================================================================
+// 设计Token - 统一美学
+// =============================================================================
+
+const DESIGN = {
+  colors: {
+    light: {
+      bg: {
+        primary: 'bg-[#F5F7FA]',
+        secondary: 'bg-[#EEF1F6]',
+        tertiary: 'bg-[#E4E8EE]',
+        glass: 'bg-white/80',
+      },
+      border: {
+        default: 'border-[#E0E5EE]',
+        hover: 'border-[#C8D0DD]',
+        accent: 'border-[#8B9DC8]',
+      },
+      text: {
+        primary: 'text-[#2D3748]',
+        secondary: 'text-[#5A6978]',
+        muted: 'text-[#8C96A5]',
+        accent: 'text-[#7C8CD6]',
+      },
+      shadow: 'shadow-[0_2px_8px_rgba(45,55,72,0.08)]',
+      shadowHover: 'shadow-[0_4px_12px_rgba(45,55,72,0.12)]',
+    },
+    dark: {
+      bg: {
+        primary: 'bg-[#1A1D26]',
+        secondary: 'bg-[#222631]',
+        tertiary: 'bg-[#2A2F3C]',
+        glass: 'bg-[#222631]/90',
+      },
+      border: {
+        default: 'border-[#363D4D]',
+        hover: 'border-[#4A5568]',
+        accent: 'border-[#5E6B8A]',
+      },
+      text: {
+        primary: 'text-[#E8ECF2]',
+        secondary: 'text-[#9CA8B8]',
+        muted: 'text-[#6B7788]',
+        accent: 'text-[#A5B4EC]',
+      },
+      shadow: 'shadow-[0_2px_8px_rgba(0,0,0,0.2)]',
+      shadowHover: 'shadow-[0_4px_12px_rgba(0,0,0,0.3)]',
+    },
+    accent: {
+      primary: 'bg-[#7C8CD6]',
+      secondary: 'bg-[#A78BFA]',
+      tertiary: 'bg-[#F5A9C9]',
+      glow: 'shadow-[0_0_12px_rgba(124,140,214,0.3)]',
+    },
+  },
+  spacing: {
+    section: 'gap-4',
+    item: 'gap-2',
+    padding: 'px-4 py-2.5',
+    buttonPadding: 'px-3 py-2',
+  },
+  radius: {
+    sm: 'rounded-md',
+    md: 'rounded-lg',
+    lg: 'rounded-xl',
+  },
+}
+
+// =============================================================================
+// 主题检测 Hook
+// =============================================================================
+
+const useTheme = () => {
+  const [isDark, setIsDark] = React.useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+    }
+    return false
+  })
+
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = (e) => setIsDark(e.matches)
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
+  }, [])
+
+  return isDark
+}
 
 // =============================================================================
 // 子组件
 // =============================================================================
 
 /**
- * 侦探事务所招牌
+ * 品牌标识 - 几何徽章 + 萌系点缀
  */
-const OfficeSign = memo(() => (
-    <div className="flex items-center gap-3">
+const BrandBadge = memo(({isDark}) => {
+  const colors = isDark ? DESIGN.colors.dark : DESIGN.colors.light
+
+  return (
+      <motion.div
+          className="flex items-center gap-2"
+          initial={{opacity: 0, x: -20}}
+          animate={{opacity: 1, x: 0}}
+          transition={{duration: 0.4, ease: [0.25, 0.1, 0.25, 1]}}
+      >
+        {/* 几何徽章 - 六边形 */}
         <div className="relative">
-            {/* 台灯效果 */}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-20 h-20 bg-amber-500/10 rounded-full blur-xl"/>
-            <div
-                className="w-10 h-10 bg-gradient-to-br from-amber-700 to-amber-900 rounded-lg flex items-center justify-center border border-amber-600/50 shadow-lg shadow-amber-900/20">
-                <span className="text-amber-100 font-serif text-lg font-bold">N</span>
-            </div>
+          <div
+              className={`w-7 h-7 ${colors.bg.tertiary} ${DESIGN.radius.sm} flex items-center justify-center border ${colors.border.default}`}>
+            <Hexagon className={`w-3.5 h-3.5 ${colors.text.accent}`} strokeWidth={1.8}/>
         </div>
-        <div className="hidden sm:block">
-            <h1 className="text-amber-100 font-serif text-sm tracking-wider">NOIR</h1>
-            <p className="text-stone-500 text-xs tracking-widest">DETECTIVE AGENCY</p>
+          {/* 萌系小点缀 - 星星 */}
+          <motion.div
+              className="absolute -top-0.5 -right-0.5"
+              animate={{rotate: [0, 15, -15, 0], scale: [1, 1.1, 1]}}
+              transition={{duration: 2, repeat: Infinity, ease: "easeInOut"}}
+          >
+            <Sparkles className="w-2 h-2 text-[#F5A9C9] fill-[#F5A9C9]"/>
+          </motion.div>
         </div>
-    </div>
-))
-OfficeSign.displayName = 'OfficeSign'
 
-/**
- * 档案文件夹标签
- */
-const CaseFileTab = memo(({currentPhase, sequence}) => {
-    const currentIndex = sequence.indexOf(currentPhase)
-
-    return (
-        <div className="flex items-center">
-            <FolderOpen className="w-4 h-4 text-amber-600/60 mr-2"/>
-            <div className="flex items-center gap-1">
-                {sequence.map((phase, index) => {
-                    const config = PHASE_CONFIG[phase]
-                    const isActive = index === currentIndex
-                    const isCompleted = index < currentIndex
-
-                    return (
-                        <div key={phase} className="flex items-center">
-                            <motion.button
-                                whileHover={{scale: 1.05}}
-                                className={`
-                  relative px-3 py-1.5 text-xs font-serif transition-all duration-200
-                  ${isActive
-                                    ? 'bg-amber-900/40 text-amber-200 border border-amber-700/50'
-                                    : isCompleted
-                                        ? 'bg-stone-800/50 text-stone-400 border border-stone-700'
-                                        : 'bg-stone-900/30 text-stone-600 border border-stone-800'
-                                }
-                `}
-                            >
-                                <span className="hidden lg:inline">{config.title}</span>
-                                <span className="lg:hidden">{String(index + 1).padStart(2, '0')}</span>
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="activeTab"
-                                        className="absolute inset-0 border-2 border-amber-500/30"
-                                        transition={{type: 'spring', stiffness: 500, damping: 30}}
-                                    />
-                                )}
-                            </motion.button>
-                            {index < sequence.length - 1 && (
-                                <div className="w-4 h-px bg-stone-700 mx-0.5"/>
-                            )}
-                        </div>
-                    )
-                })}
-            </div>
-        </div>
-    )
-})
-CaseFileTab.displayName = 'CaseFileTab'
-
-/**
- * 打字机风格的案件编号
- */
-const CaseNumber = memo(({id}) => (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-900/50 border border-stone-700">
-        <FileText className="w-3.5 h-3.5 text-stone-500"/>
-        <div className="flex flex-col">
-            <span className="text-[10px] text-stone-500 uppercase tracking-wider">Case No.</span>
-            <span className="text-xs text-stone-300 font-mono">#{String(id).padStart(4, '0')}</span>
-        </div>
-    </div>
-))
-CaseNumber.displayName = 'CaseNumber'
-
-/**
- * 无线电状态指示器
- */
-const RadioStatus = memo(({isConnected, isDebugMode}) => {
-    return (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-stone-900/50 border border-stone-700">
-            <Radio
-                className={`w-3.5 h-3.5 ${isDebugMode ? 'text-amber-500' : isConnected ? 'text-green-500' : 'text-red-500'}`}
-            />
-            <div className="flex flex-col">
-        <span
-            className={`text-[10px] uppercase tracking-wider ${isDebugMode ? 'text-amber-500' : isConnected ? 'text-green-400' : 'text-red-400'}`}>
-          {isDebugMode ? 'SIMULATION' : isConnected ? 'ONLINE' : 'OFFLINE'}
+        {/* 品牌文字 */}
+        <div className="hidden sm:flex flex-col">
+        <span className={`${colors.text.primary} font-semibold text-sm tracking-tight`}>
+          剧本杀
         </span>
-                <div className="flex gap-0.5 mt-0.5">
-                    {[1, 2, 3].map((i) => (
-                        <motion.div
-                            key={i}
-                            className={`w-1 h-1 ${isDebugMode ? 'bg-amber-500' : isConnected ? 'bg-green-500' : 'bg-red-500'}`}
-                            animate={{opacity: [0.3, 1, 0.3]}}
-                            transition={{duration: 1.5, repeat: Infinity, delay: i * 0.2}}
-                        />
-                    ))}
-                </div>
-            </div>
         </div>
-    )
+      </motion.div>
+  )
 })
-RadioStatus.displayName = 'RadioStatus'
+BrandBadge.displayName = 'BrandBadge'
+
+/**
+ * 阶段进度指示器 - 极简显示（不可点击）
+ */
+const PhaseProgress = memo(({currentPhase, sequence, isDark}) => {
+  const colors = isDark ? DESIGN.colors.dark : DESIGN.colors.light
+  const accent = DESIGN.colors.accent
+  const currentIndex = sequence.indexOf(currentPhase)
+  const progress = sequence.length > 1
+      ? ((currentIndex + 1) / sequence.length) * 100
+      : 100
+
+  return (
+      <motion.div
+          className="hidden lg:flex items-center gap-3"
+          initial={{opacity: 0, y: -10}}
+          animate={{opacity: 1, y: 0}}
+          transition={{duration: 0.4, delay: 0.1}}
+      >
+        {/* 当前阶段名称 */}
+        <div className="flex items-center gap-1.5">
+          <div className={`w-0.5 h-3 ${accent.primary} rounded-full`}/>
+          <span className={`${colors.text.secondary} text-xs font-medium`}>
+          {PHASE_CONFIG[currentPhase]?.title || '准备中'}
+        </span>
+        </div>
+
+        {/* 分隔符 */}
+        <span className={`${colors.text.muted} text-[10px]`}>|</span>
+
+        {/* 阶段列表 - 仅显示 */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+          {sequence.map((phase, index) => {
+            const config = PHASE_CONFIG[phase]
+            const isActive = index === currentIndex
+            const isCompleted = index < currentIndex
+
+            return (
+                <span
+                    key={phase}
+                    className={`
+                flex-shrink-0 text-[10px] whitespace-nowrap
+                transition-all duration-200
+                ${isActive
+                        ? `${colors.text.accent} font-medium`
+                        : isCompleted
+                            ? `${colors.text.muted}`
+                            : `${colors.text.muted}/50`
+                    }
+              `}
+                >
+              {config?.title || phase}
+                  {index < sequence.length - 1 && (
+                      <span className={`${colors.text.muted}/30 ml-1.5`}>/</span>
+                  )}
+            </span>
+            )
+          })}
+        </div>
+      </motion.div>
+  )
+})
+PhaseProgress.displayName = 'PhaseProgress'
+
+/**
+ * 连接状态指示 - 简约圆点
+ */
+const ConnectionStatus = memo(({isConnected, isDebugMode, isDark}) => {
+  const colors = isDark ? DESIGN.colors.dark : DESIGN.colors.light
+
+  const status = isDebugMode ? 'debug' : isConnected ? 'connected' : 'disconnected'
+
+  const config = {
+    debug: {
+      color: 'bg-[#F5A9C9]',
+      label: '调试',
+      textColor: colors.text.accent,
+    },
+    connected: {
+      color: 'bg-[#5DD9A8]',
+      label: '已连接',
+      textColor: 'text-[#5DD9A8]',
+    },
+    disconnected: {
+      color: 'bg-[#F87171]',
+      label: '未连接',
+      textColor: 'text-[#F87171]',
+    },
+  }[status]
+
+  return (
+      <motion.div
+          className="flex items-center gap-1.5 px-2 py-1.5"
+          initial={{opacity: 0}}
+          animate={{opacity: 1}}
+          transition={{duration: 0.3, delay: 0.2}}
+      >
+        <div className="relative">
+          <div className={`w-2 h-2 ${config.color} rounded-full`}/>
+          {status !== 'disconnected' && (
+              <motion.div
+                  className={`absolute inset-0 ${config.color} rounded-full`}
+                  animate={{scale: [1, 2], opacity: [0.5, 0]}}
+                  transition={{duration: 1.5, repeat: Infinity}}
+              />
+          )}
+        </div>
+        <span className={`${config.textColor} text-[10px] font-medium`}>
+        {config.label}
+      </span>
+      </motion.div>
+  )
+})
+ConnectionStatus.displayName = 'ConnectionStatus'
+
+/**
+ * 控制按钮 - 统一使用 GhostButton
+ */
+const ControlButtons = memo(({showDebugPanel, onToggleDebugPanel, onExit, isDark}) => {
+  return (
+      <motion.div
+          className="flex items-center gap-1"
+          initial={{opacity: 0, x: 20}}
+          animate={{opacity: 1, x: 0}}
+          transition={{duration: 0.4, delay: 0.25}}
+      >
+        {/* 调试面板 */}
+        <GhostButton onClick={onToggleDebugPanel}>
+        <span className="flex items-center gap-1.5">
+          <Settings className="w-3.5 h-3.5" strokeWidth={1.8}/>
+          <span className="hidden sm:inline">设置</span>
+        </span>
+        </GhostButton>
+
+        {/* 退出按钮 */}
+        <GhostButton onClick={onExit}>
+        <span className="flex items-center gap-1.5">
+          <X className="w-3.5 h-3.5" strokeWidth={1.8}/>
+          <span className="hidden sm:inline">退出</span>
+        </span>
+        </GhostButton>
+      </motion.div>
+  )
+})
+ControlButtons.displayName = 'ControlButtons'
 
 // =============================================================================
 // 主组件
 // =============================================================================
 
 const GameRoomHeader = memo(({
-                                 id,
-                                 currentPhase,
-                                 sequence,
-                                 isConnected,
-                                 isDebugMode,
-                                 showDebugPanel,
-                                 onToggleDebugPanel,
-                                 onExit,
+                               id,
+                               currentPhase,
+                               sequence,
+                               isConnected,
+                               isDebugMode,
+                               showDebugPanel,
+                               onToggleDebugPanel,
+                               onExit,
+                               onPhaseClick,
                              }) => {
-    return (
-        <header
-            className="relative z-10 flex-none px-4 sm:px-6 py-4 border-b-2 border-stone-800 bg-stone-900/95 backdrop-blur-xl">
-            {/* 装饰线 */}
-            <div
-                className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-700/30 to-transparent"/>
+  const isDark = useTheme()
+  const colors = isDark ? DESIGN.colors.dark : DESIGN.colors.light
+  const accent = DESIGN.colors.accent
 
-            <div className="flex items-center justify-between gap-4">
-                {/* 左侧：事务所招牌 + 档案标签 */}
-                <div className="flex items-center gap-6">
-                    <OfficeSign/>
-                    <div className="hidden md:block">
-                        <CaseFileTab currentPhase={currentPhase} sequence={sequence}/>
-                    </div>
-                </div>
+  return (
+      <header className="relative z-50 flex-none">
+        {/* 背景层 */}
+        <div className={`absolute inset-0 ${colors.bg.primary}`}/>
 
-                {/* 右侧：案件编号 + 无线电状态 + 操作 */}
-                <div className="flex items-center gap-3">
-                    <div className="hidden sm:block">
-                        <CaseNumber id={id}/>
-                    </div>
-                    <RadioStatus isConnected={isConnected} isDebugMode={isDebugMode}/>
+        {/* 顶部微妙渐变 */}
+        <div
+            className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#7C8CD6]/20 to-transparent"/>
 
-                    {/* 调试面板开关 */}
-                    <button
-                        onClick={onToggleDebugPanel}
-                        className={`
-              p-2 border transition-colors
-              ${showDebugPanel
-                            ? 'border-amber-600 bg-amber-900/20 text-amber-400'
-                            : 'border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-600'
-                        }
-            `}
-                        title="Detective's Notes"
-                    >
-                        <Bug className="w-4 h-4"/>
-                    </button>
+        {/* 底部细线 */}
+        <div className={`absolute bottom-0 left-0 right-0 h-px ${colors.border.default}`}/>
 
-                    {/* 退出按钮 */}
-                    <button
-                        onClick={onExit}
-                        className="flex items-center gap-2 px-3 py-2 border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors"
-                    >
-                        <LogOut className="w-4 h-4"/>
-                        <span className="hidden sm:inline text-sm">Close</span>
-                    </button>
-                </div>
+        {/* 主内容区 */}
+        <div className="relative px-4 sm:px-5 py-2">
+          <div className="flex items-center justify-between gap-4">
+            {/* 左侧：品牌 + 阶段进度 */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              <BrandBadge isDark={isDark}/>
+
+              {/* 分隔线 */}
+              <div className="hidden xl:block w-px h-4 bg-[#E0E5EE] dark:bg-[#363D4D]"/>
+
+              <PhaseProgress
+                  currentPhase={currentPhase}
+                  sequence={sequence}
+                  isDark={isDark}
+              />
             </div>
 
-            {/* 移动端阶段标签 */}
-            <div className="md:hidden mt-3 overflow-x-auto pb-1">
-                <CaseFileTab currentPhase={currentPhase} sequence={sequence}/>
+            {/* 右侧：连接状态 + 控制 */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              <ConnectionStatus
+                  isConnected={isConnected}
+                  isDebugMode={isDebugMode}
+                  isDark={isDark}
+              />
+
+              {/* 分隔线 */}
+              <div className="hidden sm:block w-px h-4 bg-[#E0E5EE] dark:bg-[#363D4D]"/>
+
+              <ControlButtons
+                  showDebugPanel={showDebugPanel}
+                  onToggleDebugPanel={onToggleDebugPanel}
+                  onExit={onExit}
+                  isDark={isDark}
+              />
             </div>
-        </header>
-    )
+          </div>
+        </div>
+      </header>
+  )
 })
 
 GameRoomHeader.displayName = 'GameRoomHeader'
