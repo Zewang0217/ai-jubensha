@@ -1,377 +1,465 @@
 /**
- * @fileoverview Investigation 组件 - Film Noir 风格
- * @description 搜证阶段，采用复古黑色电影美学
+ * @fileoverview Investigation 组件 - 透明背景 + 玻璃态卡片
+ * @description 搜证阶段，与 CharacterAssignment/ScriptReading 风格保持一致
  */
 
 import {memo, useCallback, useState} from 'react'
 import {AnimatePresence, motion} from 'framer-motion'
+import {ChevronRight, Lock, Search} from 'lucide-react'
 import {PHASE_TYPE} from '../types'
+import GhostButton from '../../../components/ui/GhostButton'
+import ClueCard from '../../../components/ui/ClueCard'
 
 // =============================================================================
-// 证据袋组件
+// 动画配置
 // =============================================================================
 
-const EvidenceBag = memo(({clue, isRevealed, onReveal, index}) => {
-    return (
+const containerVariants = {
+  hidden: {opacity: 0},
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.06,
+      delayChildren: 0.1,
+    },
+  },
+}
+
+const itemVariants = {
+  hidden: {opacity: 0, y: 12},
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: [0.25, 0.1, 0.25, 1],
+    },
+  },
+}
+
+// =============================================================================
+// 背景装饰
+// =============================================================================
+
+const BackgroundDecor = memo(() => (
+    <>
+      <motion.div
+          className="absolute top-0 left-0 w-64 h-64 rounded-full opacity-30 blur-3xl"
+          style={{
+            background: 'radial-gradient(circle, rgba(124, 140, 214, 0.4) 0%, transparent 70%)',
+          }}
+          animate={{
+            scale: [1, 1.1, 1],
+            opacity: [0.3, 0.4, 0.3],
+          }}
+          transition={{duration: 4, repeat: Infinity}}
+      />
+      <motion.div
+          className="absolute bottom-0 right-0 w-80 h-80 rounded-full opacity-20 blur-3xl"
+          style={{
+            background: 'radial-gradient(circle, rgba(167, 139, 250, 0.4) 0%, transparent 70%)',
+          }}
+          animate={{
+            scale: [1, 1.15, 1],
+            opacity: [0.2, 0.35, 0.2],
+          }}
+          transition={{duration: 5, repeat: Infinity, delay: 1}}
+      />
+      {[...Array(6)].map((_, i) => (
+          <motion.div
+              key={i}
+              className="absolute w-1 h-1 rounded-full"
+              style={{
+                backgroundColor: i % 2 === 0 ? '#7C8CD6' : '#F5A9C9',
+                top: `${15 + i * 12}%`,
+                left: `${10 + i * 8}%`,
+              }}
+              animate={{
+                opacity: [0.2, 0.8, 0.2],
+                scale: [0.8, 1.2, 0.8],
+              }}
+              transition={{
+                duration: 2 + i * 0.3,
+                repeat: Infinity,
+                delay: i * 0.2,
+              }}
+          />
+      ))}
+    </>
+))
+
+BackgroundDecor.displayName = 'BackgroundDecor'
+
+// =============================================================================
+// 场景卡片
+// =============================================================================
+
+const SceneCard = memo(({scene, isSelected, isLocked, onClick, clueCount}) => (
+    <motion.button
+        onClick={onClick}
+        disabled={isLocked}
+        whileHover={!isLocked ? {scale: 1.02, y: -2} : {}}
+        whileTap={!isLocked ? {scale: 0.98} : {}}
+        className={`
+      w-full text-left p-3 rounded-xl transition-all duration-300 relative overflow-hidden
+      ${isSelected
+            ? 'bg-white/80 dark:bg-[#222631]/80 backdrop-blur-md border border-[#7C8CD6]/50 shadow-lg'
+            : isLocked
+                ? 'bg-white/30 dark:bg-[#222631]/30 backdrop-blur-sm border border-[#E0E5EE]/50 dark:border-[#363D4D]/50 opacity-60'
+                : 'bg-white/60 dark:bg-[#222631]/60 backdrop-blur-sm border border-[#E0E5EE] dark:border-[#363D4D] hover:bg-white/80 dark:hover:bg-[#222631]/80'
+        }
+    `}
+    >
+      {/* 选中指示条 */}
+      {isSelected && (
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#7C8CD6] to-[#A78BFA]"/>
+      )}
+
+      <div className="flex items-start gap-3">
+        {/* 图标 */}
+        <div className={`
+        w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
+        ${isLocked
+            ? 'bg-[#E0E5EE] dark:bg-[#363D4D] text-[#8C96A5]'
+            : isSelected
+                ? 'bg-gradient-to-br from-[#7C8CD6] to-[#A78BFA] text-white'
+                : 'bg-[#EEF1F6] dark:bg-[#2A2F3C] text-[#7C8CD6]'
+        }
+      `}>
+          {isLocked ? <Lock className="w-4 h-4"/> : <Search className="w-4 h-4"/>}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className={`font-medium truncate ${isSelected ? 'text-[#2D3748] dark:text-[#E8ECF2]' : 'text-[#5A6978] dark:text-[#9CA8B8]'}`}>
+              {scene.name}
+            </h4>
+            {!isLocked && clueCount > 0 && (
+                <span className={`
+              text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0
+              ${isSelected
+                    ? 'bg-[#7C8CD6]/10 text-[#7C8CD6]'
+                    : 'bg-[#E0E5EE] dark:bg-[#363D4D] text-[#8C96A5]'
+                }
+            `}>
+              {clueCount}
+            </span>
+            )}
+          </div>
+          <p className="text-xs text-[#8C96A5] dark:text-[#6B7788] mt-1 line-clamp-2">
+            {scene.description}
+          </p>
+        </div>
+      </div>
+    </motion.button>
+))
+
+SceneCard.displayName = 'SceneCard'
+
+// =============================================================================
+// 进度条组件
+// =============================================================================
+
+const ProgressBar = memo(({progress, current, total}) => (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 h-2 bg-[#E0E5EE] dark:bg-[#363D4D] rounded-full overflow-hidden">
         <motion.div
-            initial={{opacity: 0, scale: 0.95}}
-            animate={{opacity: 1, scale: 1}}
-            transition={{delay: index * 0.1}}
-            className="relative"
-        >
-            {!isRevealed ? (
-                <button
-                    onClick={onReveal}
-                    className="w-full aspect-square border-2 border-dashed border-stone-600 hover:border-amber-600/50 bg-stone-800/20 hover:bg-stone-800/40 transition-all flex flex-col items-center justify-center group"
-                >
-                    <div
-                        className="w-12 h-12 rounded-full border-2 border-stone-600 group-hover:border-amber-600/50 flex items-center justify-center mb-2 transition-colors">
-                        <span className="text-stone-500 group-hover:text-amber-500/70 text-xl">?</span>
-                    </div>
-                    <span className="text-stone-600 group-hover:text-stone-400 text-xs uppercase tracking-widest">
-            Unexamined
-          </span>
-                </button>
-            ) : (
-                <div className="w-full aspect-square border border-amber-700/30 bg-amber-950/10 p-3 overflow-hidden">
-                    <div className="flex flex-col h-full">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div
-                                className="w-8 h-8 bg-amber-900/30 border border-amber-700/30 flex items-center justify-center flex-shrink-0">
-                                <span className="text-amber-600 text-sm">📋</span>
-                            </div>
-                            <h5 className="text-amber-100 font-serif text-sm leading-tight line-clamp-2 flex-1">{clue.name}</h5>
-                        </div>
-                        <p className="text-stone-400 text-xs leading-relaxed line-clamp-3 flex-1">{clue.description}</p>
-                        <span
-                            className="inline-block mt-auto pt-2 px-2 py-0.5 bg-stone-800 text-stone-500 text-xs border border-stone-700 w-fit">
-              {clue.type}
-            </span>
-                    </div>
-                </div>
-            )}
-        </motion.div>
-    )
-})
+            className="h-full bg-gradient-to-r from-[#7C8CD6] to-[#A78BFA] rounded-full"
+            initial={{width: 0}}
+            animate={{width: `${progress}%`}}
+            transition={{duration: 0.5, ease: 'easeOut'}}
+        />
+      </div>
+      <span className="text-xs text-[#8C96A5] dark:text-[#6B7788] font-medium whitespace-nowrap">
+      {current}/{total}
+    </span>
+    </div>
+))
 
-EvidenceBag.displayName = 'EvidenceBag'
-
-// =============================================================================
-// 现场照片组件 - 场景选择器
-// =============================================================================
-
-const CrimeScenePhoto = memo(({scene, isSelected, isLocked, onClick, clueCount}) => {
-    return (
-        <motion.button
-            whileHover={!isLocked ? {scale: 1.02} : {}}
-            whileTap={!isLocked ? {scale: 0.98} : {}}
-            onClick={onClick}
-            disabled={isLocked}
-            className={`
-        relative w-full aspect-[4/3] border-2 overflow-hidden transition-all
-        ${isSelected
-                ? 'border-amber-600 ring-2 ring-amber-600/20'
-                : isLocked
-                    ? 'border-stone-700 opacity-50'
-                    : 'border-stone-600 hover:border-stone-500'
-            }
-      `}
-        >
-            {/* 照片背景 - 使用渐变代替图片 */}
-            <div className={`
-        absolute inset-0
-        ${isSelected
-                ? 'bg-gradient-to-br from-amber-950/50 to-stone-900'
-                : 'bg-gradient-to-br from-stone-800/50 to-stone-900'
-            }
-      `}/>
-
-            {/* 锁定图标 */}
-            {isLocked && (
-                <div className="absolute inset-0 flex items-center justify-center bg-stone-950/60">
-                    <div className="w-12 h-12 rounded-full border-2 border-stone-600 flex items-center justify-center">
-                        <span className="text-stone-600 text-xl">🔒</span>
-                    </div>
-                </div>
-            )}
-
-            {/* 内容 */}
-            <div className="relative h-full flex flex-col justify-between p-3">
-                <div className="flex justify-between items-start">
-          <span className={`
-            text-xs font-mono
-            ${isSelected ? 'text-amber-500' : 'text-stone-500'}
-          `}>
-            {isSelected ? '● ACTIVE' : isLocked ? '● LOCKED' : '○ AVAILABLE'}
-          </span>
-                    {!isLocked && clueCount > 0 && (
-                        <span className="px-2 py-0.5 bg-amber-900/50 text-amber-500 text-xs border border-amber-700/30">
-              {clueCount} ITEMS
-            </span>
-                    )}
-                </div>
-
-                <div>
-                    <h4 className={`font-serif text-lg ${isSelected ? 'text-amber-100' : 'text-stone-300'}`}>
-                        {scene.name}
-                    </h4>
-                    <p className="text-stone-500 text-xs mt-1 line-clamp-2">{scene.description}</p>
-                </div>
-            </div>
-
-            {/* 照片角标 */}
-            <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-white/20"/>
-            <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-white/20"/>
-        </motion.button>
-    )
-})
-
-CrimeScenePhoto.displayName = 'CrimeScenePhoto'
+ProgressBar.displayName = 'ProgressBar'
 
 // =============================================================================
 // 主要组件
 // =============================================================================
 
 function Investigation({_config, gameData, onComplete, onAction}) {
-    const [selectedScene, setSelectedScene] = useState(null)
-    const [revealedClues, setRevealedClues] = useState(new Set())
+  const [selectedScene, setSelectedScene] = useState(null)
+  const [revealedClues, setRevealedClues] = useState(new Set())
 
-    const scenes = gameData?.scenes || [
+  const scenes = gameData?.scenes || [
+    {
+      id: 'scene-001',
+      name: '书房',
+      description: '尸体被发现的地方，门从里面反锁。',
+      isLocked: false,
+      clueCount: 3,
+      clues: [
         {
-            id: 'scene-001',
-            name: 'The Study',
-            description: 'Where the body was found. Locked from the inside.',
-            isLocked: false,
-            clueCount: 3,
-            clues: [
-                {
-                    id: 'c1',
-                    name: 'Bloody Letter Opener',
-                    description: 'The murder weapon. Antique silver, monogrammed with the victim\'s initials. But whose fingerprints are on the handle?',
-                    type: 'Weapon'
-                },
-                {
-                    id: 'c2',
-                    name: 'Spilled Tea',
-                    description: 'A cup of Earl Grey, knocked over. The stain pattern suggests a struggle.',
-                    type: 'Physical'
-                },
-                {
-                    id: 'c3',
-                    name: 'Draft Will',
-                    description: 'Unsigned. Changes everything. Someone was about to lose everything.',
-                    type: 'Document'
-                },
-            ],
+          id: 'c1',
+          name: '染血的拆信刀',
+          description: '凶器。古董银质，刻有受害者姓名首字母。但刀柄上是谁的指纹？',
+          type: '凶器'
         },
+        {id: 'c2', name: '打翻的茶杯', description: '一杯伯爵红茶被打翻。污渍显示这里发生过搏斗。', type: '物证'},
+        {id: 'c3', name: '遗嘱草稿', description: '未签署。改变一切。有人即将失去一切。', type: '文件'},
+      ],
+    },
+    {
+      id: 'scene-002',
+      name: '客厅',
+      description: '客人们等待的地方，气氛紧张。',
+      isLocked: false,
+      clueCount: 2,
+      clues: [
+        {id: 'c4', name: '断电记录', description: '精确在晚上8:15。持续整整5分钟。足够杀人了。', type: '时间线'},
         {
-            id: 'scene-002',
-            name: 'Drawing Room',
-            description: 'Where the guests waited. Nerves were high.',
-            isLocked: false,
-            clueCount: 2,
-            clues: [
-                {
-                    id: 'c4',
-                    name: 'Power Cut Record',
-                    description: 'Precisely 8:15 PM. Lasted exactly 5 minutes. Long enough to kill.',
-                    type: 'Timeline'
-                },
-                {
-                    id: 'c5',
-                    name: 'Window Latch',
-                    description: 'Forced from outside. But this window faces a cliff. Impossible escape.',
-                    type: 'Contradiction'
-                },
-            ],
+          id: 'c5',
+          name: '窗户插销',
+          description: '从外面被强行打开。但这扇窗朝向悬崖。不可能从这里逃脱。',
+          type: '矛盾点'
         },
-        {
-            id: 'scene-003',
-            name: 'Kitchen',
-            description: 'Poison was prepared here.',
-            isLocked: false,
-            clueCount: 2,
-            clues: [
-                {
-                    id: 'c6',
-                    name: 'Empty Vial',
-                    description: 'Medical-grade arsenic. Prescription label removed. Professional knowledge required.',
-                    type: 'Poison'
-                },
-                {
-                    id: 'c7',
-                    name: 'Crumpled Note',
-                    description: '"Meet me in the study at 8. We need to talk. - Anonymous"',
-                    type: 'Message'
-                },
-            ],
-        },
-        {
-            id: 'scene-004',
-            name: 'Master Bedroom',
-            description: 'The victim\'s private quarters. Secrets hidden here.',
-            isLocked: false,
-            clueCount: 2,
-            clues: [
-                {
-                    id: 'c8',
-                    name: 'Personal Diary',
-                    description: 'Last entry: "I know who betrayed me. Tonight, everyone will know the truth."',
-                    type: 'Evidence'
-                },
-                {
-                    id: 'c9',
-                    name: 'Safe',
-                    description: 'Locked. Combination unknown. Something valuable inside?',
-                    type: 'Mystery'
-                },
-            ],
-        },
-        {
-            id: 'scene-005',
-            name: 'Basement',
-            description: 'Storage and secrets. Door requires special access.',
-            isLocked: true,
-            clueCount: 0,
-            clues: [],
-        },
-    ]
+      ],
+    },
+    {
+      id: 'scene-003',
+      name: '厨房',
+      description: '毒药在这里准备。',
+      isLocked: false,
+      clueCount: 2,
+      clues: [
+        {id: 'c6', name: '空药瓶', description: '医用级砒霜。处方标签被撕掉。需要专业知识才能获取。', type: '毒药'},
+        {id: 'c7', name: '皱巴巴的纸条', description: '"8点在书房见我。我们得谈谈。-匿名"', type: '信息'},
+      ],
+    },
+    {
+      id: 'scene-004',
+      name: '主卧',
+      description: '受害者的私人空间，秘密藏在这里。',
+      isLocked: false,
+      clueCount: 2,
+      clues: [
+        {id: 'c8', name: '私人日记', description: '最后一篇："我知道谁背叛了我。今晚，所有人都会知道真相。"', type: '证据'},
+        {id: 'c9', name: '保险箱', description: '上锁了。密码未知。里面有什么贵重物品？', type: '谜题'},
+      ],
+    },
+    {
+      id: 'scene-005',
+      name: '地下室',
+      description: '储藏室和秘密。需要特殊权限才能进入。',
+      isLocked: true,
+      clueCount: 0,
+      clues: [],
+    },
+  ]
 
-    const currentScene = scenes.find(s => s.id === selectedScene)
-    const totalClues = scenes.reduce((acc, s) => acc + s.clues.length, 0)
-    const progress = Math.round((revealedClues.size / totalClues) * 100)
+  const currentScene = scenes.find(s => s.id === selectedScene)
+  const totalClues = scenes.reduce((acc, s) => acc + s.clues.length, 0)
+  const progress = Math.round((revealedClues.size / totalClues) * 100)
 
-    const handleRevealClue = useCallback((clueId) => {
-        setRevealedClues(prev => new Set([...prev, clueId]))
-        onAction?.('clue_revealed', {clueId, sceneId: selectedScene})
-    }, [selectedScene, onAction])
+  const handleRevealClue = useCallback((clueId) => {
+    setRevealedClues(prev => new Set([...prev, clueId]))
+    onAction?.('clue_revealed', {clueId, sceneId: selectedScene})
+  }, [selectedScene, onAction])
 
-    const handleComplete = () => {
-        onAction?.('investigation_complete', {
-            revealedClues: Array.from(revealedClues),
-            totalClues,
-        })
-        onComplete?.()
-    }
+  const handleComplete = () => {
+    onAction?.('investigation_complete', {
+      revealedClues: Array.from(revealedClues),
+      totalClues,
+    })
+    onComplete?.()
+  }
 
-    return (
-        <div className="h-full flex flex-col bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950">
-            {/* 顶部标题栏 */}
-            <div className="flex items-center justify-between mb-4 px-2 pb-4 border-b border-stone-800">
-                <div>
-                    <h2 className="text-xl font-serif text-amber-100">
-                        Crime Scene Investigation
-                    </h2>
-                    <p className="text-stone-500 text-xs mt-1">
-                        {revealedClues.size} OF {totalClues} EVIDENCE COLLECTED
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    {/* 进度条 */}
-                    <div className="w-32 h-2 bg-stone-800 rounded-full overflow-hidden">
-                        <motion.div
-                            className="h-full bg-gradient-to-r from-amber-700 to-amber-500"
-                            initial={{width: 0}}
-                            animate={{width: `${progress}%`}}
-                            transition={{duration: 0.5}}
-                        />
-                    </div>
-
-                    <button
-                        onClick={handleComplete}
-                        className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm transition-colors border border-stone-700"
-                    >
-                        Close Investigation
-                    </button>
-                </div>
-            </div>
-
-            {/* 主内容区 */}
-            <div className="flex-1 flex gap-4 min-h-0">
-                {/* 场景列表 */}
-                <div className="w-64 flex-none overflow-y-auto pr-2">
-                    <p className="text-stone-600 text-xs uppercase tracking-widest mb-3">
-                        Crime Scenes
-                    </p>
-                    <div className="grid grid-cols-1 gap-3">
-                        {scenes.map((scene) => (
-                            <CrimeScenePhoto
-                                key={scene.id}
-                                scene={scene}
-                                isSelected={selectedScene === scene.id}
-                                isLocked={scene.isLocked}
-                                onClick={() => !scene.isLocked && setSelectedScene(scene.id)}
-                                clueCount={scene.clueCount}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                {/* 证据详情 */}
-                <div className="flex-1 min-w-0">
-                    <AnimatePresence mode="wait">
-                        {currentScene ? (
-                            <motion.div
-                                key={currentScene.id}
-                                initial={{opacity: 0, x: 20}}
-                                animate={{opacity: 1, x: 0}}
-                                exit={{opacity: 0, x: -20}}
-                                transition={{duration: 0.3}}
-                                className="h-full flex flex-col"
-                            >
-                                {/* 场景标题 */}
-                                <div className="mb-4 p-4 border border-stone-700/50 bg-stone-800/20">
-                                    <h3 className="text-2xl font-serif text-amber-100">{currentScene.name}</h3>
-                                    <p className="text-stone-400 text-sm mt-1">{currentScene.description}</p>
-                                </div>
-
-                                {/* 证据网格 */}
-                                <div className="flex-1 overflow-y-auto">
-                                    <p className="text-stone-600 text-xs uppercase tracking-widest mb-3">
-                                        Evidence Log
-                                    </p>
-                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {currentScene.clues.map((clue, index) => (
-                                            <EvidenceBag
-                                                key={clue.id}
-                                                clue={clue}
-                                                isRevealed={revealedClues.has(clue.id)}
-                                                onReveal={() => handleRevealClue(clue.id)}
-                                                index={index}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                initial={{opacity: 0}}
-                                animate={{opacity: 1}}
-                                className="h-full flex items-center justify-center text-stone-600"
-                            >
-                                <div className="text-center">
-                                    <div
-                                        className="w-16 h-16 mx-auto mb-4 border-2 border-stone-700 rounded-full flex items-center justify-center">
-                                        <span className="text-2xl">🔍</span>
-                                    </div>
-                                    <p className="font-serif">Select a crime scene to begin</p>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
-
-            {/* 底部胶片条装饰 - 相对定位 */}
-            <div
-                className="mt-4 h-6 bg-stone-900 border-t border-stone-800 flex justify-between px-4 items-center flex-shrink-0">
-                {Array.from({length: 20}).map((_, i) => (
-                    <div key={i} className="w-2 h-3 bg-stone-800 rounded-sm"/>
-                ))}
-            </div>
+  return (
+      <div className="h-full relative overflow-hidden">
+        {/* 背景装饰 */}
+        <div className="absolute inset-0 pointer-events-none">
+          <BackgroundDecor/>
         </div>
-    )
+
+        {/* 主内容 */}
+        <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="h-full flex flex-col p-8 relative z-10"
+        >
+          {/* 标题区 - 左对齐 */}
+          <motion.div variants={itemVariants} className="mb-6">
+            <h2 className="text-2xl font-bold text-[#2D3748] dark:text-[#E8ECF2] tracking-tight">
+              现场搜证
+            </h2>
+            <p className="text-[#8C96A5] dark:text-[#6B7788] mt-1 text-sm">
+              搜集线索，揭开真相
+            </p>
+          </motion.div>
+
+          {/* 进度条 */}
+          <motion.div variants={itemVariants} className="mb-6 max-w-md">
+            <ProgressBar
+                progress={progress}
+                current={revealedClues.size}
+                total={totalClues}
+            />
+          </motion.div>
+
+          {/* 主内容区 */}
+          <div className="flex-1 flex gap-6 min-h-0">
+            {/* 场景列表 - 玻璃态侧边栏 */}
+            <motion.nav variants={itemVariants} className="w-60 flex-none hidden md:flex flex-col">
+              <div
+                  className="bg-white/60 dark:bg-[#222631]/60 backdrop-blur-md border border-[#E0E5EE] dark:border-[#363D4D] rounded-xl p-3 flex-1 overflow-hidden flex flex-col">
+                <p className="text-[#8C96A5] dark:text-[#6B7788] text-xs font-medium uppercase tracking-wider mb-3 px-1">
+                  调查区域
+                </p>
+                <div className="flex-1 overflow-y-auto scrollbar-thin space-y-2 pr-1">
+                  {scenes.map((scene) => (
+                      <SceneCard
+                          key={scene.id}
+                          scene={scene}
+                          isSelected={selectedScene === scene.id}
+                          isLocked={scene.isLocked}
+                          onClick={() => !scene.isLocked && setSelectedScene(scene.id)}
+                          clueCount={scene.clueCount}
+                      />
+                  ))}
+                </div>
+              </div>
+            </motion.nav>
+
+            {/* 线索区域 - 玻璃态主卡片 */}
+            <motion.div variants={itemVariants} className="flex-1 min-w-0 flex flex-col relative">
+              {/* 卡片光晕 */}
+              <div
+                  className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#7C8CD6]/20 to-[#A78BFA]/20 blur-lg opacity-50"/>
+
+              <div
+                  className="relative flex-1 bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden flex flex-col">
+                {/* 顶部渐变线 */}
+                <div className="h-1 bg-gradient-to-r from-[#7C8CD6] via-[#A78BFA] to-[#F5A9C9]"/>
+
+                <AnimatePresence mode="wait">
+                  {currentScene ? (
+                      <motion.div
+                          key={currentScene.id}
+                          initial={{opacity: 0, y: 10}}
+                          animate={{opacity: 1, y: 0}}
+                          exit={{opacity: 0, y: -10}}
+                          transition={{duration: 0.3}}
+                          className="flex-1 flex flex-col p-5"
+                      >
+                        {/* 场景标题 */}
+                        <div
+                            className="flex items-center justify-between mb-4 pb-4 border-b border-[#E0E5EE] dark:border-[#363D4D]">
+                          <div>
+                            <h3 className="text-xl font-bold text-[#2D3748] dark:text-[#E8ECF2]">
+                              {currentScene.name}
+                            </h3>
+                            <p className="text-sm text-[#8C96A5] dark:text-[#6B7788] mt-1">
+                              {currentScene.description}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                        <span className="text-xs text-[#8C96A5] dark:text-[#6B7788]">
+                          线索
+                        </span>
+                            <p className="text-lg font-bold text-[#7C8CD6]">
+                              {currentScene.clues.filter(c => revealedClues.has(c.id)).length}/{currentScene.clues.length}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* 线索卡牌网格 - 竖版扑克牌布局 */}
+                        <div className="flex-1 overflow-y-auto scrollbar-thin pr-1">
+                          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+                            {currentScene.clues.map((clue, index) => (
+                                <ClueCard
+                                    key={clue.id}
+                                    clue={clue}
+                                    isRevealed={revealedClues.has(clue.id)}
+                                    onReveal={() => handleRevealClue(clue.id)}
+                                    index={index}
+                                />
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                  ) : (
+                      <motion.div
+                          initial={{opacity: 0}}
+                          animate={{opacity: 1}}
+                          className="flex-1 flex items-center justify-center"
+                      >
+                        <div className="text-center">
+                          <div
+                              className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#EEF1F6] dark:bg-[#2A2F3C] flex items-center justify-center">
+                            <Search className="w-7 h-7 text-[#7C8CD6]"/>
+                          </div>
+                          <p className="text-[#8C96A5] dark:text-[#6B7788] text-sm">
+                            选择调查区域开始搜证
+                          </p>
+                        </div>
+                      </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* 底部导航 */}
+                <div
+                    className="p-4 border-t border-[#E0E5EE] dark:border-[#363D4D] bg-white/40 dark:bg-[#222631]/40 flex items-center justify-between">
+                  {/* 左侧：当前场景进度 */}
+                  {currentScene && (
+                      <div className="text-sm">
+                    <span className="text-[#8C96A5] dark:text-[#6B7788]">
+                      已发现 {currentScene.clues.filter(c => revealedClues.has(c.id)).length}/{currentScene.clues.length} 条线索
+                    </span>
+                      </div>
+                  )}
+
+                  {/* 右侧：操作按钮 */}
+                  <div className="flex items-center gap-3">
+                    {currentScene && currentScene.clues.every(c => revealedClues.has(c.id)) && (
+                        <motion.span
+                            initial={{opacity: 0, scale: 0.9}}
+                            animate={{opacity: 1, scale: 1}}
+                            className="text-xs text-[#5DD9A8] font-medium flex items-center gap-1"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#5DD9A8]"/>
+                          当前区域调查完成
+                        </motion.span>
+                    )}
+
+                    {revealedClues.size === totalClues ? (
+                        <GhostButton onClick={handleComplete}>
+                      <span className="flex items-center gap-1 text-[#5DD9A8]">
+                        完成调查
+                        <motion.span
+                            animate={{x: [0, 4, 0]}}
+                            transition={{duration: 1.5, repeat: Infinity}}
+                        >
+                          <ChevronRight className="w-4 h-4"/>
+                        </motion.span>
+                      </span>
+                        </GhostButton>
+                    ) : (
+                        <GhostButton onClick={handleComplete}>
+                      <span className="flex items-center gap-1">
+                        结束调查
+                        <motion.span
+                            animate={{x: [0, 4, 0]}}
+                            transition={{duration: 1.5, repeat: Infinity}}
+                        >
+                          <ChevronRight className="w-4 h-4"/>
+                        </motion.span>
+                      </span>
+                        </GhostButton>
+                    )}
+                  </div>
+                </div>
+            </div>
+            </motion.div>
+          </div>
+        </motion.div>
+      </div>
+  )
 }
 
 Investigation.displayName = 'Investigation'
