@@ -1,314 +1,341 @@
 /**
- * @fileoverview CharacterAssignment 组件 - Film Noir 风格
- * @description 角色分配阶段，采用复古黑色电影美学
+ * @fileoverview CharacterAssignment 组件 - 透明背景 + 玻璃态卡片
+ * @description 角色分配阶段，与 ScriptOverview 风格保持一致
  */
 
-import {memo, useState} from 'react'
-import {AnimatePresence, motion} from 'framer-motion'
+import {memo} from 'react'
+import {motion} from 'framer-motion'
+import {ChevronRight} from 'lucide-react'
 import {PHASE_TYPE} from '../types'
+import GhostButton from '../../../components/ui/GhostButton'
 
 // =============================================================================
-// 机密印章组件
+// 动画配置
 // =============================================================================
 
-const ConfidentialStamp = memo(() => (
-    <div className="absolute -top-2 -right-2 transform rotate-12">
-        <div
-            className="border-4 border-red-700/80 text-red-700/80 px-4 py-2 font-black text-sm tracking-widest uppercase">
-            Confidential
-        </div>
-    </div>
+const containerVariants = {
+  hidden: {opacity: 0},
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.1,
+    },
+  },
+}
+
+const itemVariants = {
+  hidden: {opacity: 0, y: 20},
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: [0.25, 0.1, 0.25, 1],
+    },
+  },
+}
+
+// =============================================================================
+// 背景装饰 - 与 ScriptOverview 风格一致
+// =============================================================================
+
+const BackgroundDecor = memo(() => (
+    <>
+      {/* 左上角装饰 */}
+      <motion.div
+          className="absolute top-0 left-0 w-64 h-64 rounded-full opacity-30 blur-3xl"
+          style={{
+            background: 'radial-gradient(circle, rgba(124, 140, 214, 0.4) 0%, transparent 70%)',
+          }}
+          animate={{
+            scale: [1, 1.1, 1],
+            opacity: [0.3, 0.4, 0.3],
+          }}
+          transition={{duration: 4, repeat: Infinity}}
+      />
+      {/* 右下角装饰 */}
+        <motion.div
+            className="absolute bottom-0 right-0 w-80 h-80 rounded-full opacity-20 blur-3xl"
+            style={{
+              background: 'radial-gradient(circle, rgba(167, 139, 250, 0.4) 0%, transparent 70%)',
+            }}
+            animate={{
+              scale: [1, 1.15, 1],
+              opacity: [0.2, 0.35, 0.2],
+            }}
+            transition={{duration: 5, repeat: Infinity, delay: 1}}
+        />
+      {/* 星星点缀 */}
+      {[...Array(6)].map((_, i) => (
+          <motion.div
+              key={i}
+              className="absolute w-1 h-1 rounded-full"
+              style={{
+                backgroundColor: i % 2 === 0 ? '#7C8CD6' : '#F5A9C9',
+                top: `${15 + i * 12}%`,
+                left: `${10 + i * 8}%`,
+              }}
+              animate={{
+                opacity: [0.2, 0.8, 0.2],
+                scale: [0.8, 1.2, 0.8],
+              }}
+              transition={{
+                duration: 2 + i * 0.3,
+                repeat: Infinity,
+                delay: i * 0.2,
+              }}
+          />
+      ))}
+    </>
 ))
 
-ConfidentialStamp.displayName = 'ConfidentialStamp'
+BackgroundDecor.displayName = 'BackgroundDecor'
 
 // =============================================================================
-// 角色档案卡片
+// 玩家角色卡片 - 玻璃态设计
 // =============================================================================
 
-const CharacterFile = memo(({character, isPlayer, isRevealed, onReveal, index}) => {
-    return (
-        <motion.div
-            initial={{opacity: 0, y: 30}}
-            animate={{opacity: 1, y: 0}}
-            transition={{delay: index * 0.15}}
-            className={`relative ${isPlayer ? 'col-span-2' : ''}`}
-        >
-            <div
-                className={`
-          relative border-2 p-6 h-full
-          ${isPlayer
-                    ? 'border-amber-700/50 bg-gradient-to-br from-amber-950/50 to-stone-900/90'
-                    : 'border-stone-700/50 bg-stone-900/60'
-                }
-        `}
-            >
-                {isPlayer && <ConfidentialStamp/>}
+const PlayerCharacterCard = memo(({character}) => {
+  return (
+      <motion.div variants={itemVariants} className="relative">
+        {/* 卡片光晕 */}
+        <div
+            className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#7C8CD6]/20 to-[#A78BFA]/20 blur-lg opacity-50"/>
 
-                {/* 档案头部 */}
-                <div className="flex items-start gap-4 mb-4">
-                    {/* 头像占位 - 使用几何图形代替 */}
-                    <div
-                        className={`
-              w-16 h-20 flex-shrink-0 flex items-center justify-center border-2
-              ${isPlayer
-                            ? 'border-amber-600/50 bg-amber-950/30'
-                            : 'border-stone-600/50 bg-stone-800/30'
-                        }
-            `}
-                    >
-            <span className="text-2xl font-serif text-stone-500">
-              {character.name.charAt(0)}
-            </span>
-                    </div>
+        {/* 卡片本体 */}
+        <div
+            className="relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden">
+          {/* 顶部渐变线 */}
+          <div className="h-1 bg-gradient-to-r from-[#7C8CD6] via-[#A78BFA] to-[#F5A9C9]"/>
 
-                    <div className="flex-1 min-w-0">
-                        <h3 className={`font-serif text-xl ${isPlayer ? 'text-amber-100' : 'text-stone-300'}`}>
-                            {character.name}
-                        </h3>
-                        <p className="text-stone-500 text-sm mt-1">
-                            {isPlayer ? 'YOUR IDENTITY' : 'SUSPECT'}
-                        </p>
-                        <div className="flex gap-2 mt-2">
-              <span className="text-xs bg-stone-800 text-stone-400 px-2 py-0.5 border border-stone-700">
-                ID: {character.id?.slice(-4) || '0001'}
-              </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 档案描述 */}
-                <p className="text-stone-400 text-sm leading-relaxed font-serif mb-4">
-                    {character.description}
-                </p>
-
-                {/* 机密信息 - 仅玩家可见 */}
-                {isPlayer && (
-                    <div className="border-t border-amber-700/30 pt-4">
-                        <AnimatePresence mode="wait">
-                            {!isRevealed ? (
-                                <motion.button
-                                    key="sealed"
-                                    initial={{opacity: 0}}
-                                    animate={{opacity: 1}}
-                                    exit={{opacity: 0}}
-                                    onClick={onReveal}
-                                    className="w-full py-4 border-2 border-dashed border-amber-700/50 text-amber-600/70 hover:border-amber-600 hover:text-amber-500 transition-colors"
-                                >
-                  <span className="font-serif tracking-widest uppercase text-sm">
-                    ⚠ Break Seal to View Confidential File
-                  </span>
-                                </motion.button>
-                            ) : (
-                                <motion.div
-                                    key="revealed"
-                                    initial={{opacity: 0, height: 0}}
-                                    animate={{opacity: 1, height: 'auto'}}
-                                    exit={{opacity: 0, height: 0}}
-                                    className="space-y-4 bg-stone-950/50 p-4 border border-amber-700/20"
-                                >
-                                    {/* 背景故事 */}
-                                    <div>
-                                        <h4 className="text-amber-600/80 text-xs uppercase tracking-widest mb-2">
-                                            Background
-                                        </h4>
-                                        <p className="text-stone-300 text-sm font-serif leading-relaxed">
-                                            {character.background}
-                                        </p>
-                                    </div>
-
-                                    {/* 任务 */}
-                                    <div className="border-t border-stone-800 pt-3">
-                                        <h4 className="text-amber-600/80 text-xs uppercase tracking-widest mb-2">
-                                            Mission
-                                        </h4>
-                                        <p className="text-stone-300 text-sm font-serif leading-relaxed">
-                                            {character.goal}
-                                        </p>
-                                    </div>
-
-                                    {/* 秘密 - 红色警示 */}
-                                    <div className="border-t border-red-900/30 pt-3 bg-red-950/10 p-3">
-                                        <h4 className="text-red-500/80 text-xs uppercase tracking-widest mb-2">
-                                            ⚠ Secret - Do Not Disclose
-                                        </h4>
-                                        <p className="text-red-200/70 text-sm font-serif leading-relaxed">
-                                            {character.secret}
-                                        </p>
-                                    </div>
-
-                                    <button
-                                        onClick={onReveal}
-                                        className="text-stone-500 text-xs hover:text-stone-400 transition-colors"
-                                    >
-                                        [ Hide File ]
-                                    </button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                )}
-
-                {/* 档案编号 */}
-                <div className="absolute bottom-2 right-2 text-stone-700 text-xs font-mono">
-                    #{String(index + 1).padStart(3, '0')}
-                </div>
+          <div className="p-6">
+            {/* 角色名称区 */}
+            <div className="mb-5">
+              <div className="flex items-baseline gap-3">
+                <h3 className="text-2xl font-bold text-[#2D3748] dark:text-[#E8ECF2] tracking-tight">
+                  {character.name}
+                </h3>
+                <span className="text-sm text-[#8C96A5] dark:text-[#6B7788] font-medium">你的角色</span>
+              </div>
+              <p className="text-[#5A6978] dark:text-[#9CA8B8] mt-2 text-sm leading-relaxed">
+                {character.description}
+              </p>
             </div>
-        </motion.div>
-    )
+
+            {/* 装饰线 */}
+            <div className="w-12 h-0.5 bg-gradient-to-r from-[#7C8CD6] to-[#A78BFA] rounded-full mb-5"/>
+
+            {/* 信息区块 */}
+            <div className="space-y-4">
+              {/* 背景故事 */}
+              <div className="relative pl-4 border-l-2 border-[#7C8CD6]/50">
+              <span className="text-xs font-semibold text-[#7C8CD6] uppercase tracking-wider">
+                背景故事
+              </span>
+                <p className="text-[#5A6978] dark:text-[#9CA8B8] mt-1 text-sm leading-relaxed">
+                  {character.background}
+                </p>
+              </div>
+
+              {/* 任务目标 */}
+              <div className="relative pl-4 border-l-2 border-[#5DD9A8]/50">
+              <span className="text-xs font-semibold text-[#5DD9A8] uppercase tracking-wider">
+                任务目标
+              </span>
+                <p className="text-[#5A6978] dark:text-[#9CA8B8] mt-1 text-sm leading-relaxed">
+                  {character.goal}
+                </p>
+              </div>
+
+              {/* 秘密情报 */}
+              <div className="relative pl-4 border-l-2 border-[#F5A9C9]/50">
+              <span className="text-xs font-semibold text-[#F5A9C9] uppercase tracking-wider">
+                秘密情报
+              </span>
+                <p className="text-[#5A6978] dark:text-[#9CA8B8] mt-1 text-sm leading-relaxed">
+                  {character.secret}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+  )
 })
 
-CharacterFile.displayName = 'CharacterFile'
+PlayerCharacterCard.displayName = 'PlayerCharacterCard'
+
+// =============================================================================
+// 其他角色卡片 - 玻璃态设计
+// =============================================================================
+
+const OtherCharacterCard = memo(({character, index}) => {
+  return (
+      <motion.div variants={itemVariants}>
+        <div className="relative group">
+          {/* 悬停高光 */}
+          <div
+              className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-[#7C8CD6]/5 to-transparent"/>
+
+          <div
+              className="relative bg-white/60 dark:bg-[#222631]/60 backdrop-blur-sm border border-[#E0E5EE] dark:border-[#363D4D] rounded-xl p-4 hover:border-[#7C8CD6] dark:hover:border-[#5E6B8A] transition-colors">
+            {/* 序号 */}
+            <span
+                className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-[#7C8CD6]/10 text-[#7C8CD6] text-xs font-bold mb-3">
+            {index + 2}
+          </span>
+
+            {/* 角色名 */}
+            <h4 className="text-base font-semibold text-[#2D3748] dark:text-[#E8ECF2] mb-1">
+              {character.name}
+            </h4>
+
+            {/* 描述 */}
+            <p className="text-sm text-[#8C96A5] dark:text-[#6B7788] leading-relaxed line-clamp-3">
+              {character.description}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+  )
+})
+
+OtherCharacterCard.displayName = 'OtherCharacterCard'
 
 // =============================================================================
 // 主要组件
 // =============================================================================
 
 function CharacterAssignment({_config, gameData, _playerData, onComplete, onAction}) {
-    const [isRevealed, setIsRevealed] = useState(false)
+  const characters = gameData?.characters || [
+    {
+      id: 'char-001',
+      name: '林侦探',
+      description: '经验丰富的退休警探，敏锐的观察力让你成为这场调查的自然领导者。',
+      background: '十年警队生涯，侦破无数案件。但这一桩不同——受害者是你曾经的熟人。',
+      goal: '找出真凶，揭开真相。但要小心保守你与受害者的过往联系。',
+      secret: '五年前你曾调查过受害者的欺诈案。案件撤销了，但你从未忘记。',
+      isPlayer: true,
+    },
+    {
+      id: 'char-002',
+      name: '苏医生',
+      description: '庄园的私人医生，说话轻声细语，总是在观察着一切。',
+      isPlayer: false,
+    },
+    {
+      id: 'char-003',
+      name: '陈管家',
+      description: '十五年如一日的服务，庄园里没有秘密能逃过你的眼睛。',
+      isPlayer: false,
+    },
+    {
+      id: 'char-004',
+      name: '赵律师',
+      description: '受害者的法律顾问，你知道遗嘱的内容。',
+      isPlayer: false,
+    },
+    {
+      id: 'char-005',
+      name: '李女仆',
+      description: '新来的女仆，但观察力惊人，你看到了别人忽略的细节。',
+      isPlayer: false,
+    },
+    {
+      id: 'char-006',
+      name: '王司机',
+      description: '载着受害者四处奔波的司机，你熟悉他们的日常路线。',
+      isPlayer: false,
+    },
+  ]
 
-    const characters = gameData?.characters || [
-        {
-            id: 'char-001',
-            name: 'Detective Lin',
-            description: 'A retired police detective with a keen eye for detail. Your experience makes you the natural leader of this investigation.',
-            background: 'Ten years on the force, countless cases solved. But this one feels different. The victim was someone you once knew.',
-            goal: 'Find the killer. Uncover the truth. But keep your past connection secret.',
-            secret: 'You investigated the victim five years ago for fraud. The case was dropped, but you never forgot.',
-            isPlayer: true,
-        },
-        {
-            id: 'char-002',
-            name: 'Dr. Su',
-            description: 'The manor\'s personal physician. Soft-spoken and always watching.',
-            background: 'Five years of service. You know the victim\'s medical history better than anyone.',
-            goal: 'Protect your patient\'s privacy. And your own secrets.',
-            secret: 'The victim was being poisoned slowly. You knew, but said nothing.',
-            isPlayer: false,
-        },
-        {
-            id: 'char-003',
-            name: 'Butler Chen',
-            description: 'Fifteen years of service. The manor has no secrets from you.',
-            background: 'You manage everything. See everything. Know where the bodies are buried—literally.',
-            goal: 'Maintain order. Protect the family legacy.',
-            secret: 'You know about the secret passages. You were in the study that night.',
-            isPlayer: false,
-        },
-        {
-            id: 'char-004',
-            name: 'Attorney Zhao',
-            description: 'The victim\'s legal counsel. You know what the will says.',
-            background: 'Drafted the final will three days ago. Someone stands to gain everything.',
-            goal: 'Ensure the will is executed properly.',
-            secret: 'The victim changed the will at the last minute. You were the only witness.',
-            isPlayer: false,
-        },
-    ]
+  const playerCharacter = characters.find(c => c.isPlayer)
+  const otherCharacters = characters.filter(c => !c.isPlayer)
 
-    const playerCharacter = characters.find(c => c.isPlayer)
-    const otherCharacters = characters.filter(c => !c.isPlayer)
+  const handleContinue = () => {
+    onAction?.('character_assignment_complete', {
+      characterId: playerCharacter?.id,
+    })
+    onComplete?.()
+  }
 
-    const handleContinue = () => {
-        onAction?.('character_assignment_complete', {
-            characterId: playerCharacter?.id,
-            revealed: isRevealed,
-        })
-        onComplete?.()
-    }
-
-    return (
-        <div className="h-full flex flex-col bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950">
-            {/* 顶部标题 */}
-            <div className="flex items-center justify-between mb-6 px-2">
-                <div>
-                    <h2 className="text-2xl font-serif text-amber-100 tracking-wide">
-                        Personnel Files
-                    </h2>
-                    <p className="text-stone-500 text-sm mt-1">
-                        CLASSIFIED - EYES ONLY
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"/>
-                    <span className="text-red-500/80 text-xs uppercase tracking-widest">
-            Top Secret
-          </span>
-                </div>
-            </div>
-
-            {/* 角色档案网格 */}
-            <div className="flex-1 overflow-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
-                    {/* 玩家角色 - 优先显示 */}
-                    {playerCharacter && (
-                        <CharacterFile
-                            character={playerCharacter}
-                            isPlayer={true}
-                            isRevealed={isRevealed}
-                            onReveal={() => setIsRevealed(!isRevealed)}
-                            index={0}
-                        />
-                    )}
-
-                    {/* 其他角色 */}
-                    {otherCharacters.map((character, index) => (
-                        <CharacterFile
-                            key={character.id}
-                            character={character}
-                            isPlayer={false}
-                            isRevealed={false}
-                            onReveal={() => {
-                            }}
-                            index={index + 1}
-                        />
-                    ))}
-                </div>
-            </div>
-
-            {/* 底部操作栏 */}
-            <div
-                className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-stone-950 via-stone-950/95 to-transparent">
-                <div className="flex justify-between items-center max-w-4xl mx-auto">
-                    <p className="text-stone-500 text-sm">
-                        {!isRevealed && playerCharacter && (
-                            <span className="text-amber-600/80">
-                ⚠ Access your confidential file to proceed
-              </span>
-                        )}
-                    </p>
-
-                    <button
-                        onClick={handleContinue}
-                        disabled={!isRevealed}
-                        className={`
-              px-6 py-3 font-serif tracking-widest uppercase transition-all
-              ${isRevealed
-                            ? 'bg-amber-700 text-stone-100 hover:bg-amber-600'
-                            : 'bg-stone-800 text-stone-600 cursor-not-allowed'
-                        }
-            `}
-                    >
-                        Confirm Identity
-                    </button>
-                </div>
-            </div>
-
-            {/* 背景纹理 */}
-            <div
-                className="absolute inset-0 pointer-events-none opacity-[0.02]"
-                style={{
-                    backgroundImage: `repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(255,255,255,0.03) 2px,
-            rgba(255,255,255,0.03) 4px
-          )`,
-                }}
-            />
+  return (
+      <div className="h-full relative overflow-hidden">
+        {/* 背景装饰 - 透明背景 */}
+        <div className="absolute inset-0 pointer-events-none">
+          <BackgroundDecor/>
         </div>
-    )
+
+        {/* 主内容区域 */}
+        <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="h-full flex flex-col p-8 relative z-10"
+        >
+          {/* 标题区 - 左对齐 */}
+          <motion.div variants={itemVariants} className="mb-6">
+            <h2 className="text-2xl font-bold text-[#2D3748] dark:text-[#E8ECF2] tracking-tight">
+              角色分配
+            </h2>
+            <p className="text-[#8C96A5] dark:text-[#6B7788] mt-1 text-sm">
+              熟悉你的身份背景，准备开始探案之旅
+            </p>
+          </motion.div>
+
+          {/* 内容网格 */}
+          <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
+            {/* 左侧：玩家角色 */}
+            <div className="col-span-5 h-full overflow-y-auto scrollbar-thin pr-2">
+              {playerCharacter && (
+                  <PlayerCharacterCard character={playerCharacter}/>
+              )}
+            </div>
+
+            {/* 右侧：其他玩家 */}
+            <div className="col-span-7 h-full flex flex-col">
+              <motion.div variants={itemVariants} className="mb-3">
+              <span className="text-[#8C96A5] dark:text-[#6B7788] text-sm font-medium">
+                其他玩家 · {otherCharacters.length}人
+              </span>
+              </motion.div>
+
+              <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
+                <div className="grid grid-cols-2 gap-3">
+                  {otherCharacters.map((character, index) => (
+                      <OtherCharacterCard
+                          key={character.id}
+                          character={character}
+                          index={index}
+                      />
+                  ))}
+                </div>
+            </div>
+
+              {/* 确认按钮 */}
+              <motion.div
+                  variants={itemVariants}
+                  className="mt-4 flex justify-end"
+              >
+                <GhostButton
+                    onClick={handleContinue}
+                    className="flex items-center gap-2"
+                >
+                  <span>确认并开始游戏</span>
+                  <motion.span
+                      animate={{x: [0, 4, 0]}}
+                      transition={{duration: 1.5, repeat: Infinity}}
+                  >
+                    <ChevronRight className="w-4 h-4"/>
+                  </motion.span>
+                </GhostButton>
+              </motion.div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+  )
 }
 
 CharacterAssignment.displayName = 'CharacterAssignment'
