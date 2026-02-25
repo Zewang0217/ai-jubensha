@@ -303,8 +303,7 @@ function Investigation({_config, gameData, onComplete, onAction}) {
           </motion.div>
 
           {/* 主内容区 */}
-          <div className="flex-1 flex gap-6 min-h-0">
-            {/* 场景列表 - 玻璃态侧边栏 */}
+          <div className="flex-1 min-h-0 flex gap-6">            {/* 场景列表 - 玻璃态侧边栏 */}
             <motion.nav variants={itemVariants} className="w-60 flex-none hidden md:flex flex-col">
               <div
                   className="bg-white/60 dark:bg-[#222631]/60 backdrop-blur-md border border-[#E0E5EE] dark:border-[#363D4D] rounded-xl p-3 flex-1 overflow-hidden flex flex-col">
@@ -333,7 +332,7 @@ function Investigation({_config, gameData, onComplete, onAction}) {
                   className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#7C8CD6]/20 to-[#A78BFA]/20 blur-lg opacity-50"/>
 
               <div
-                  className="relative flex-1 bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden flex flex-col">
+                  className="relative flex-1 min-h-0 bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden flex flex-col">
                 {/* 顶部渐变线 */}
                 <div className="h-1 bg-gradient-to-r from-[#7C8CD6] via-[#A78BFA] to-[#F5A9C9]"/>
 
@@ -345,7 +344,7 @@ function Investigation({_config, gameData, onComplete, onAction}) {
                           animate={{opacity: 1, y: 0}}
                           exit={{opacity: 0, y: -10}}
                           transition={{duration: 0.3}}
-                          className="flex-1 flex flex-col p-5"
+                          className="flex-1 min-h-0 flex flex-col p-5"
                       >
                         {/* 场景标题 */}
                         <div
@@ -369,8 +368,8 @@ function Investigation({_config, gameData, onComplete, onAction}) {
                         </div>
 
                         {/* 线索卡牌网格 - 竖版扑克牌布局 */}
-                        <div className="flex-1 overflow-y-auto scrollbar-thin pr-1">
-                          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+                        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin pr-1">
+                          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 pb-2">
                             {currentScene.clues.map((clue, index) => (
                                 <ClueCard
                                     key={clue.id}
