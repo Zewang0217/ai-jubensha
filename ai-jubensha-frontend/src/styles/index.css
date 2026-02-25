@@ -171,6 +171,16 @@ a {
     animation: shimmer 2s infinite;
 }
 
+/* Scrollbar Hide */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
 /* Responsive Typography */
 @media (max-width: 640px) {
     html {
