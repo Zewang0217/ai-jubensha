@@ -1,10 +1,12 @@
 /**
- * @fileoverview GameRoom 组件 - Film Noir 侦探事务所风格
- * @description 游戏房间主组件，采用复古黑色电影美学
+ * @fileoverview GameRoom 组件 - 现代扁平化 + 科技简约 + 二次元萌系风格
+ * @description 游戏房间主组件，采用低饱和度冷色调设计
  *
- * 设计灵感：1940年代私人侦探事务所
- * - 深色木质纹理与金属质感
- * - 档案柜、打字机、台灯元素
+ * 设计特点：
+ * - 低饱和度冷色调背景
+ * - 淡紫主强调色 + 淡粉萌系点缀
+ * - 玻璃态效果
+ * - 简洁扁平化设计
  */
 
 import React, {memo, Suspense, useCallback, useEffect, useMemo, useState} from 'react'
@@ -47,39 +49,33 @@ const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8088'
 const DEFAULT_DEBUG_MODE = import.meta.env.DEV || import.meta.env.VITE_DEBUG_MODE === 'true'
 
 const TRANSITION_CONFIG = {
-  initial: {opacity: 0, y: 10},
+  initial: {opacity: 0, y: 8},
   animate: {opacity: 1, y: 0},
-  exit: {opacity: 0, y: -10},
-  transition: {duration: 0.2, ease: 'easeOut'},
+  exit: {opacity: 0, y: -8},
+  transition: {duration: 0.25, ease: 'easeOut'},
 }
 
 // =============================================================================
-// Film Noir 风格子组件
+// 风格化子组件
 // =============================================================================
 
 /**
- * 阶段加载占位符 - 打字机风格
+ * 阶段加载占位符 - 简洁萌系风格
  */
 const PhaseLoadingPlaceholder = memo(() => (
     <div className="h-full flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-3">
         <div className="relative">
-          <div className="w-16 h-16 border-2 border-amber-700/30 rounded-lg flex items-center justify-center">
+          <div
+              className="w-12 h-12 rounded-xl bg-[var(--color-primary-100)] dark:bg-[var(--color-primary-800)]/30 flex items-center justify-center">
             <motion.div
-                animate={{opacity: [0.3, 1, 0.3]}}
-                transition={{duration: 1.5, repeat: Infinity}}
-                className="text-amber-600/60 font-serif text-2xl"
-            >
-              T
-            </motion.div>
+                animate={{rotate: 360}}
+                transition={{duration: 1.5, repeat: Infinity, ease: 'linear'}}
+                className="w-6 h-6 border-2 border-[var(--color-primary-400)] border-t-transparent rounded-full"
+            />
           </div>
-          <motion.div
-              className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-600/20 rounded-full"
-              animate={{scale: [1, 1.2, 1]}}
-              transition={{duration: 2, repeat: Infinity}}
-          />
         </div>
-        <p className="text-stone-500 text-sm font-serif">Loading file...</p>
+        <p className="text-[var(--color-secondary-500)] dark:text-[var(--color-secondary-400)] text-sm">加载中...</p>
       </div>
     </div>
 ))
@@ -104,23 +100,40 @@ const PhaseWrapper = memo(({phase, children}) => (
 PhaseWrapper.displayName = 'PhaseWrapper'
 
 /**
- * Film Noir 背景 - 百叶窗光影效果
+ * 背景装饰 - 简洁几何图案
  */
-const NoirBackground = memo(() => {
+const BackgroundDecoration = memo(() => {
   return (
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        {/* 基础渐变 */}
-        <div className="absolute inset-0 bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950"/>
+        {/* 基础渐变背景 */}
+        <div
+            className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary-50)] via-[var(--color-secondary-50)] to-[var(--color-primary-100)]/30 dark:from-[var(--color-secondary-900)] dark:via-[var(--color-secondary-800)] dark:to-[var(--color-primary-900)]/20"/>
+
+        {/* 装饰性圆点 - 左上 */}
+        <div
+            className="absolute top-20 left-10 w-32 h-32 rounded-full bg-[var(--color-primary-200)]/20 dark:bg-[var(--color-primary-700)]/10 blur-2xl"/>
+
+        {/* 装饰性圆点 - 右下 */}
+        <div
+            className="absolute bottom-20 right-10 w-48 h-48 rounded-full bg-[var(--color-accent-100)]/30 dark:bg-[var(--color-accent-700)]/10 blur-3xl"/>
+
+        {/* 网格图案 */}
+        <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03]"
+             style={{
+               backgroundImage: `linear-gradient(var(--color-secondary-800) 1px, transparent 1px), linear-gradient(90deg, var(--color-secondary-800) 1px, transparent 1px)`,
+               backgroundSize: '40px 40px'
+             }}
+        />
       </div>
   )
 })
 
-NoirBackground.displayName = 'NoirBackground'
+BackgroundDecoration.displayName = 'BackgroundDecoration'
 
 /**
- * 档案抽屉式调试面板
+ * 现代化调试面板
  */
-const DetectiveNotes = memo(({
+const DebugPanel = memo(({
                                isOpen,
                                onClose,
                                currentPhase,
@@ -132,24 +145,23 @@ const DetectiveNotes = memo(({
 
   return (
       <motion.div
-          initial={{opacity: 0, y: 20, scale: 0.95}}
+          initial={{opacity: 0, y: 16, scale: 0.96}}
           animate={{opacity: 1, y: 0, scale: 1}}
-          exit={{opacity: 0, y: 20, scale: 0.95}}
+          exit={{opacity: 0, y: 16, scale: 0.96}}
           transition={{duration: 0.2}}
-          className="fixed bottom-4 right-4 z-50 w-80 bg-stone-900 border-2 border-stone-700 shadow-2xl shadow-black/50"
+          className="fixed bottom-4 right-4 z-50 w-72 bg-white/90 dark:bg-[var(--color-secondary-800)]/90 backdrop-blur-xl border border-[var(--color-secondary-200)] dark:border-[var(--color-secondary-700)] rounded-xl shadow-lg shadow-black/5"
       >
-        {/* 抽屉把手 */}
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-3 bg-stone-700 rounded-t-sm"/>
-
         {/* 头部 */}
-        <div className="flex items-center justify-between px-4 py-3 bg-stone-800 border-b border-stone-700">
+        <div
+            className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-secondary-200)] dark:border-[var(--color-secondary-700)]">
           <div className="flex items-center gap-2">
-            <Bug className="w-4 h-4 text-amber-600"/>
-            <span className="text-sm font-serif text-stone-300">Detective&apos;s Notes</span>
+            <Bug className="w-4 h-4 text-[var(--color-primary-500)]"/>
+            <span
+                className="text-sm font-medium text-[var(--color-secondary-700)] dark:text-[var(--color-secondary-200)]">调试面板</span>
           </div>
           <button
               onClick={onClose}
-              className="p-1 hover:bg-stone-700 text-stone-500 hover:text-stone-300 transition-colors"
+              className="p-1 hover:bg-[var(--color-secondary-100)] dark:hover:bg-[var(--color-secondary-700)] text-[var(--color-secondary-500)] dark:text-[var(--color-secondary-400)] transition-colors rounded-md"
           >
             <X className="w-4 h-4"/>
           </button>
@@ -158,19 +170,21 @@ const DetectiveNotes = memo(({
         {/* 内容 */}
         <div className="p-4 space-y-4">
           {/* 调试模式开关 */}
-          <div className="flex items-center justify-between p-3 bg-stone-800/50 border border-stone-700">
-            <span className="text-sm text-stone-400">Simulation Mode</span>
+          <div
+              className="flex items-center justify-between p-3 bg-[var(--color-secondary-50)] dark:bg-[var(--color-secondary-900)]/50 rounded-lg">
+            <span
+                className="text-sm text-[var(--color-secondary-600)] dark:text-[var(--color-secondary-300)]">模拟模式</span>
             <button
                 onClick={onToggleDebug}
-                className={`relative w-12 h-6 border transition-colors ${
-                    isDebugMode ? 'border-amber-600 bg-amber-900/30' : 'border-stone-600 bg-stone-800'
+                className={`relative w-11 h-6 rounded-full transition-colors ${
+                    isDebugMode ? 'bg-[var(--color-primary-500)]' : 'bg-[var(--color-secondary-300)] dark:bg-[var(--color-secondary-600)]'
                 }`}
             >
               <motion.div
                   initial={false}
-                  animate={{x: isDebugMode ? 26 : 2}}
+                  animate={{x: isDebugMode ? 22 : 2}}
                   transition={{duration: 0.2}}
-                  className="absolute top-1 w-3 h-3 bg-stone-400"
+                  className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
               />
             </button>
           </div>
@@ -178,9 +192,10 @@ const DetectiveNotes = memo(({
           {/* 阶段切换 */}
           {isDebugMode && (
               <>
-                <div className="border-t border-stone-700 pt-4">
-                  <p className="text-xs text-stone-500 uppercase tracking-widest mb-3">
-                    Jump to Phase
+                <div
+                    className="border-t border-[var(--color-secondary-200)] dark:border-[var(--color-secondary-700)] pt-4">
+                  <p className="text-xs text-[var(--color-secondary-500)] uppercase tracking-wider mb-3">
+                    跳转阶段
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     {DEFAULT_PHASE_SEQUENCE.map((phase) => (
@@ -188,10 +203,10 @@ const DetectiveNotes = memo(({
                             key={phase}
                             onClick={() => onPhaseChange(phase)}
                             className={`
-                      px-3 py-2 text-xs font-serif transition-all
+                      px-3 py-2 text-xs transition-all rounded-lg
                       ${currentPhase === phase
-                                ? 'bg-amber-900/30 text-amber-400 border border-amber-700/50'
-                                : 'bg-stone-800/50 text-stone-400 border border-stone-700 hover:border-stone-600'
+                                ? 'bg-[var(--color-primary-100)] dark:bg-[var(--color-primary-800)]/30 text-[var(--color-primary-700)] dark:text-[var(--color-primary-300)] border border-[var(--color-primary-300)] dark:border-[var(--color-primary-700)]'
+                                : 'bg-[var(--color-secondary-50)] dark:bg-[var(--color-secondary-900)]/50 text-[var(--color-secondary-600)] dark:text-[var(--color-secondary-400)] border border-[var(--color-secondary-200)] dark:border-[var(--color-secondary-700)] hover:border-[var(--color-primary-300)] dark:hover:border-[var(--color-primary-700)]'
                             }
                     `}
                         >
@@ -201,34 +216,31 @@ const DetectiveNotes = memo(({
                   </div>
                 </div>
 
-                <div className="border-t border-stone-700 pt-4">
-                  <p className="text-xs text-stone-500 uppercase tracking-widest mb-2">
-                    Current Phase
+                <div
+                    className="border-t border-[var(--color-secondary-200)] dark:border-[var(--color-secondary-700)] pt-4">
+                  <p className="text-xs text-[var(--color-secondary-500)] uppercase tracking-wider mb-2">
+                    当前阶段
                   </p>
-                  <div className="p-3 bg-stone-950 border border-stone-800">
-                    <code className="text-xs text-amber-600/80 font-mono">{currentPhase}</code>
+                  <div
+                      className="p-3 bg-[var(--color-secondary-50)] dark:bg-[var(--color-secondary-900)]/50 border border-[var(--color-secondary-200)] dark:border-[var(--color-secondary-700)] rounded-lg">
+                    <code
+                        className="text-xs text-[var(--color-primary-600)] dark:text-[var(--color-primary-400)] font-mono">{currentPhase}</code>
                   </div>
                 </div>
               </>
           )}
 
           {!isDebugMode && (
-              <p className="text-xs text-stone-600 text-center font-serif italic">
-                &quot;Sometimes the best clues are hidden in plain sight...&quot;
+              <p className="text-xs text-[var(--color-secondary-400)] text-center italic">
+                启用模拟模式进行调试
               </p>
           )}
-        </div>
-
-        {/* 底部档案标签 */}
-        <div className="px-4 py-2 bg-stone-800 border-t border-stone-700 flex justify-between items-center">
-          <span className="text-[10px] text-stone-500 uppercase">Confidential</span>
-          <div className="w-16 h-4 bg-stone-700/50"/>
         </div>
       </motion.div>
   )
 })
 
-DetectiveNotes.displayName = 'DetectiveNotes'
+DebugPanel.displayName = 'DebugPanel'
 
 // =============================================================================
 // 主组件
@@ -268,10 +280,10 @@ function GameRoom() {
   } = usePhaseManager({
     sequence: DEFAULT_PHASE_SEQUENCE,
     onPhaseChange: (newPhase, prevPhase) => {
-      console.log(`[GameRoom] Phase: ${prevPhase} -> ${newPhase}`)
+      console.log(`[GameRoom] 阶段切换: ${prevPhase} -> ${newPhase}`)
     },
     onComplete: () => {
-      console.log('[GameRoom] Case closed')
+      console.log('[GameRoom] 游戏完成')
     },
   })
 
@@ -327,13 +339,13 @@ function GameRoom() {
   useEffect(() => {
     const handleServerPhaseChange = (data) => {
       if (data?.phase && data.phase !== currentPhase) {
-        console.log('[GameRoom] Server phase change:', data)
+        console.log('[GameRoom] 服务器阶段切换:', data)
         goToPhase(data.phase)
       }
     }
 
     const handleGameUpdate = (data) => {
-      console.log('[GameRoom] Game update:', data)
+      console.log('[GameRoom] 游戏更新:', data)
     }
 
     const unsubPhase = onMessage('PHASE_CHANGE', handleServerPhaseChange)
@@ -365,7 +377,7 @@ function GameRoom() {
   }, [currentPhase, navigate, sendMessage, updatePhaseData])
 
   const handleExit = useCallback(() => {
-    if (window.confirm('Close the case file? Unsaved progress will be lost.')) {
+    if (window.confirm('确定要退出游戏吗？未保存的进度将会丢失。')) {
       sendMessage({type: 'GAME_LEAVE', gameId: id})
       navigate('/games')
     }
@@ -382,8 +394,6 @@ function GameRoom() {
     if (isDebugMode) {
       handleDebugPhaseChange(phase)
     }
-    // 非调试模式下可以通过 WebSocket 发送阶段切换请求
-    // sendMessage({ type: 'PHASE_CHANGE_REQUEST', targetPhase: phase })
   }, [isDebugMode, handleDebugPhaseChange])
 
   // 渲染当前阶段
@@ -392,8 +402,8 @@ function GameRoom() {
 
     if (!PhaseComponent) {
       return (
-          <div className="h-full flex items-center justify-center text-stone-500 font-serif">
-            <p>Unknown case file: {currentPhase}</p>
+          <div className="h-full flex items-center justify-center text-[var(--color-secondary-500)]">
+            <p>未知阶段: {currentPhase}</p>
           </div>
       )
     }
@@ -427,30 +437,32 @@ function GameRoom() {
     return (
         <Loading
             fullScreen
-            text="Opening case file..."
-            className="bg-stone-950 text-amber-100"
+            text="正在加载游戏..."
+            className="bg-[var(--color-primary-50)] dark:bg-[var(--color-secondary-900)] text-[var(--color-secondary-700)] dark:text-[var(--color-secondary-200)]"
         />
     )
   }
 
   if (error) {
     return (
-        <div className="h-screen w-screen flex items-center justify-center bg-stone-950">
-          <div className="text-center border-2 border-stone-800 p-8 bg-stone-900/50">
-            <h2 className="text-2xl font-serif text-amber-100 mb-2">Case File Missing</h2>
-            <p className="text-stone-500 mb-4 font-serif">The records could not be located.</p>
+        <div
+            className="h-screen w-screen flex items-center justify-center bg-[var(--color-primary-50)] dark:bg-[var(--color-secondary-900)]">
+          <div
+              className="text-center p-8 bg-white/80 dark:bg-[var(--color-secondary-800)]/80 backdrop-blur-sm border border-[var(--color-secondary-200)] dark:border-[var(--color-secondary-700)] rounded-2xl shadow-lg">
+            <h2 className="text-2xl font-medium text-[var(--color-secondary-800)] dark:text-[var(--color-secondary-100)] mb-2">游戏加载失败</h2>
+            <p className="text-[var(--color-secondary-500)] mb-4">无法加载游戏数据，请稍后重试。</p>
             <div className="flex gap-3 justify-center">
               <button
                   onClick={() => navigate('/games')}
-                  className="px-4 py-2 border border-stone-700 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors font-serif"
+                  className="px-4 py-2 border border-[var(--color-secondary-300)] dark:border-[var(--color-secondary-600)] text-[var(--color-secondary-600)] dark:text-[var(--color-secondary-300)] hover:bg-[var(--color-secondary-100)] dark:hover:bg-[var(--color-secondary-700)] transition-colors rounded-lg"
               >
-                Back to Archives
+                返回游戏列表
               </button>
               <button
                   onClick={() => toggleDebugMode()}
-                  className="px-4 py-2 border border-amber-700/50 text-amber-500 hover:bg-amber-900/20 transition-colors font-serif"
+                  className="px-4 py-2 bg-[var(--color-primary-100)] dark:bg-[var(--color-primary-800)]/30 text-[var(--color-primary-700)] dark:text-[var(--color-primary-300)] hover:bg-[var(--color-primary-200)] dark:hover:bg-[var(--color-primary-700)]/30 transition-colors rounded-lg"
               >
-                Open Simulation
+                启用模拟模式
               </button>
             </div>
           </div>
@@ -461,9 +473,10 @@ function GameRoom() {
   const game = gameData?.data
 
   return (
-      <div className="h-screen w-screen bg-stone-950 flex flex-col overflow-hidden">
-        {/* Film Noir 背景 */}
-        <NoirBackground/>
+      <div
+          className="h-screen w-screen bg-[var(--color-primary-50)] dark:bg-[var(--color-secondary-900)] flex flex-col overflow-hidden">
+        {/* 背景装饰 */}
+        <BackgroundDecoration/>
 
         {/* 顶部导航栏 */}
         <GameRoomHeader
@@ -478,12 +491,12 @@ function GameRoom() {
             onPhaseClick={handlePhaseSelect}
         />
 
-        {/* 主内容区 - 档案文件夹风格 */}
-        <main className="relative z-10 flex-1 px-4 sm:px-6 pb-4 sm:pb-6 pt-8 sm:pt-10 min-h-0">
+        {/* 主内容区 */}
+        <main className="relative z-10 flex-1 min-h-0">
           <div
-              className="h-full bg-stone-900/80 border-2 border-stone-700 shadow-2xl shadow-black/50 overflow-hidden relative">
+              className="h-full overflow-hidden">
             {/* 内容区域 */}
-            <div className="h-full p-4 sm:p-6">
+            <div className="h-full p-4 sm:p-2">
               <PhaseWrapper phase={currentPhase}>
                 <Suspense fallback={<PhaseLoadingPlaceholder/>}>
                   {renderCurrentPhase()}
@@ -507,7 +520,7 @@ function GameRoom() {
         {/* 调试面板 */}
         <AnimatePresence>
           {showDebugPanel && (
-              <DetectiveNotes
+              <DebugPanel
                   isOpen={showDebugPanel}
                   onClose={() => setShowDebugPanel(false)}
                   currentPhase={currentPhase}
