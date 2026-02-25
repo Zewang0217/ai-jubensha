@@ -378,6 +378,14 @@ function GameRoom() {
     }
   }, [isDebugMode, forcePhaseChange, goToPhase])
 
+  const handlePhaseSelect = useCallback((phase) => {
+    if (isDebugMode) {
+      handleDebugPhaseChange(phase)
+    }
+    // 非调试模式下可以通过 WebSocket 发送阶段切换请求
+    // sendMessage({ type: 'PHASE_CHANGE_REQUEST', targetPhase: phase })
+  }, [isDebugMode, handleDebugPhaseChange])
+
   // 渲染当前阶段
   const renderCurrentPhase = useCallback(() => {
     const PhaseComponent = PhaseComponents[currentPhase]
@@ -467,6 +475,7 @@ function GameRoom() {
             showDebugPanel={showDebugPanel}
             onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
             onExit={handleExit}
+            onPhaseClick={handlePhaseSelect}
         />
 
         {/* 主内容区 - 档案文件夹风格 */}
@@ -491,6 +500,8 @@ function GameRoom() {
             canGoBack={canGoBack}
             onBack={handlePhaseBack}
             gameStatus={game?.status}
+            sequence={sequence}
+            onPhaseSelect={handlePhaseSelect}
         />
 
         {/* 调试面板 */}
