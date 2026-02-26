@@ -17,7 +17,7 @@ import java.util.Map;
  * 工作流上下文
  *
  * @author zewan
- * @author luobo
+ * @author zewang
  * @version 1.0
  * @date 2026-01-30 16:25
  * @since 2026
@@ -197,6 +197,24 @@ public class WorkflowContext implements Serializable {
      * 玩家搜证历史记录 key: playerId, value: 搜证历史列表
      */
     private Map<Long, List<Map<String, Object>>> playerInvestigationHistories;
+    /**
+     * 玩家搜证完成状态 key: playerId, value: 是否已完成搜证
+     */
+    private Map<Long, Boolean> playerInvestigationCompleted;
+    /**
+     * 当前搜证阶段
+     */
+    private String currentInvestigationPhase;
+    
+    // ====== 线索统计相关字段 ======
+    /**
+     * 场景线索数量映射 key: sceneName, value: clueCount
+     */
+    private Map<String, Integer> sceneClueCountMap;
+    /**
+     * 生成的迷惑线索数量
+     */
+    private Integer generatedClueCount;
 
     // ====== 上下文操作方法 ======
 
@@ -229,10 +247,86 @@ public class WorkflowContext implements Serializable {
         if (this.playerInvestigationHistories == null) {
             this.playerInvestigationHistories = new java.util.HashMap<>();
         }
+        if (this.playerInvestigationCompleted == null) {
+            this.playerInvestigationCompleted = new java.util.HashMap<>();
+        }
         for (Long playerId : playerIds) {
             this.playerInvestigationCounts.put(playerId, DEFAULT_INVESTIGATION_LIMIT);
             this.playerInvestigationHistories.put(playerId, new java.util.ArrayList<>());
+            this.playerInvestigationCompleted.put(playerId, false);
         }
+    }
+
+    /**
+     * 标记玩家完成搜证
+     *
+     * @param playerId 玩家ID
+     */
+    public void markInvestigationCompleted(Long playerId) {
+        if (this.playerInvestigationCompleted == null) {
+            this.playerInvestigationCompleted = new java.util.HashMap<>();
+        }
+        this.playerInvestigationCompleted.put(playerId, true);
+    }
+
+    /**
+     * 检查玩家是否已完成搜证
+     *
+     * @param playerId 玩家ID
+     * @return 是否已完成搜证
+     */
+    public boolean isInvestigationCompleted(Long playerId) {
+        if (this.playerInvestigationCompleted == null) {
+            return false;
+        }
+        return this.playerInvestigationCompleted.getOrDefault(playerId, false);
+    }
+
+    /**
+     * 检查所有玩家是否都已完成搜证
+     *
+     * @return 所有玩家是否都已完成搜证
+     */
+    public boolean isAllInvestigationCompleted() {
+        if (this.playerInvestigationCompleted == null || this.playerInvestigationCompleted.isEmpty()) {
+            return false;
+        }
+        for (Boolean completed : this.playerInvestigationCompleted.values()) {
+            if (!completed) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 获取当前搜证阶段
+     *
+     * @return 当前搜证阶段
+     */
+    public String getCurrentInvestigationPhase() {
+        return currentInvestigationPhase;
+    }
+
+    /**
+     * 设置当前搜证阶段
+     *
+     * @param currentInvestigationPhase 当前搜证阶段
+     */
+    public void setCurrentInvestigationPhase(String currentInvestigationPhase) {
+        this.currentInvestigationPhase = currentInvestigationPhase;
+    }
+
+    /**
+     * 获取玩家搜证完成状态
+     *
+     * @return 玩家ID到完成状态的映射
+     */
+    public Map<Long, Boolean> getPlayerInvestigationCompleted() {
+        if (this.playerInvestigationCompleted == null) {
+            return new java.util.HashMap<>();
+        }
+        return new java.util.HashMap<>(this.playerInvestigationCompleted);
     }
 
     /**

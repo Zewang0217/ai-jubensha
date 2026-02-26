@@ -16,8 +16,11 @@ import org.jubensha.aijubenshabackend.ai.service.agent.PlayerAgent;
 import org.jubensha.aijubenshabackend.ai.service.agent.JudgeAgent;
 import org.jubensha.aijubenshabackend.ai.service.util.PromptUtils;
 import org.jubensha.aijubenshabackend.ai.tools.ToolManager;
+import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.Player;
+import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
+import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
@@ -71,6 +74,8 @@ public class AIService {
     private org.jubensha.aijubenshabackend.ai.tools.permission.JudgeAgentToolManager judgeAgentToolManager;
     @Resource
     private PlayerService playerService;
+    @Resource
+    private CharacterService characterService;
 
     /**
      * 创建AI玩家
@@ -220,6 +225,22 @@ public class AIService {
                 .maxMessages(50) // 增加内存容量，支持更长的对话历史
                 .build();
 
+        // 获取角色信息，包括backgroundStory和secret
+        org.jubensha.aijubenshabackend.service.character.CharacterService characterService = SpringContextUtil.getBean(org.jubensha.aijubenshabackend.service.character.CharacterService.class);
+        org.jubensha.aijubenshabackend.models.entity.Character character = null;
+        try {
+            Optional<Character> characterOptional = characterService.getCharacterById(characterId);
+            character = characterOptional.orElse(null);
+            if (character != null) {
+                log.info("获取到角色信息: {}, 背景故事长度: {}, 秘密长度: {}", 
+                        character.getName(), 
+                        character.getBackgroundStory() != null ? character.getBackgroundStory().length() : 0, 
+                        character.getSecret() != null ? character.getSecret().length() : 0);
+            }
+        } catch (Exception e) {
+            log.error("获取角色信息失败: {}", e.getMessage(), e);
+        }
+
         return AiServices.builder(PlayerAgent.class)
                 .chatModel(chatModel)
                 .chatMemory(chatMemory)
@@ -285,6 +306,22 @@ public class AIService {
         // 这里可以通过消息队列或其他方式通知AI玩家
         log.info("通知AI玩家 {} 读取角色 {} 的剧本", playerId, characterId);
 
+        // 获取角色信息，包括backgroundStory和secret
+        org.jubensha.aijubenshabackend.service.character.CharacterService characterService = SpringContextUtil.getBean(org.jubensha.aijubenshabackend.service.character.CharacterService.class);
+        org.jubensha.aijubenshabackend.models.entity.Character character = null;
+        try {
+            Optional<Character> characterOptional = characterService.getCharacterById(characterId);
+            character = characterOptional.orElse(null);
+            if (character != null) {
+                log.info("获取到角色信息: {}, 背景故事长度: {}, 秘密长度: {}", 
+                        character.getName(), 
+                        character.getBackgroundStory() != null ? character.getBackgroundStory().length() : 0, 
+                        character.getSecret() != null ? character.getSecret().length() : 0);
+            }
+        } catch (Exception e) {
+            log.error("获取角色信息失败: {}", e.getMessage(), e);
+        }
+
         // 获取Player Agent并发送读取剧本的指令
         PlayerAgent playerAgent = getPlayerAgent(playerId);
         if (playerAgent != null) {
@@ -307,5 +344,48 @@ public class AIService {
             // 这里可以调用Player Agent的方法来开始搜证
             // 例如：playerAgent.startInvestigation(investigationScenes);
         }
+    }
+
+    /**
+     * 让AI玩家参与讨论，传递角色信息
+     */
+    public String discussWithCharacterInfo(Long gameId, Long playerId, Long characterId, String topic) {
+        log.info("让AI玩家 {} 参与讨论，话题：{}", playerId, topic);
+
+        // 获取角色信息，包括backgroundStory和secret
+        org.jubensha.aijubenshabackend.service.character.CharacterService characterService = SpringContextUtil.getBean(org.jubensha.aijubenshabackend.service.character.CharacterService.class);
+        org.jubensha.aijubenshabackend.models.entity.Character character = null;
+        try {
+            Optional<Character> characterOptional = characterService.getCharacterById(characterId);
+            character = characterOptional.orElse(null);
+            if (character != null) {
+                log.info("获取到角色信息: {}, 背景故事长度: {}, 秘密长度: {}", 
+                        character.getName(), 
+                        character.getBackgroundStory() != null ? character.getBackgroundStory().length() : 0, 
+                        character.getSecret() != null ? character.getSecret().length() : 0);
+            }
+        } catch (Exception e) {
+            log.error("获取角色信息失败: {}", e.getMessage(), e);
+        }
+
+        // 获取Player Agent并参与讨论
+        PlayerAgent playerAgent = getPlayerAgent(playerId);
+        if (playerAgent != null && character != null) {
+            try {
+                // 调用Player Agent的discussWithCharacterInfo方法，传递角色信息
+                return playerAgent.discussWithCharacterInfo(
+                        gameId.toString(),
+                        playerId.toString(),
+                        topic,
+                        character.getName(),
+                        character.getBackgroundStory() != null ? character.getBackgroundStory() : "",
+                        character.getSecret() != null ? character.getSecret() : "",
+                        character.getTimeline() != null ? character.getTimeline() : ""
+                );
+            } catch (Exception e) {
+                log.error("AI玩家参与讨论失败: {}", e.getMessage(), e);
+            }
+        }
+        return "";
     }
 }

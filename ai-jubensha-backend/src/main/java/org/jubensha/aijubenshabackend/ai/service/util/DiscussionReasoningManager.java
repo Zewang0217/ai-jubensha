@@ -6,11 +6,14 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.AIService;
 import org.jubensha.aijubenshabackend.ai.service.MemoryHierarchyService;
+import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.service.agent.PlayerAgent;
 import org.jubensha.aijubenshabackend.ai.tools.GetDiscussionHistoryTool;
 import org.jubensha.aijubenshabackend.ai.tools.GetPlayerStatusTool;
 import org.jubensha.aijubenshabackend.ai.service.util.MessageAccumulator;
 import org.jubensha.aijubenshabackend.ai.service.util.TurnManager;
+import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
+import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -54,6 +57,15 @@ public class DiscussionReasoningManager {
 
     @Autowired
     private MemoryHierarchyService memoryHierarchyService;
+
+    @Autowired
+    private RAGService ragService;
+
+    @Autowired
+    private GamePlayerService gamePlayerService;
+
+    @Autowired
+    private CharacterService characterService;
 
     /**
      * 线程池，用于并行处理推理任务
@@ -118,11 +130,50 @@ public class DiscussionReasoningManager {
                 return "无法获取AI玩家实例";
             }
 
-            // 调用推理方法生成讨论内容（只传递基本上下文）
+            // 获取剧本ID
+            Long scriptId = null;
+            try {
+                var gamePlayerOpt = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
+                if (gamePlayerOpt.isPresent()) {
+                    var gamePlayer = gamePlayerOpt.get();
+                    var character = gamePlayer.getCharacter();
+                    if (character != null) {
+                        scriptId = character.getScriptId();
+                        log.debug("获取到剧本ID: {}，通过玩家 {} 的角色 {}", scriptId, playerId, character.getName());
+                    }
+                }
+            } catch (Exception e) {
+                log.error("获取剧本ID失败: {}", e.getMessage(), e);
+            }
+
+            // 查询公开线索
+            String publicClues = "";
+            if (scriptId != null) {
+                try {
+                    var clues = ragService.getPublicClues(scriptId, 20);
+                    if (!clues.isEmpty()) {
+                        StringBuilder cluesBuilder = new StringBuilder();
+                        cluesBuilder.append("\n=== 公开线索 ===\n");
+                        for (var clue : clues) {
+                            String content = (String) clue.getOrDefault("content", "");
+                            if (!content.isEmpty()) {
+                                cluesBuilder.append(content).append("\n");
+                            }
+                        }
+                        cluesBuilder.append("=== 公开线索结束 ===\n");
+                        publicClues = cluesBuilder.toString();
+                        log.debug("获取到 {} 条公开线索", clues.size());
+                    }
+                } catch (Exception e) {
+                    log.error("查询公开线索失败: {}", e.getMessage(), e);
+                }
+            }
+
+            // 调用推理方法生成讨论内容（传递基本上下文和公开线索）
             String result = playerAgent.reasonAndDiscuss(
                     gameId.toString(),
                     playerId.toString(),
-                    currentPhase
+                    currentPhase + publicClues
             );
 
             // 缓存推理结果

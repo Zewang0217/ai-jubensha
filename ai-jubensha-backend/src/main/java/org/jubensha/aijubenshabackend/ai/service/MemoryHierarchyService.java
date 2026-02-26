@@ -99,7 +99,7 @@ public class MemoryHierarchyService {
     public void storeImportantMemory(String key, List<Map<String, Object>> memory) {
         try {
             importantMemoryCache.put(key, memory);
-            log.debug("存储重要记忆，缓存键: {}, 记忆数量: {}", key, memory.size());
+//            log.debug("存储重要记忆，缓存键: {}, 记忆数量: {}", key, memory.size());
         } catch (Exception e) {
             log.error("存储重要记忆失败: {}", e.getMessage(), e);
         }
@@ -122,7 +122,7 @@ public class MemoryHierarchyService {
             // 尝试从重要记忆中获取
             memory = importantMemoryCache.getIfPresent(key);
             if (memory != null) {
-                log.debug("获取重要记忆，缓存键: {}, 记忆数量: {}", key, memory.size());
+//                log.debug("获取重要记忆，缓存键: {}, 记忆数量: {}", key, memory.size());
                 return memory;
             }
             
@@ -247,14 +247,14 @@ public class MemoryHierarchyService {
      */
     public List<Map<String, Object>> multiLevelRetrieval(Long gameId, Long playerId, String query, int topK) {
         try {
-            log.info("开始多级记忆检索，游戏ID: {}, 玩家ID: {}, 查询: {}", gameId, playerId, query);
+//            log.info("开始多级记忆检索，游戏ID: {}, 玩家ID: {}, 查询: {}", gameId, playerId, query);
 
             // 1. 尝试从短期记忆中检索
             String shortTermKey = generateShortTermKey(gameId, playerId, query);
             List<Map<String, Object>> shortTermResults = getShortTermMemory(shortTermKey);
 
             if (!shortTermResults.isEmpty()) {
-                log.debug("从短期记忆中获取结果，数量: {}", shortTermResults.size());
+//                log.debug("从短期记忆中获取结果，数量: {}", shortTermResults.size());
                 return shortTermResults.stream()
                         .limit(topK)
                         .toList();
@@ -362,7 +362,7 @@ public class MemoryHierarchyService {
      */
     public List<Map<String, Object>> intelligentRetrieval(Long gameId, Long playerId, String query, String context, int topK) {
         try {
-            log.info("开始智能记忆检索，游戏ID: {}, 玩家ID: {}, 查询: {}", gameId, playerId, query);
+//            log.info("开始智能记忆检索，游戏ID: {}, 玩家ID: {}, 查询: {}", gameId, playerId, query);
 
             // 1. 分析查询意图
             QueryIntent intent = analyzeQueryIntent(query, context);
