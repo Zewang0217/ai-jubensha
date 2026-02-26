@@ -19,12 +19,11 @@ export const api = {
 }
 
 // 游戏相关 API
+const USE_MOCK = true // 开启 Mock 数据模式
+
 export const gameApi = {
     // 获取游戏列表
     getGames: (params) => api.get('/games', params),
-
-    // 获取游戏详情
-    getGame: (id) => api.get(`/games/${id}`),
 
     // 创建游戏
     createGame: (data) => api.post('/games', data),
