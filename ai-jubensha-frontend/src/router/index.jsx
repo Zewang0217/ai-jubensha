@@ -22,13 +22,14 @@ function AppRouter() {
                     <Route path="/" element={<MainLayout/>}>
                         <Route index element={<Home/>}/>
                         <Route path="games" element={<GameList/>}/>
-                        <Route path="game/:id" element={<GameRoom/>}/>
                         <Route path="scripts" element={<ScriptList/>}/>
                         <Route path="scripts/:id" element={<ScriptDetail/>}/>
                         <Route path="scripts/:scriptId/characters" element={<ScriptCharacters/>}/>
                         <Route path="scene/:id" element={<Scene/>}/>
                         <Route path="settings" element={<Settings/>}/>
                     </Route>
+                    {/* GameRoom 独立路由，不使用 MainLayout（无 Header/Footer） */}
+                    <Route path="game/:id" element={<GameRoom/>}/>
                     <Route path="/404" element={<NotFound/>}/>
                     <Route path="*" element={<Navigate to="/404" replace/>}/>
                 </Routes>
