@@ -72,4 +72,9 @@ public interface GamePlayerService {
      * 删除玩家的所有游戏关系
      */
     void deleteGamePlayersByPlayerId(Long playerId);
+
+    /**
+     * 根据playerid获取character
+     */
+    Optional<GamePlayer> getCharacterByPlayerId(Long playerId);
 }

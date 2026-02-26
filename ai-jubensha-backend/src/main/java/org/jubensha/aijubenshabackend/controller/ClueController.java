@@ -189,6 +189,21 @@ public class ClueController {
     }
 
     /**
+     * 根据场景ID查询线索
+     *
+     * @param sceneId 场景ID
+     * @return 线索响应DTO列表
+     */
+    @GetMapping("/scene-id/{sceneId}")
+    public ResponseEntity<List<ClueResponseDTO>> getCluesBySceneId(@PathVariable Long sceneId) {
+        List<Clue> clues = clueService.getCluesBySceneId(sceneId);
+        List<ClueResponseDTO> responseDTOs = clues.stream()
+                .map(ClueResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
+    }
+
+    /**
      * 查询重要线索
      *
      * @param importance 重要度阈值
@@ -197,6 +212,36 @@ public class ClueController {
     @GetMapping("/important")
     public ResponseEntity<List<ClueResponseDTO>> getImportantClues(@RequestParam(defaultValue = "50") @Valid Integer importance) {
         List<Clue> clues = clueService.getImportantClues(importance);
+        List<ClueResponseDTO> responseDTOs = clues.stream()
+                .map(ClueResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
+    }
+
+    /**
+     * 根据玩家ID查询线索
+     *
+     * @param playerId 玩家ID
+     * @return 线索响应DTO列表
+     */
+    @GetMapping("/player/{playerId}")
+    public ResponseEntity<List<ClueResponseDTO>> getCluesByPlayerId(@PathVariable Long playerId) {
+        List<Clue> clues = clueService.getCluesByPlayerId(playerId);
+        List<ClueResponseDTO> responseDTOs = clues.stream()
+                .map(ClueResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(responseDTOs, HttpStatus.OK);
+    }
+
+    /**
+     * 获取玩家可见的线索
+     *
+     * @param playerId 玩家ID
+     * @return 线索响应DTO列表
+     */
+    @GetMapping("/visible/{playerId}")
+    public ResponseEntity<List<ClueResponseDTO>> getVisibleClues(@PathVariable Long playerId) {
+        List<Clue> clues = clueService.getVisibleClues(playerId);
         List<ClueResponseDTO> responseDTOs = clues.stream()
                 .map(ClueResponseDTO::fromEntity)
                 .collect(Collectors.toList());

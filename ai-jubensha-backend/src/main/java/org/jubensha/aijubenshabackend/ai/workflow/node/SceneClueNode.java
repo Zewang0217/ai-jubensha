@@ -9,6 +9,7 @@ import org.jubensha.aijubenshabackend.ai.factory.ScriptGenerateServiceFactory;
 import org.jubensha.aijubenshabackend.ai.service.ScriptGenerateService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.ScriptCreationState;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
+import org.jubensha.aijubenshabackend.core.util.JsonValidationUtil;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 
 import java.util.concurrent.CompletableFuture;
@@ -61,40 +62,40 @@ public class SceneClueNode {
                     throw new IllegalStateException("获取剧本生成服务失败");
                 }
                 
-                // 生成场景和线索
+                // 生成场景和线索（带重试机制）
                 log.info("开始生成场景和线索");
-                AtomicReference<String> mechanicsBuilder = new AtomicReference<>("");
-                CompletableFuture<Void> streamFuture = new CompletableFuture<>();
+                String mechanicsJson = JsonValidationUtil.generateWithRetry(() -> {
+                    AtomicReference<String> mechanicsBuilder = new AtomicReference<>("");
+                    CompletableFuture<Void> streamFuture = new CompletableFuture<>();
+                    
+                    generateService.generateMechanics(outlineJson)
+                            .doOnNext(chunk -> {
+                                mechanicsBuilder.updateAndGet(current -> current + chunk);
+                            })
+                            .doOnComplete(() -> {
+                                log.info("场景和线索生成完成，总长度: {}", mechanicsBuilder.get().length());
+                                streamFuture.complete(null);
+                            })
+                            .doOnError(error -> {
+                                log.error("场景和线索生成失败: {}", error.getMessage(), error);
+                                streamFuture.completeExceptionally(error);
+                            })
+                            .subscribe();
+                    
+                    // 等待流式生成完成
+                    streamFuture.orTimeout(600, java.util.concurrent.TimeUnit.SECONDS).join();
+                    
+                    String generatedJson = mechanicsBuilder.get();
+                    
+                    // 验证生成结果
+                    if (generatedJson == null || generatedJson.isEmpty()) {
+                        throw new IllegalStateException("场景和线索生成结果为空");
+                    }
+                    
+                    return generatedJson;
+                });
                 
-                generateService.generateMechanics(outlineJson)
-                        .doOnNext(chunk -> {
-                            mechanicsBuilder.updateAndGet(current -> current + chunk);
-//                            log.debug("收到场景和线索生成chunk，长度: {}", chunk.length());
-                        })
-                        .doOnComplete(() -> {
-                            log.info("场景和线索生成完成，总长度: {}", mechanicsBuilder.get().length());
-                            streamFuture.complete(null);
-                        })
-                        .doOnError(error -> {
-                            log.error("场景和线索生成失败: {}", error.getMessage(), error);
-                            streamFuture.completeExceptionally(error);
-                        })
-                        .subscribe();
-                
-                // 等待流式生成完成
-                streamFuture.orTimeout(600, java.util.concurrent.TimeUnit.SECONDS).join();
-                
-                String mechanicsJson = mechanicsBuilder.get();
-                
-                // 验证生成结果
-                if (mechanicsJson == null || mechanicsJson.isEmpty()) {
-                    throw new IllegalStateException("场景和线索生成结果为空");
-                }
-                
-                // 预处理 JSON
-                mechanicsJson = preprocessJson(mechanicsJson);
-                
-                // 验证 JSON 格式
+                // 验证场景和线索结构，并确保线索的location字段严格使用场景名称
                 try {
                     JsonNode rootNode = objectMapper.readTree(mechanicsJson);
                     log.debug("场景和线索 JSON 格式验证通过");
@@ -115,9 +116,100 @@ public class SceneClueNode {
                     
                     log.info("生成场景 {} 个，线索 {} 个", scenesNode.size(), cluesNode.size());
                     
+                    // 提取所有场景名称
+                    java.util.List<String> sceneNames = new java.util.ArrayList<>();
+                    for (JsonNode sceneNode : scenesNode) {
+                        String sceneName = sceneNode.path("name").asText();
+                        if (!sceneName.isEmpty()) {
+                            sceneNames.add(sceneName);
+                        }
+                    }
+                    
+                    log.info("提取到场景名称: {}", sceneNames);
+                    
+                    // 验证每个场景的线索数量是否合理（4-6个）
+                    com.fasterxml.jackson.databind.node.ObjectNode rootObjectNode = (com.fasterxml.jackson.databind.node.ObjectNode) rootNode;
+                    com.fasterxml.jackson.databind.node.ArrayNode scenesArrayNode = (com.fasterxml.jackson.databind.node.ArrayNode) rootObjectNode.get("scenes");
+                    
+                    for (int i = 0; i < scenesArrayNode.size(); i++) {
+                        com.fasterxml.jackson.databind.node.ObjectNode sceneObjectNode = (com.fasterxml.jackson.databind.node.ObjectNode) scenesArrayNode.get(i);
+                        String sceneName = sceneObjectNode.path("name").asText();
+                        JsonNode sceneCluesNode = sceneObjectNode.path("clues");
+                        int sceneClueCount = sceneCluesNode.size();
+                        
+                        log.info("场景: {}，当前线索数量: {}", sceneName, sceneClueCount);
+                        
+                        // 确保每个场景有4-6个线索
+                        if (sceneClueCount < 4) {
+                            log.info("场景 {} 线索数量不足，需要添加线索", sceneName);
+                            // 这里可以添加逻辑来为线索不足的场景生成更多线索
+                        } else if (sceneClueCount > 6) {
+                            log.info("场景 {} 线索数量过多，需要减少线索", sceneName);
+                            // 这里可以添加逻辑来减少线索过多的场景的线索数量
+                        }
+                    }
+                    
+                    // 验证线索的location字段是否与场景名称匹配
+                    int matchedClues = 0;
+                    int unmatchedClues = 0;
+                    for (JsonNode clueNode : cluesNode) {
+                        String location = clueNode.path("location").asText();
+                        if (!location.isEmpty()) {
+                            boolean isMatched = false;
+                            for (String sceneName : sceneNames) {
+                                if (location.equals(sceneName)) {
+                                    isMatched = true;
+                                    matchedClues++;
+                                    break;
+                                }
+                            }
+                            if (!isMatched) {
+                                unmatchedClues++;
+                                log.warn("线索 location '{}' 与任何场景名称不匹配", location);
+                            }
+                        } else {
+                            unmatchedClues++;
+                            log.warn("线索缺少 location 字段");
+                        }
+                    }
+                    
+                    log.info("线索匹配情况: 匹配 {} 个，未匹配 {} 个", matchedClues, unmatchedClues);
+                    
+                    // 如果有未匹配的线索，尝试修复
+                    if (unmatchedClues > 0) {
+                        log.info("开始修复未匹配的线索 location 字段");
+                        
+                        // 使用之前定义的 rootObjectNode
+                        com.fasterxml.jackson.databind.node.ArrayNode cluesArrayNode = (com.fasterxml.jackson.databind.node.ArrayNode) rootObjectNode.get("clues");
+                        
+                        // 修复每个未匹配的线索
+                        for (int i = 0; i < cluesArrayNode.size(); i++) {
+                            com.fasterxml.jackson.databind.node.ObjectNode clueObjectNode = (com.fasterxml.jackson.databind.node.ObjectNode) cluesArrayNode.get(i);
+                            String location = clueObjectNode.path("location").asText();
+                            
+                            if (location.isEmpty() || !sceneNames.contains(location)) {
+                                // 尝试找到最相似的场景名称
+                                String bestMatch = findBestMatchingScene(location, sceneNames);
+                                if (bestMatch != null) {
+                                    clueObjectNode.put("location", bestMatch);
+                                    log.info("修复线索 location: '{}' -> '{}'", location, bestMatch);
+                                } else if (!sceneNames.isEmpty()) {
+                                    // 如果没有找到相似的，使用第一个场景名称
+                                    String firstSceneName = sceneNames.get(0);
+                                    clueObjectNode.put("location", firstSceneName);
+                                    log.info("修复线索 location: '{}' -> '{}' (使用第一个场景)", location, firstSceneName);
+                                }
+                            }
+                        }
+                        
+                        // 将修复后的 ObjectNode 转换回 JSON 字符串
+                        mechanicsJson = objectMapper.writeValueAsString(rootObjectNode);
+                        log.info("线索 location 字段修复完成，修复后 JSON 长度: {}", mechanicsJson.length());
+                    }
+                    
                 } catch (Exception e) {
-                    log.error("场景和线索 JSON 格式验证失败: {}", e.getMessage());
-                    throw new IllegalStateException("场景和线索 JSON 格式错误", e);
+                    log.error("场景和线索 JSON 结构验证失败: {}", e.getMessage());
+                    throw new IllegalStateException("场景和线索 JSON 结构错误", e);
                 }
                 
                 // 保存场景和线索到状态
@@ -156,40 +248,67 @@ public class SceneClueNode {
     }
     
     /**
-     * 预处理 JSON，移除代码块标记并修复不完整的 JSON
+     * 找到与给定位置字符串最相似的场景名称
+     * @param location 线索的location字段
+     * @param sceneNames 场景名称列表
+     * @return 最相似的场景名称，如果没有找到则返回null
      */
-    private static String preprocessJson(String json) {
-        if (json == null || json.isEmpty()) {
-            log.warn("输入 JSON 为空");
-            return "{}";
+    private static String findBestMatchingScene(String location, java.util.List<String> sceneNames) {
+        if (location == null || location.isEmpty() || sceneNames == null || sceneNames.isEmpty()) {
+            return null;
         }
         
-        // 移除开头的代码块标记
-        if (json.startsWith("```json")) {
-            json = json.substring(7);
-            log.debug("移除了开头的 JSON 代码块标记");
-        } else if (json.startsWith("```")) {
-            json = json.substring(3);
-            log.debug("移除了开头的代码块标记");
+        String bestMatch = null;
+        double highestSimilarity = 0.0;
+        
+        for (String sceneName : sceneNames) {
+            double similarity = calculateSimilarity(location, sceneName);
+            if (similarity > highestSimilarity) {
+                highestSimilarity = similarity;
+                bestMatch = sceneName;
+            }
         }
         
-        // 移除结尾的代码块标记
-        if (json.endsWith("```")) {
-            json = json.substring(0, json.length() - 3);
-            log.debug("移除了结尾的代码块标记");
-        }
-        
-        // 去除首尾空白
-        json = json.trim();
-        log.debug("去除首尾空白后的 JSON 长度: {}", json.length());
-        
-        // 移除开头的前言文字，只保留 JSON 内容
-        int jsonStartIndex = json.indexOf('{');
-        if (jsonStartIndex != -1) {
-            json = json.substring(jsonStartIndex);
-            log.debug("移除了开头的前言文字，JSON 长度: {}", json.length());
-        }
-        
-        return json;
+        // 只有当相似度超过0.6时才返回匹配结果
+        return highestSimilarity > 0.6 ? bestMatch : null;
     }
+    
+    /**
+     * 计算两个字符串的相似度（简单的编辑距离算法）
+     * @param s1 第一个字符串
+     * @param s2 第二个字符串
+     * @return 相似度，范围0-1
+     */
+    private static double calculateSimilarity(String s1, String s2) {
+        if (s1 == null || s2 == null) {
+            return 0.0;
+        }
+        
+        int maxLength = Math.max(s1.length(), s2.length());
+        if (maxLength == 0) {
+            return 1.0;
+        }
+        
+        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
+        
+        for (int i = 0; i <= s1.length(); i++) {
+            dp[i][0] = i;
+        }
+        
+        for (int j = 0; j <= s2.length(); j++) {
+            dp[0][j] = j;
+        }
+        
+        for (int i = 1; i <= s1.length(); i++) {
+            for (int j = 1; j <= s2.length(); j++) {
+                int cost = s1.charAt(i - 1) == s2.charAt(j - 1) ? 0 : 1;
+                dp[i][j] = Math.min(Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1), dp[i - 1][j - 1] + cost);
+            }
+        }
+        
+        int editDistance = dp[s1.length()][s2.length()];
+        return 1.0 - (double) editDistance / maxLength;
+    }
+    
+
 }

@@ -11,6 +11,9 @@ import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.jubensha.aijubenshabackend.ai.service.RAGService;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -52,6 +55,12 @@ public class DMModerator {
 
     @Autowired
     private CharacterService characterService;
+
+    @Autowired
+    private RAGService ragService;
+
+    @Autowired
+    private ApplicationContext applicationContext;
 
     // 线程池
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
@@ -139,12 +148,17 @@ public class DMModerator {
                                 gameId.toString(),
                                 playerId.toString(),
                                 character.getId().toString(),
-                                character.getName()
+                                character.getName(),
+                                scriptId.toString(),
+                                character.getBackgroundStory() != null ? character.getBackgroundStory() : "暂无背景故事",
+                                character.getSecret() != null ? character.getSecret() : "暂无秘密信息",
+                                character.getTimeline() != null ? character.getTimeline() : "暂无时间线信息"
                         );
                         
                         // 发送陈述消息
                         if (statement != null && !statement.isEmpty()) {
                             log.info("AI玩家陈述，玩家ID: {}, 角色: {}, 内容: {}", playerId, character.getName(), statement);
+                            // 通过sendDiscussionMessageTool发送消息，会自动处理存储逻辑
                             sendDiscussionMessageTool.executeSendDiscussionMessage(statement, gameId, playerId, playerIds);
                         }
                     }
@@ -157,8 +171,23 @@ public class DMModerator {
                 turnManager.endCurrentTurn(gameId);
             }
 
-            // 陈述阶段结束，进入自由讨论
-            startFreeDiscussionPhase(gameId, playerIds, dmId, dmAgent);
+            // 陈述阶段结束，进入自由讨论阶段
+            log.info("陈述阶段结束，游戏ID: {}", gameId);
+            
+            // 通过ApplicationContext获取DiscussionService实例，避免循环依赖
+            try {
+                Object discussionServiceBean = applicationContext.getBean("discussionServiceImpl");
+                if (discussionServiceBean != null) {
+                    // 调用startFreeDiscussionPhase方法
+                    java.lang.reflect.Method method = discussionServiceBean.getClass().getMethod("startFreeDiscussionPhase");
+                    method.invoke(discussionServiceBean);
+                    log.info("已启动自由讨论阶段，游戏ID: {}", gameId);
+                } else {
+                    log.warn("无法获取DiscussionService实例，自由讨论阶段未启动");
+                }
+            } catch (Exception e) {
+                log.error("启动自由讨论阶段失败: {}", e.getMessage(), e);
+            }
 
         } catch (Exception e) {
             log.error("开始陈述阶段失败: {}", e.getMessage(), e);
@@ -179,14 +208,9 @@ public class DMModerator {
             String phaseMessage = dmAgent.moderateDiscussion("开始自由讨论阶段，大家可以畅所欲言，每位玩家有2次单聊机会，每次3分钟");
             sendDiscussionMessageTool.executeSendDiscussionMessage(phaseMessage, gameId, dmId, playerIds);
 
-            // 启动自由讨论计时器
-            // 这里可以集成TimerService
-
-            // 模拟自由讨论时间
-            Thread.sleep(FREE_DISCUSSION_TIME * 1000);
-
-            // 自由讨论阶段结束，进入答题阶段
-            startAnswerPhase(gameId, playerIds, dmId, dmAgent);
+            // 调用DiscussionService的自由讨论阶段方法
+            // 注意：DiscussionServiceImpl会处理中央调度器的启动和30分钟时间限制
+            // 我们不需要在这里处理时间延迟，DiscussionServiceImpl会处理
 
         } catch (Exception e) {
             log.error("开始自由讨论阶段失败: {}", e.getMessage(), e);

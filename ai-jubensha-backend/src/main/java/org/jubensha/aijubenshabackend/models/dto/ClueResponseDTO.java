@@ -15,6 +15,7 @@ public class ClueResponseDTO {
 
     private Long id;
     private Long scriptId;
+    private Long sceneId;
     private String name;
     private String description;
     private ClueType type;
@@ -23,6 +24,7 @@ public class ClueResponseDTO {
     private String imageUrl;
     private Integer importance;
     private LocalDateTime createTime;
+    private Long playerId;
 
     /**
      * 从实体对象创建响应DTO
@@ -34,6 +36,7 @@ public class ClueResponseDTO {
         ClueResponseDTO dto = new ClueResponseDTO();
         dto.setId(clue.getId());
         dto.setScriptId(clue.getScriptId());
+        dto.setSceneId(clue.getSceneId());
         dto.setName(clue.getName());
         dto.setDescription(clue.getDescription());
         dto.setType(clue.getType());
@@ -42,6 +45,7 @@ public class ClueResponseDTO {
         dto.setImageUrl(clue.getImageUrl());
         dto.setImportance(clue.getImportance());
         dto.setCreateTime(clue.getCreateTime());
+        dto.setPlayerId(clue.getPlayerId());
         return dto;
     }
 }

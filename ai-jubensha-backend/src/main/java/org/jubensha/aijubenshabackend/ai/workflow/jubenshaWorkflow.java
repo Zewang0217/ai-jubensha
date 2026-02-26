@@ -102,27 +102,34 @@ public class jubenshaWorkflow {
      * 执行并发工作流
      */
     public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId) {
-        return executeWorkflow(originalPrompt, createNewScript, scriptId, false, false, null);
+        return executeWorkflow(originalPrompt, createNewScript, scriptId, false, false, null, null);
     }
 
     /**
      * 执行并发工作流
      */
     public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming) {
-        return executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, false, null);
+        return executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, false, null, null);
     }
 
     /**
      * 执行并发工作流
      */
     public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming, Long gameId) {
-        return executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, true, gameId);
+        return executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, true, gameId, null);
     }
 
     /**
      * 执行并发工作流
      */
-    public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming, Boolean useNewWorkflow, Long gameId) {
+    public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming, Long gameId, Integer realPlayerCount) {
+        return executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, true, gameId, realPlayerCount);
+    }
+
+    /**
+     * 执行并发工作流
+     */
+    public WorkflowContext executeWorkflow(String originalPrompt, Boolean createNewScript, Long scriptId, Boolean useStreaming, Boolean useNewWorkflow, Long gameId, Integer realPlayerCount) {
         CompiledGraph<MessagesState<String>> workflow = createWorkflow(useStreaming, useNewWorkflow);
 
         // 根据是否提供gameId来决定是使用现有游戏还是创建新游戏
@@ -169,6 +176,7 @@ public class jubenshaWorkflow {
             .gameId(gameId) // 使用数据库自增的游戏ID
             .createNewScript(createNewScript)
             .existingScriptId(createNewScript ? null : scriptId)
+            .realPlayerCount(realPlayerCount)
             .build();
 
         // 如果使用现有剧本，直接设置剧本ID
@@ -215,6 +223,10 @@ public class jubenshaWorkflow {
                 // 确保游戏ID在整个工作流中传递
                 if (finalContext.getGameId() == null && gameId != null) {
                     finalContext.setGameId(gameId);
+                }
+                // 确保真人玩家数量在整个工作流中传递
+                if (finalContext.getRealPlayerCount() == null && realPlayerCount != null) {
+                    finalContext.setRealPlayerCount(realPlayerCount);
                 }
                 // 记录当前游戏ID（如果已设置）
                 if (finalContext.getGameId() != null) {
