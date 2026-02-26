@@ -38,6 +38,16 @@ public interface RAGService {
     List<Map<String, Object>> searchGlobalClueMemory(Long scriptId, Long characterId, String query, int topK);
 
     /**
+     * 查询公开线索
+     * 在全局记忆集合中搜索角色ID为0的公开线索
+     *
+     * @param scriptId 剧本ID，用于过滤特定剧本的线索
+     * @param topK     返回结果数量
+     * @return 检索结果，包含线索内容、剧本信息等
+     */
+    List<Map<String, Object>> getPublicClues(Long scriptId, int topK);
+
+    /**
      * 语义搜索全局时间线记忆
      * 在全局记忆集合中搜索时间线类型的记录
      *
@@ -104,7 +114,7 @@ public interface RAGService {
      * @param content     线索内容
      * @return 插入的记录ID
      */
-    Long insertGlobalClueMemory(Long scriptId, Long characterId, String content);
+    Long insertGlobalClueMemory(Long scriptId, Long characterId, String content, Long playerId);
 
     /**
      * 插入全局时间线记忆
@@ -185,4 +195,16 @@ public interface RAGService {
      * @return 删除成功的记录数
      */
     int batchDeleteGlobalMemory(List<Long> recordIds);
+
+    /**
+     * 联合检索对话记忆和事实记忆
+     * 同时查询对话记忆和全局事实记忆，返回综合结果
+     *
+     * @param gameId   游戏ID
+     * @param playerId 玩家ID（可选，传null表示搜索所有玩家）
+     * @param query    查询文本
+     * @param topK     返回结果数量
+     * @return 综合检索结果，包含对话内容和事实
+     */
+    List<Map<String, Object>> searchCombinedMemory(Long gameId, Long playerId, String query, int topK);
 }

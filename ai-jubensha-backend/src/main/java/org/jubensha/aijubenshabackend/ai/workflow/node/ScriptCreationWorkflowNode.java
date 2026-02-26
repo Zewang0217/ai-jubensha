@@ -5,6 +5,7 @@ import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.jubensha.aijubenshabackend.ai.workflow.ScriptCreationWorkflow;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
+import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 
 import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 
@@ -24,6 +25,37 @@ public class ScriptCreationWorkflowNode {
                 WorkflowContext context = WorkflowContext.getContext(state);
                 if (context == null) {
                     throw new IllegalArgumentException("WorkflowContext 为空");
+                }
+                
+                // 检查是否使用现有剧本
+                Boolean createNewScript = context.getCreateNewScript();
+                Long existingScriptId = context.getExistingScriptId();
+                log.info("检查使用现有剧本条件：createNewScript={}, existingScriptId={}", createNewScript, existingScriptId);
+                
+                // 如果createNewScript为false且existingScriptId不为null，则验证剧本是否存在
+                if (createNewScript != null && !createNewScript && existingScriptId != null) {
+                    // 验证剧本是否存在
+                    try {
+                        var scriptService = SpringContextUtil.getBean(org.jubensha.aijubenshabackend.service.script.ScriptService.class);
+                        if (scriptService != null) {
+                            var scriptOpt = scriptService.getScriptById(existingScriptId);
+                            if (scriptOpt.isPresent()) {
+                                log.info("使用现有剧本，跳过新剧本生成工作流，剧本ID: {}", existingScriptId);
+                                context.setScriptId(existingScriptId);
+                                context.setCurrentStep("使用现有剧本");
+                                context.setSuccess(true);
+                                context.setStartTime(java.time.LocalDateTime.now());
+                                return WorkflowContext.saveContext(context);
+                            } else {
+                                log.warn("剧本不存在，继续执行剧本生成工作流，剧本ID: {}", existingScriptId);
+                            }
+                        } else {
+                            log.warn("ScriptService 获取失败，继续执行剧本生成工作流");
+                        }
+                    } catch (Exception e) {
+                        log.warn("验证剧本存在性失败: {}", e.getMessage(), e);
+                        // 验证失败，继续执行剧本生成工作流
+                    }
                 }
                 
                 // 获取原始提示词

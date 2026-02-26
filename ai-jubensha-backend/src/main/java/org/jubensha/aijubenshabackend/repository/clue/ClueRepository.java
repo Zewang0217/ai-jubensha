@@ -23,4 +23,10 @@ public interface ClueRepository extends JpaRepository<Clue, Long> {
     List<Clue> findByImportanceGreaterThanEqual(Integer importance);
 
     List<Clue> findByScene(String scene);
+
+    List<Clue> findBySceneId(Long sceneId);
+
+    List<Clue> findByPlayerId(Long playerId);
+
+    List<Clue> findByVisibilityAndPlayerId(ClueVisibility visibility, Long playerId);
 }

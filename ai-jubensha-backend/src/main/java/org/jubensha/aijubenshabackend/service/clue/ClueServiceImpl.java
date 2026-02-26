@@ -78,6 +78,12 @@ public class ClueServiceImpl implements ClueService {
     }
 
     @Override
+    public List<Clue> getCluesBySceneId(Long sceneId) {
+        logger.info("Getting clues by scene id: {}", sceneId);
+        return clueRepository.findBySceneId(sceneId);
+    }
+
+    @Override
     public List<Clue> getImportantClues(Integer importanceThreshold) {
         logger.info("Getting important clues with threshold: {}", importanceThreshold);
         return clueRepository.findByImportanceGreaterThanEqual(importanceThreshold);
@@ -106,11 +112,17 @@ public class ClueServiceImpl implements ClueService {
             if (clue.getScene() != null) {
                 updatedClue.setScene(clue.getScene());
             }
+            if (clue.getSceneId() != null) {
+                updatedClue.setSceneId(clue.getSceneId());
+            }
             if (clue.getImageUrl() != null) {
                 updatedClue.setImageUrl(clue.getImageUrl());
             }
             if (clue.getImportance() != null) {
                 updatedClue.setImportance(clue.getImportance());
+            }
+            if (clue.getPlayerId() != null) {
+                updatedClue.setPlayerId(clue.getPlayerId());
             }
 
             return clueRepository.save(updatedClue);
@@ -145,5 +157,27 @@ public class ClueServiceImpl implements ClueService {
             logger.error("Failed to update clue image for id: {}", id, e);
             throw new BusinessException("更新线索图片失败: " + e.getMessage());
         }
+    }
+
+    @Override
+    public List<Clue> getCluesByPlayerId(Long playerId) {
+        logger.info("Getting clues by player id: {}", playerId);
+        return clueRepository.findByPlayerId(playerId);
+    }
+
+    @Override
+    public List<Clue> getVisibleClues(Long playerId) {
+        logger.info("Getting visible clues for player: {}", playerId);
+        
+        // 获取所有公开线索
+        List<Clue> publicClues = clueRepository.findByVisibility(ClueVisibility.PUBLIC);
+        
+        // 获取该玩家的私有线索
+        List<Clue> privateClues = clueRepository.findByVisibilityAndPlayerId(ClueVisibility.PRIVATE, playerId);
+        
+        // 合并线索列表
+        publicClues.addAll(privateClues);
+        
+        return publicClues;
     }
 }

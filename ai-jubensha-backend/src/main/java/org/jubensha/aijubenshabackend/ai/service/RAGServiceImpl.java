@@ -22,8 +22,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * RAG检索服务实现
@@ -44,6 +47,15 @@ public class RAGServiceImpl implements RAGService {
     private final Gson gson;
     private final RerankService rerankService;
     private final MessageChunker messageChunker;
+    private final ParentDocumentService parentDocumentService;
+    private final FactExtractor factExtractor;
+    
+    // 缓存
+    private final com.github.benmanes.caffeine.cache.Cache<String, List<Map<String, Object>>> conversationMemoryCache;
+    private final com.github.benmanes.caffeine.cache.Cache<String, List<Map<String, Object>>> globalMemoryCache;
+    private final com.github.benmanes.caffeine.cache.Cache<Long, Map<String, Object>> parentDocumentCache;
+    private final com.github.benmanes.caffeine.cache.Cache<String, List<Float>> embeddingCache;
+    private final com.github.benmanes.caffeine.cache.Cache<String, List<Map<String, Object>>> factExtractionCache;
 
     @Autowired
     public RAGServiceImpl(EmbeddingService embeddingService,
@@ -51,7 +63,14 @@ public class RAGServiceImpl implements RAGService {
                           MilvusCollectionManager collectionManager,
                           MilvusSchemaConfig schemaConfig,
                           RerankService rerankService,
-                          MessageChunker messageChunker) {
+                          MessageChunker messageChunker,
+                          ParentDocumentService parentDocumentService,
+                          FactExtractor factExtractor,
+                          com.github.benmanes.caffeine.cache.Cache<String, List<Map<String, Object>>> conversationMemoryCache,
+                          com.github.benmanes.caffeine.cache.Cache<String, List<Map<String, Object>>> globalMemoryCache,
+                          com.github.benmanes.caffeine.cache.Cache<Long, Map<String, Object>> parentDocumentCache,
+                          com.github.benmanes.caffeine.cache.Cache<String, List<Float>> embeddingCache,
+                          com.github.benmanes.caffeine.cache.Cache<String, List<Map<String, Object>>> factExtractionCache) {
         this.embeddingService = embeddingService;
         this.milvusClientV2 = milvusClientV2;
         this.collectionManager = collectionManager;
@@ -59,6 +78,13 @@ public class RAGServiceImpl implements RAGService {
         this.gson = new Gson();
         this.rerankService = rerankService;
         this.messageChunker = messageChunker;
+        this.parentDocumentService = parentDocumentService;
+        this.factExtractor = factExtractor;
+        this.conversationMemoryCache = conversationMemoryCache;
+        this.globalMemoryCache = globalMemoryCache;
+        this.parentDocumentCache = parentDocumentCache;
+        this.embeddingCache = embeddingCache;
+        this.factExtractionCache = factExtractionCache;
     }
 
     /**
@@ -197,6 +223,16 @@ public class RAGServiceImpl implements RAGService {
 
     @Override
     public List<Map<String, Object>> searchConversationMemory(Long gameId, Long playerId, String query, int topK) {
+        // 生成缓存键
+        String cacheKey = "conversation:" + gameId + ":" + (playerId != null ? playerId : "all") + ":" + query + ":" + topK;
+        
+        // 尝试从缓存获取
+        List<Map<String, Object>> cachedResults = conversationMemoryCache.getIfPresent(cacheKey);
+        if (cachedResults != null) {
+            log.debug("从缓存获取对话记忆检索结果，键: {}", cacheKey);
+            return cachedResults;
+        }
+
         // 确保对话记忆集合存在
         String collectionName = schemaConfig.getConversationCollectionName(gameId);
         if (!collectionManager.collectionExists(collectionName)) {
@@ -204,11 +240,19 @@ public class RAGServiceImpl implements RAGService {
             return new ArrayList<>();
         }
 
-        // 生成查询向量
-        List<Float> queryEmbedding = embeddingService.generateEmbedding(query);
-        if (queryEmbedding == null || queryEmbedding.isEmpty()) {
-            log.warn("生成查询向量失败，查询文本: {}", query);
-            return new ArrayList<>();
+        // 尝试从缓存获取嵌入向量
+        List<Float> queryEmbedding = embeddingCache.getIfPresent(query);
+        if (queryEmbedding == null) {
+            // 缓存未命中，生成新的嵌入向量
+            queryEmbedding = embeddingService.generateEmbedding(query);
+            if (queryEmbedding == null || queryEmbedding.isEmpty()) {
+                log.warn("生成查询向量失败，查询文本: {}", query);
+                return new ArrayList<>();
+            }
+            // 存入缓存
+            embeddingCache.put(query, queryEmbedding);
+        } else {
+            log.debug("从缓存获取嵌入向量，文本: {}", query.substring(0, Math.min(50, query.length())));
         }
 
         // 构建过滤条件
@@ -217,16 +261,16 @@ public class RAGServiceImpl implements RAGService {
             filter = "player_id == " + playerId;
         }
 
-        // 动态调整TopK值
-        int dynamicTopK = getDynamicTopK("conversation", topK);
+        // 动态调整TopK值（搜索更多子文档以确保找到足够的父文档）
+        int dynamicTopK = getDynamicTopK("conversation", topK * 3);
 
-        // 构建向量搜索请求
+        // 构建向量搜索请求，包含parent_id字段
         SearchReq searchReq = buildSearchRequest(
                 collectionName,
                 queryEmbedding,
                 filter,
                 dynamicTopK,
-                List.of("id", "player_id", "player_name", "content", "timestamp"),
+                List.of("id", "player_id", "player_name", "content", "timestamp", "parent_id"),
                 "conversation",
                 query.length()
         );
@@ -240,34 +284,51 @@ public class RAGServiceImpl implements RAGService {
             return new ArrayList<>();
         }
 
-        // 处理搜索结果
-        List<Map<String, Object>> results = new ArrayList<>();
-
-        // 获取第一个查询向量的结果（因为我们只传入了一个向量）
+        // 处理搜索结果，提取父文档ID
+        Set<Long> parentIds = new HashSet<>();
         if (!searchResp.getSearchResults().isEmpty()) {
             for (var result : searchResp.getSearchResults().get(0)) {
-                Map<String, Object> memory = new HashMap<>();
-
-                // 提取返回的字段值
-                memory.put("id", result.getEntity().get("id"));
-                memory.put("player_id", result.getEntity().get("player_id"));
-                memory.put("player_name", result.getEntity().get("player_name"));
-                memory.put("content", result.getEntity().get("content"));
-                memory.put("timestamp", result.getEntity().get("timestamp"));
-                // 转换L2距离为相似度分数（L2距离越小，相似度越高）
-                // 使用指数衰减函数进行归一化，scaleFactor控制衰减速度
-                double distance = result.getScore();
-                double scaleFactor = 0.1; // 可根据实际数据分布调整
-                double similarityScore = Math.exp(-distance * scaleFactor);
-                memory.put("score", similarityScore);
-
-                results.add(memory);
+                Object parentIdObj = result.getEntity().get("parent_id");
+                if (parentIdObj != null) {
+                    Long parentId = parentIdObj instanceof Long ? (Long) parentIdObj : Long.valueOf(parentIdObj.toString());
+                    parentIds.add(parentId);
+                }
             }
         }
 
+        if (parentIds.isEmpty()) {
+            log.debug("未找到相关的父文档");
+            return new ArrayList<>();
+        }
+
+        // 获取完整父文档
+        List<Map<String, Object>> parentDocs = parentDocumentService.getParentDocuments(new ArrayList<>(parentIds));
+
+        // 计算父文档与查询的相似度
+        List<Map<String, Object>> finalResults = new ArrayList<>();
+        for (Map<String, Object> parentDoc : parentDocs) {
+            String content = (String) parentDoc.get("content");
+            if (content != null) {
+                List<Float> parentEmbedding = embeddingService.generateEmbedding(content);
+                if (parentEmbedding != null && !parentEmbedding.isEmpty()) {
+                    double similarity = calculateCosineSimilarity(parentEmbedding, queryEmbedding);
+                    parentDoc.put("score", similarity);
+                    finalResults.add(parentDoc);
+                }
+            }
+        }
+
+        // 排序并限制结果数量
+        finalResults.sort((a, b) -> Double.compare((Double) b.get("score"), (Double) a.get("score")));
+        List<Map<String, Object>> sortedResults = finalResults.stream().limit(topK).collect(Collectors.toList());
+
         // 对搜索结果进行重排
-        List<Map<String, Object>> rerankedResults = rerankService.twoStepRetrieval(query, results, topK);
+        List<Map<String, Object>> rerankedResults = rerankService.twoStepRetrieval(query, sortedResults, topK);
         
+        // 将结果存入缓存
+        conversationMemoryCache.put(cacheKey, rerankedResults);
+        log.debug("缓存对话记忆检索结果，键: {}, 结果数: {}", cacheKey, rerankedResults.size());
+
         log.debug("游戏 {} 对话记忆检索完成，返回 {} 条结果", gameId, rerankedResults.size());
         return rerankedResults;
     }
@@ -457,6 +518,85 @@ public class RAGServiceImpl implements RAGService {
         List<Map<String, Object>> rerankedResults = rerankService.twoStepRetrieval(query, results, topK);
         
         log.debug("剧本 {} 全局时间线记忆检索完成，返回 {} 条结果", scriptId, rerankedResults.size());
+        return rerankedResults;
+    }
+
+    @Override
+    public List<Map<String, Object>> getPublicClues(Long scriptId, int topK) {
+        String collectionName = schemaConfig.getGlobalMemoryCollectionName();
+
+        // 确保集合已加载
+        ensureCollectionLoaded(collectionName);
+
+        // 生成查询向量，使用通用查询文本
+        String query = "公开线索";
+        List<Float> queryEmbedding = embeddingService.generateEmbedding(query);
+        if (queryEmbedding == null || queryEmbedding.isEmpty()) {
+            log.warn("生成查询向量失败，查询文本: {}", query);
+            return new ArrayList<>();
+        }
+
+        // 构建过滤条件：筛选公开线索（character_id == 0）
+        StringBuilder filterBuilder = new StringBuilder();
+        filterBuilder.append("script_id == ").append(scriptId).append(" and type == 'clue' and character_id == 0");
+
+        String filter = filterBuilder.toString();
+
+        // 动态调整TopK值
+        int dynamicTopK = getDynamicTopK("clue", topK);
+
+        // 构建向量搜索请求
+        SearchReq searchReq = buildSearchRequest(
+                collectionName,
+                queryEmbedding,
+                filter,
+                dynamicTopK,
+                List.of("id", "script_id", "character_id", "type", "content", "timestamp"),
+                "clue",
+                query.length()
+        );
+
+        // 执行搜索，使用官方推荐的方式处理响应
+        SearchResp searchResp = milvusClientV2.search(searchReq);
+
+        // 检查搜索结果是否为空
+        if (searchResp == null) {
+            log.error("Milvus搜索失败，返回结果为空");
+            return new ArrayList<>();
+        }
+
+        // 处理搜索结果
+        List<Map<String, Object>> results = new ArrayList<>();
+
+        // 获取第一个查询向量的结果
+        List<List<SearchResp.SearchResult>> searchResults = searchResp.getSearchResults();
+        if (searchResults != null && !searchResults.isEmpty()) {
+            List<SearchResp.SearchResult> firstQueryResults = searchResults.get(0);
+            for (SearchResp.SearchResult result : firstQueryResults) {
+                Map<String, Object> memory = new HashMap<>();
+
+                // 提取返回的字段值
+                memory.put("id", result.getEntity().get("id"));
+                memory.put("script_id", result.getEntity().get("script_id"));
+                memory.put("character_id", result.getEntity().get("character_id"));
+                memory.put("type", result.getEntity().get("type"));
+                memory.put("content", result.getEntity().get("content"));
+                memory.put("timestamp", result.getEntity().get("timestamp"));
+                // 转换L2距离为相似度分数（L2距离越小，相似度越高）
+                // 使用指数衰减函数进行归一化，scaleFactor控制衰减速度
+                double distance = result.getScore();
+                double scaleFactor = 0.1; // 可根据实际数据分布调整
+                double similarityScore = Math.exp(-distance * scaleFactor);
+                memory.put("score", similarityScore);
+
+                results.add(memory);
+            }
+        }
+
+        // 对搜索结果进行重排
+        List<Map<String, Object>> rerankedResults = rerankService.twoStepRetrieval(query, results, topK);
+        
+        log.debug("剧本 {} 公开线索检索完成，返回 {} 条结果", scriptId, rerankedResults.size());
         return rerankedResults;
     }
 
@@ -681,22 +821,37 @@ public class RAGServiceImpl implements RAGService {
             return null;
         }
 
-        // 优化消息存储
-        List<String> optimizedMessages = messageChunker.optimizeMessageForStorage(content, messageType);
-        if (optimizedMessages.isEmpty()) {
-            log.debug("没有需要存储的消息块");
+        // 使用父子文档检索策略
+        // 1. 对消息进行短块切分
+        List<String> shortChunks = messageChunker.chunkForParentChildRetrieval(content);
+        if (shortChunks.isEmpty()) {
+            log.debug("没有需要存储的短块");
             return null;
         }
 
-        log.debug("消息分块完成，总块数: {}", optimizedMessages.size());
+        log.debug("消息短块切分完成，总块数: {}", shortChunks.size());
 
+        // 2. 存储父文档（完整消息）
+        Long parentId = parentDocumentService.storeParentDocument(gameId, playerId, playerName, content, shortChunks.size());
+        if (parentId == null) {
+            log.error("存储父文档失败");
+            return null;
+        }
+        
+        // 缓存父文档
+        Map<String, Object> parentDoc = parentDocumentService.getParentDocument(parentId);
+        if (parentDoc != null) {
+            parentDocumentCache.put(parentId, parentDoc);
+            log.debug("缓存父文档，ID: {}", parentId);
+        }
+
+        // 3. 存储子文档（短块）
         Long firstId = null;
         int successCount = 0;
 
-        // 逐个存储消息块
-        for (int i = 0; i < optimizedMessages.size(); i++) {
-            String chunk = optimizedMessages.get(i);
-            log.debug("存储消息块 {}，大小: {}", i + 1, chunk.length());
+        for (int i = 0; i < shortChunks.size(); i++) {
+            String chunk = shortChunks.get(i);
+            log.debug("存储子文档块 {}，大小: {}", i + 1, chunk.length());
 
             try {
                 // 生成嵌入向量
@@ -712,8 +867,9 @@ public class RAGServiceImpl implements RAGService {
                 data.addProperty("player_name", playerName);
                 data.addProperty("content", chunk);
                 data.addProperty("timestamp", System.currentTimeMillis());
+                data.addProperty("parent_id", parentId);
                 data.addProperty("chunk_index", i);
-                data.addProperty("total_chunks", optimizedMessages.size());
+                data.addProperty("total_chunks", shortChunks.size());
                 data.addProperty("message_type", messageType.name());
                 
                 // 直接将向量作为JSON数组添加
@@ -735,7 +891,7 @@ public class RAGServiceImpl implements RAGService {
                     // 处理类型转换，确保返回Long类型
                     Object idObj = insertResp.getPrimaryKeys().get(0);
                     Long id = idObj instanceof Long ? (Long) idObj : Long.valueOf(idObj.toString());
-                    log.debug("插入对话记忆块成功，游戏ID: {}, 块索引: {}, 记录ID: {}", gameId, i, id);
+                    log.debug("插入子文档块成功，游戏ID: {}, 父文档ID: {}, 块索引: {}, 记录ID: {}", gameId, parentId, i, id);
                     
                     if (firstId == null) {
                         firstId = id;
@@ -743,14 +899,42 @@ public class RAGServiceImpl implements RAGService {
                     successCount++;
                 }
             } catch (Exception e) {
-                log.error("存储消息块失败: {}", e.getMessage(), e);
+                log.error("存储子文档块失败: {}", e.getMessage(), e);
                 // 继续处理下一个块
                 continue;
             }
         }
 
-        log.info("消息存储完成，总块数: {}, 成功: {}, 失败: {}", 
-                optimizedMessages.size(), successCount, optimizedMessages.size() - successCount);
+        // 4. 提取并存储事实到全局记忆
+        // 尝试从缓存获取事实提取结果
+//        String factCacheKey = "fact:" + content.hashCode();
+//        List<Map<String, Object>> facts = factExtractionCache.getIfPresent(factCacheKey);
+//
+//        if (facts == null) {
+//            // 缓存未命中，提取事实
+////            facts = factExtractor.extractFacts(content);
+//            if (!facts.isEmpty()) {
+//                // 存入缓存
+//                factExtractionCache.put(factCacheKey, facts);
+//                log.debug("缓存事实提取结果，键: {}, 数量: {}", factCacheKey, facts.size());
+//            }
+//        } else {
+//            log.debug("从缓存获取事实提取结果，键: {}", factCacheKey);
+//        }
+//
+//        if (!facts.isEmpty()) {
+//            log.debug("提取事实完成，数量: {}", facts.size());
+//            for (Map<String, Object> fact : facts) {
+//                String factContent = (String) fact.get("content");
+//                if (factContent != null && !factContent.isEmpty()) {
+//                    // 存储事实到全局记忆
+//                    insertGlobalClueMemory(gameId, playerId, factContent, playerId);
+//                }
+//            }
+//        }
+
+        log.info("父子文档存储完成，父文档ID: {}, 总块数: {}, 成功: {}, 失败: {}",
+                parentId, shortChunks.size(), successCount, shortChunks.size() - successCount);
 
         return firstId;
     }
@@ -838,7 +1022,7 @@ public class RAGServiceImpl implements RAGService {
     }
 
     @Override
-    public Long insertGlobalClueMemory(Long scriptId, Long characterId, String content) {
+    public Long insertGlobalClueMemory(Long scriptId, Long characterId, String content, Long playerId) {
         String collectionName = schemaConfig.getGlobalMemoryCollectionName();
 
         // 确保集合存在
@@ -858,6 +1042,7 @@ public class RAGServiceImpl implements RAGService {
         JsonObject data = new JsonObject();
         data.addProperty("script_id", scriptId);
         data.addProperty("character_id", characterId);
+        data.addProperty("player_id", playerId);
         data.addProperty("type", "clue");
         data.addProperty("content", content);
         data.addProperty("timestamp", String.valueOf(System.currentTimeMillis()));
@@ -1375,5 +1560,59 @@ public class RAGServiceImpl implements RAGService {
         }
 
         return 0;
+    }
+
+    @Override
+    public List<Map<String, Object>> searchCombinedMemory(Long gameId, Long playerId, String query, int topK) {
+        List<Map<String, Object>> combinedResults = new ArrayList<>();
+
+        // 1. 搜索对话记忆
+        List<Map<String, Object>> conversationResults = searchConversationMemory(gameId, playerId, query, topK);
+        if (!conversationResults.isEmpty()) {
+            // 为对话结果添加类型标识
+            for (Map<String, Object> result : conversationResults) {
+                result.put("result_type", "conversation");
+            }
+            combinedResults.addAll(conversationResults);
+        }
+
+        // 2. 搜索全局记忆（事实）
+        List<Map<String, Object>> factResults = searchGlobalClueMemory(gameId, playerId, query, topK);
+        if (!factResults.isEmpty()) {
+            // 为事实结果添加类型标识
+            for (Map<String, Object> result : factResults) {
+                result.put("result_type", "fact");
+            }
+            combinedResults.addAll(factResults);
+        }
+
+        // 3. 按相似度分数排序
+        combinedResults.sort((a, b) -> {
+            Double scoreA = (Double) a.get("score");
+            Double scoreB = (Double) b.get("score");
+            return scoreB.compareTo(scoreA); // 降序排序
+        });
+
+        // 4. 去重处理（简单去重，基于内容）
+        Set<String> seenContents = new HashSet<>();
+        List<Map<String, Object>> uniqueResults = new ArrayList<>();
+
+        for (Map<String, Object> result : combinedResults) {
+            String content = (String) result.get("content");
+            if (content != null && !seenContents.contains(content)) {
+                seenContents.add(content);
+                uniqueResults.add(result);
+            }
+        }
+
+        // 5. 限制结果数量
+        List<Map<String, Object>> finalResults = uniqueResults.stream()
+                .limit(topK)
+                .collect(Collectors.toList());
+
+        log.debug("联合检索完成，对话结果: {}, 事实结果: {}, 最终结果: {}", 
+                conversationResults.size(), factResults.size(), finalResults.size());
+
+        return finalResults;
     }
 }

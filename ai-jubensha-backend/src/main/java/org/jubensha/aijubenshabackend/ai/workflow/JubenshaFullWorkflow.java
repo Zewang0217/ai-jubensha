@@ -32,6 +32,7 @@ public class JubenshaFullWorkflow {
             // 添加现有工作流节点
             workflow.addNode("player_allocator", PlayerAllocatorNode.create());
             workflow.addNode("scene_loader", SceneLoaderNode.create());
+            workflow.addNode("clue_enrichment", ClueEnrichmentNode.create());
             workflow.addNode("script_reader", ScriptReaderNode.create());
             workflow.addNode("first_investigation", FirstInvestigationNode.create());
             workflow.addNode("discussion", DiscussionNode.create());
@@ -47,8 +48,9 @@ public class JubenshaFullWorkflow {
             workflow.addEdge("assembly_node", "player_allocator");
             workflow.addEdge("player_allocator", "script_reader");
             workflow.addEdge("player_allocator", "scene_loader");
+            workflow.addEdge("scene_loader", "clue_enrichment");
+            workflow.addEdge("clue_enrichment", "first_investigation");
             workflow.addEdge("script_reader", "first_investigation");
-            workflow.addEdge("scene_loader", "first_investigation");
             workflow.addEdge("first_investigation", "discussion");
             workflow.addEdge("discussion", "__END__");
 
@@ -71,6 +73,7 @@ public class JubenshaFullWorkflow {
             // 添加现有工作流节点
             workflow.addNode("player_allocator", PlayerAllocatorNode.create());
             workflow.addNode("scene_loader", SceneLoaderNode.create());
+            workflow.addNode("clue_enrichment", ClueEnrichmentNode.create());
             workflow.addNode("script_reader", ScriptReaderNode.create());
             workflow.addNode("first_investigation", FirstInvestigationNode.create());
             workflow.addNode("discussion", DiscussionNode.create());
@@ -79,8 +82,9 @@ public class JubenshaFullWorkflow {
             workflow.addEdge("__START__", "player_allocator");
             workflow.addEdge("player_allocator", "script_reader");
             workflow.addEdge("player_allocator", "scene_loader");
+            workflow.addEdge("scene_loader", "clue_enrichment");
+            workflow.addEdge("clue_enrichment", "first_investigation");
             workflow.addEdge("script_reader", "first_investigation");
-            workflow.addEdge("scene_loader", "first_investigation");
             workflow.addEdge("first_investigation", "discussion");
             workflow.addEdge("discussion", "__END__");
 
