@@ -88,7 +88,7 @@ public class SceneLoaderNode {
                     if (scenes == null || scenes.isEmpty()) {
                         String scriptAiOutPut = context.getModelOutput();
                         // 戛然而止
-                        log.debug("AI生成剧本原输出:\n\n" + scriptAiOutPut + "\n\n");
+                        log.debug("AI生成剧本原输出:\n\n{}\n\n", scriptAiOutPut);
                         if (scriptAiOutPut != null && !scriptAiOutPut.isEmpty()) {
                             log.info("数据库中无场景，尝试从JSON解析");
 //                            JsonNode rootNode = objectMapper.readTree(scriptAiOutPut);
