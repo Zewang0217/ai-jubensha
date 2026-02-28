@@ -11,6 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * @author zewang
+ * @author luobo
+ */
 @Slf4j
 @Service
 public class WebSocketService {
@@ -89,7 +93,7 @@ public class WebSocketService {
     }
 
     /**
-     * // TODO: 待完善
+     * // TODO: investigationScenes应该新建为一种数据类型
      * 通知玩家开始搜证
      */
     public void notifyPlayerStartInvestigation(Long playerId, Map<String, Object> investigationScenes) {
