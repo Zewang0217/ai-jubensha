@@ -1,14 +1,13 @@
 package org.jubensha.aijubenshabackend.websocket.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import org.jubensha.aijubenshabackend.websocket.message.GameMessage;
 import org.jubensha.aijubenshabackend.websocket.message.WebSocketMessage;
+import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 /**
@@ -19,11 +18,11 @@ import org.springframework.stereotype.Controller;
 @Controller
 public class WebSocketController {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final WebSocketService webSocketService;
 
     @Autowired
-    public WebSocketController(SimpMessagingTemplate messagingTemplate) {
-        this.messagingTemplate = messagingTemplate;
+    public WebSocketController(WebSocketService webSocketService) {
+        this.webSocketService = webSocketService;
     }
 
     /**
@@ -50,17 +49,6 @@ public class WebSocketController {
         log.info("房间 {} 收到消息: {}", gameId, message);
         // 发送消息到特定游戏的频道
         // 手动指定发送路径
-        String destination = "/topic/room/" + gameId;
-        messagingTemplate.convertAndSend(destination, message);
-    }
-
-    /**
-     * 处理玩家操作
-     */
-    @MessageMapping("/game/action")
-    public void handleGameAction(GameMessage gameMessage) {
-        log.info("Received game action for game {}: {}", gameMessage.getGameId(), gameMessage.getMessage());
-        // 发送操作到特定游戏的频道
-        messagingTemplate.convertAndSend("/topic/room/" + gameMessage.getGameId() + "/actions", gameMessage.getMessage());
+        webSocketService.sendToGameRoom(gameId, message);
     }
 }
