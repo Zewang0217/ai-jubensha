@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -32,16 +33,17 @@ public class WebSocketService {
      * 发送消息到所有客户端
      */
     public void broadcastMessage(String topic, WebSocketMessage message) {
-        log.info("Broadcasting message to {}: {}", topic, message);
+        log.info("广播消息到 {}: {}", topic, message);
         messagingTemplate.convertAndSend(topic, message);
     }
 
     /**
      * 发送消息到特定游戏
      */
-    public void sendToGame(Long gameId, WebSocketMessage message) {
-        log.info("Sending message to game {}: {}", gameId, message);
-        messagingTemplate.convertAndSend("/topic/game/" + gameId, message);
+    public void sendToGameRoom(Long gameId, WebSocketMessage message) {
+        log.info("发送消息到游戏 {}: {}", gameId, message);
+        String destination = "/topic/room/" + gameId;
+        messagingTemplate.convertAndSend(destination, message);
     }
 
     /**
@@ -59,7 +61,7 @@ public class WebSocketService {
         WebSocketMessage message = new WebSocketMessage();
         message.setType("GAME_STATE_UPDATE");
         message.setPayload(gameState);
-        sendToGame(gameId, message);
+        sendToGameRoom(gameId, message);
     }
 
     /**
@@ -68,8 +70,13 @@ public class WebSocketService {
     public void sendChatMessage(Long gameId, String sender, String content) {
         WebSocketMessage message = new WebSocketMessage();
         message.setType("CHAT_MESSAGE");
-        message.setPayload("{\"sender\": \"" + sender + "\", \"content\": \"" + content + "\"}");
-        sendToGame(gameId, message);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("sender", sender);
+        payload.put("content", content);
+        message.setPayload(payload);
+
+        sendToGameRoom(gameId, message);
     }
 
     /**
@@ -78,8 +85,13 @@ public class WebSocketService {
     public void sendClueFoundMessage(Long gameId, String clueName, String clueDescription) {
         WebSocketMessage message = new WebSocketMessage();
         message.setType("CLUE_FOUND");
-        message.setPayload("{\"clueName\": \"" + clueName + "\", \"clueDescription\": \"" + clueDescription + "\"}");
-        sendToGame(gameId, message);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("clueName", clueName);
+        payload.put("clueDescription", clueDescription);
+        message.setPayload(payload);
+
+        sendToGameRoom(gameId, message);
     }
 
     /**
@@ -88,13 +100,18 @@ public class WebSocketService {
     public void sendPhaseChangeMessage(Long gameId, String phase) {
         WebSocketMessage message = new WebSocketMessage();
         message.setType("PHASE_CHANGE");
-        message.setPayload("{\"phase\": \"" + phase + "\"}");
-        sendToGame(gameId, message);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("phase", phase);
+        message.setPayload(payload);
+
+        sendToGameRoom(gameId, message);
     }
 
     /**
      * // TODO: investigationScenes应该新建为一种数据类型
      * 通知玩家开始搜证
+     * 前端搜证前的下一步按钮应等待后端notify后才可点击
      */
     public void notifyPlayerStartInvestigation(Long playerId, Map<String, Object> investigationScenes) {
         WebSocketMessage message = new WebSocketMessage();
