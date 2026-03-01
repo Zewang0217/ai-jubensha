@@ -425,7 +425,7 @@ public class DiscussionReasoningManager {
      * @param gameId 游戏ID
      * @return 近期讨论内容
      */
-    private String getRecentDiscussion(Long gameId) {
+    public String getRecentDiscussion(Long gameId) {
         try {
             // 生成缓存键
             String cacheKey = "recent_discussion:" + gameId + ":" + System.currentTimeMillis() / 30000; // 每30秒更新一次缓存
