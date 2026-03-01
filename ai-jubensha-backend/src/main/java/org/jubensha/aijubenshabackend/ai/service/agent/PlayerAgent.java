@@ -50,24 +50,24 @@ import java.util.List;
 """)
 public interface PlayerAgent {
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请分析当前游戏状态，通过调用工具获取必要信息，然后生成下一步的发言内容。")
-    String speak(String gameId, String playerId);
+    String speak(@V("gameId") String gameId, @V("playerId") String playerId);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请分析当前讨论情况，通过调用工具获取相关线索，然后对该线索做出合理回应。")
-    String respondToClue(String gameId, String playerId);
+    String respondToClue(@V("gameId") String gameId, @V("playerId") String playerId);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。")
-    String discuss(String gameId, String playerId, String topic);
+    String discuss(@V("gameId") String gameId, @V("playerId") String playerId, @V("topic") String topic);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请通过调用工具分析所有玩家的表现和线索，然后做出投票决定。")
-    String vote(String gameId, String playerId);
+    String vote(@V("gameId") String gameId, @V("playerId") String playerId);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n目标玩家ID：{{targetPlayerId}}\n请通过调用工具了解目标玩家的情况，然后生成合适的单聊消息。")
-    String privateChat(String gameId, String playerId, String targetPlayerId);
+    String privateChat(@V("gameId") String gameId, @V("playerId") String playerId, @V("targetPlayerId") String targetPlayerId);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n问题：{{question}}\n请通过调用工具获取相关信息，然后回答这个问题。")
-    String answerQuestion(String gameId, String playerId, String question);
+    String answerQuestion(@V("gameId") String gameId, @V("playerId") String playerId, @V("question") String question);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n当前讨论阶段：{{phase}}\n请通过调用工具收集讨论历史、线索和其他相关信息，然后生成下一步的讨论内容。")
+    @UserMessage("{{phase}}")
     String reasonAndDiscuss(@V("gameId") String gameId, @V("playerId") String playerId, @V("phase") String phase);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。")
@@ -248,28 +248,6 @@ public interface PlayerAgent {
 """)
     String answer(@V("gameId") String gameId, @V("playerId") String playerId, @V("characterName") String characterName);
 
-    @UserMessage("""
-游戏ID：{{gameId}}
-玩家ID：{{playerId}}
-角色名称：{{characterName}}
-
-{{context}}
-
-请作为{{characterName}}角色，基于以上上下文信息，通过调用工具获取以下信息：
-1. 讨论历史，了解当前游戏进展和其他玩家的观点
-2. 你的角色线索，掌握关键信息
-3. 其他玩家状态，了解全局情况
-
-基于以上信息，分析整个案件，包括：
-- 凶手身份
-- 作案动机
-- 作案手法
-- 关键线索分析
-- 对其他玩家的怀疑理由
-
-请生成一个全面、详细的案件答案，确保答案基于通过工具获取的真实信息，而不是虚构内容。
-
-请直接开始你的答案，不需要任何开场白或引言。
-""")
+    @UserMessage("{{context}}")
     String answerWithContext(@V("gameId") String gameId, @V("playerId") String playerId, @V("characterName") String characterName, @V("context") String context);
 }
