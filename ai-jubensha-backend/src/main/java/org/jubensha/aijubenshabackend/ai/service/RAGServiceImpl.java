@@ -325,12 +325,15 @@ public class RAGServiceImpl implements RAGService {
         // 对搜索结果进行重排
         List<Map<String, Object>> rerankedResults = rerankService.twoStepRetrieval(query, sortedResults, topK);
         
+        // 应用返回策略：默认返回评分最高的5条数据
+        List<Map<String, Object>> finalRerankedResults = applyRetrievalStrategy(rerankedResults, topK);
+        
         // 将结果存入缓存
-        conversationMemoryCache.put(cacheKey, rerankedResults);
-        log.debug("缓存对话记忆检索结果，键: {}, 结果数: {}", cacheKey, rerankedResults.size());
+        conversationMemoryCache.put(cacheKey, finalRerankedResults);
+        log.debug("缓存对话记忆检索结果，键: {}, 结果数: {}", cacheKey, finalRerankedResults.size());
 
-        log.debug("游戏 {} 对话记忆检索完成，返回 {} 条结果", gameId, rerankedResults.size());
-        return rerankedResults;
+        log.debug("游戏 {} 对话记忆检索完成，返回 {} 条结果", gameId, finalRerankedResults.size());
+        return finalRerankedResults;
     }
 
     /**
@@ -808,6 +811,73 @@ public class RAGServiceImpl implements RAGService {
             result[i] = floatList.get(i);
         }
         return result;
+    }
+
+    /**
+     * 应用检索结果返回策略
+     *
+     * @param rerankedResults 重排后的结果列表
+     * @param topK            请求的结果数量
+     * @return 应用策略后的结果列表
+     */
+    private List<Map<String, Object>> applyRetrievalStrategy(List<Map<String, Object>> rerankedResults, int topK) {
+        // 策略1：返回评分最高的5条数据（默认策略）
+        int maxResults = Math.min(5, topK);
+        List<Map<String, Object>> strategy1Results = rerankedResults.stream()
+                .limit(maxResults)
+                .collect(Collectors.toList());
+        
+        log.debug("应用检索策略1，返回 {} 条最高评分结果", strategy1Results.size());
+        return strategy1Results;
+        
+        // 策略2：返回评分最高到最新的数据
+        // 如果需要使用策略2，可以取消注释下面的代码
+        /*
+        // 首先按评分排序获取最高评分的结果
+        Map<String, Object> topResult = rerankedResults.stream()
+                .max((a, b) -> Double.compare((Double) a.getOrDefault("score", 0.0), (Double) b.getOrDefault("score", 0.0)))
+                .orElse(null);
+        
+        if (topResult == null) {
+            return new ArrayList<>();
+        }
+        
+        // 然后按时间戳排序，获取从最高评分结果到最新的所有数据
+        List<Map<String, Object>> strategy2Results = rerankedResults.stream()
+                .sorted((a, b) -> {
+                    long timestampA = getTimestampFromResult(a);
+                    long timestampB = getTimestampFromResult(b);
+                    return Long.compare(timestampB, timestampA); // 降序排序，最新的在前
+                })
+                .collect(Collectors.toList());
+        
+        log.debug("应用检索策略2，返回 {} 条从最高评分到最新的结果", strategy2Results.size());
+        return strategy2Results;
+        */
+    }
+
+    /**
+     * 从结果中获取时间戳
+     *
+     * @param result 搜索结果
+     * @return 时间戳（毫秒）
+     */
+    private long getTimestampFromResult(Map<String, Object> result) {
+        Object timestampObj = result.get("timestamp");
+        if (timestampObj != null) {
+            if (timestampObj instanceof Long) {
+                return (Long) timestampObj;
+            } else if (timestampObj instanceof Number) {
+                return ((Number) timestampObj).longValue();
+            } else if (timestampObj instanceof String) {
+                try {
+                    return Long.parseLong((String) timestampObj);
+                } catch (NumberFormatException e) {
+                    log.warn("时间戳格式错误: {}", timestampObj);
+                }
+            }
+        }
+        return 0;
     }
 
     @Override
