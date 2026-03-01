@@ -6,7 +6,7 @@ import apiClient from './client'
  */
 
 // Mock 数据开关 - 开发环境使用
-const USE_MOCK = true
+const USE_MOCK = false
 
 // Mock 剧本数据
 const mockScripts = [
@@ -130,3 +130,16 @@ export const deleteScript = (id) => apiClient.delete(`/scripts/${id}`)
  * @returns {Promise<ListScriptResponseDTO>} 生成的剧本
  */
 export const generateScript = (params) => apiClient.post('/scripts/generate', params)
+
+/**
+ * 启动剧本生成工作流
+ * @param {string} originalPrompt - 原始提示词
+ * @param {boolean} useStreaming - 是否使用流式生成
+ * @returns {Promise<Object>} 工作流执行结果
+ */
+export const startScriptCreationWorkflow = (originalPrompt, useStreaming = false) => {
+    return apiClient.post('/script-creation/start-workflow', {
+        originalPrompt,
+        useStreaming
+    })
+}
