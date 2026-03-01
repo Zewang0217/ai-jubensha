@@ -186,7 +186,12 @@ public class DiscussionReasoningManager {
             String recentDiscussion = getRecentDiscussion(gameId);
 
             // 构建完整的提示词，添加最终指令
-            String prompt = currentPhase + publicClues + plotSnapshot + recentDiscussion + "\n\n请根据以上上下文，结合你的剧本进行发言：";
+            String prompt = "游戏ID：" + gameId + "\n" +
+                           "玩家ID：" + playerId + "\n" +
+                           currentPhase + publicClues + plotSnapshot + recentDiscussion + "\n\n" +
+                           "请根据以上上下文，结合你的剧本进行发言：\n" +
+                           "如果觉得信息不够，可以调用工具获取更多信息。\n" +
+                           "请直接开始你的发言，不需要任何开场白。";
 
             // 调用推理方法生成讨论内容（传递完整的提示词）
             String result = playerAgent.reasonAndDiscuss(
