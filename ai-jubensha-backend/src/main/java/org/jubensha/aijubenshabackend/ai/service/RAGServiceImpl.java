@@ -373,7 +373,10 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建过滤条件：筛选线索类型的数据
         StringBuilder filterBuilder = new StringBuilder();
-        filterBuilder.append("script_id == ").append(scriptId).append(" and type == 'clue'");
+        if (scriptId != null) {
+            filterBuilder.append("script_id == ").append(scriptId).append(" and ");
+        }
+        filterBuilder.append("type == 'clue'");
 
         if (characterId != null) {
             filterBuilder.append(" and character_id == ").append(characterId);
@@ -455,7 +458,10 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建过滤条件：筛选时间线类型的数据
         StringBuilder filterBuilder = new StringBuilder();
-        filterBuilder.append("script_id == ").append(scriptId).append(" and type == 'timeline'");
+        if (scriptId != null) {
+            filterBuilder.append("script_id == ").append(scriptId).append(" and ");
+        }
+        filterBuilder.append("type == 'timeline'");
 
         if (characterId != null) {
             filterBuilder.append(" and character_id == ").append(characterId);
@@ -538,7 +544,10 @@ public class RAGServiceImpl implements RAGService {
 
         // 构建过滤条件：筛选公开线索（character_id == 0）
         StringBuilder filterBuilder = new StringBuilder();
-        filterBuilder.append("script_id == ").append(scriptId).append(" and type == 'clue' and character_id == 0");
+        if (scriptId != null) {
+            filterBuilder.append("script_id == ").append(scriptId).append(" and ");
+        }
+        filterBuilder.append("type == 'clue' and character_id == 0");
 
         String filter = filterBuilder.toString();
 

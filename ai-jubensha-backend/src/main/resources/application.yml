@@ -118,7 +118,7 @@ system:
 # AI配置
 ai:
   model: deepseek-chat  # Updated to use the correct model name for DeepSeek
-  api-key: "sk-1dd83a7f2bf54a68b98d3d8f3d4ddff9"
+  api-key: "sk-8ec3d6ef944e43f1a5000431531a738f"
   base-url: "https://api.deepseek.com"
   embedding-base-url: "https://api.siliconflow.cn/v1"
   embedding-model: "BAAI/bge-large-zh-v1.5"  # Using SiliconFlow embedding model
