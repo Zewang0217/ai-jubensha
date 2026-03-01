@@ -79,6 +79,9 @@ public class SendDiscussionMessageTool extends BaseTool {
     @Autowired
     private MessageChunker messageChunker;
 
+    @Autowired
+    private org.jubensha.aijubenshabackend.ai.service.util.ScrollingSummaryManager scrollingSummaryManager;
+
     @Override
     public String getToolName() {
         return "sendDiscussionMessage";
@@ -114,6 +117,9 @@ public class SendDiscussionMessageTool extends BaseTool {
 
             // 存储消息到向量数据库
             ragService.insertConversationMemory(gameId, playerId, playerName, processedMessage);
+
+            // 增加发言计数，用于滚动摘要
+            scrollingSummaryManager.incrementMessageCount(gameId);
 
             return "讨论消息发送成功";
         } catch (Exception e) {

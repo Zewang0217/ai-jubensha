@@ -18,7 +18,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +69,9 @@ public class DiscussionReasoningManager {
     @Autowired
     private CharacterService characterService;
 
+    @Autowired
+    private ScrollingSummaryManager scrollingSummaryManager;
+
     /**
      * 线程池，用于并行处理推理任务
      */
@@ -97,6 +102,11 @@ public class DiscussionReasoningManager {
             .expireAfterWrite(Duration.ofMinutes(2))
             .expireAfterAccess(Duration.ofSeconds(30))
             .build();
+
+    /**
+     * 滑动窗口大小，默认15条
+     */
+    private static final int SLIDING_WINDOW_SIZE = 15;
 
     /**
      * 处理AI玩家的推理和讨论
@@ -169,11 +179,20 @@ public class DiscussionReasoningManager {
                 }
             }
 
-            // 调用推理方法生成讨论内容（传递基本上下文和公开线索）
+            // 获取剧情快照（长期记忆）
+            String plotSnapshot = scrollingSummaryManager.getPlotSnapshot(gameId);
+            
+            // 获取近期讨论（滑动窗口）
+            String recentDiscussion = getRecentDiscussion(gameId);
+
+            // 构建完整的提示词，添加最终指令
+            String prompt = currentPhase + publicClues + plotSnapshot + recentDiscussion + "\n\n请根据以上上下文，结合你的剧本进行发言：";
+
+            // 调用推理方法生成讨论内容（传递完整的提示词）
             String result = playerAgent.reasonAndDiscuss(
                     gameId.toString(),
                     playerId.toString(),
-                    currentPhase + publicClues
+                    prompt
             );
 
             // 缓存推理结果
@@ -398,5 +417,89 @@ public class DiscussionReasoningManager {
      */
     public void shutdown() {
         executorService.shutdown();
+    }
+
+    /**
+     * 获取近期讨论内容（滑动窗口）
+     *
+     * @param gameId 游戏ID
+     * @return 近期讨论内容
+     */
+    private String getRecentDiscussion(Long gameId) {
+        try {
+            // 生成缓存键
+            String cacheKey = "recent_discussion:" + gameId + ":" + System.currentTimeMillis() / 30000; // 每30秒更新一次缓存
+
+            // 尝试从缓存获取结果
+            String cachedDiscussion = discussionHistoryCache.getIfPresent(cacheKey);
+            if (cachedDiscussion != null) {
+                log.debug("从缓存获取近期讨论，游戏ID: {}", gameId);
+                return cachedDiscussion;
+            }
+
+            // 从数据库获取最近的聊天记录
+            String query = "获取最近的讨论历史";
+            List<Map<String, Object>> recentMessages = ragService.searchConversationMemory(gameId, null, query, SLIDING_WINDOW_SIZE);
+
+            // 按时间顺序排序（从早到晚）
+            recentMessages.sort((a, b) -> {
+                long timestampA = getTimestamp(a);
+                long timestampB = getTimestamp(b);
+                return Long.compare(timestampA, timestampB);
+            });
+
+            // 构建近期讨论文本
+            StringBuilder discussionBuilder = new StringBuilder();
+            discussionBuilder.append("\n【近期讨论（短期记忆）】\n");
+            
+            for (Map<String, Object> message : recentMessages) {
+                String playerName = (String) message.getOrDefault("player_name", "未知玩家");
+                String content = (String) message.getOrDefault("content", "");
+                long timestamp = getTimestamp(message);
+                
+                String timeStr = new SimpleDateFormat("HH:mm").format(new Date(timestamp));
+                discussionBuilder.append(String.format("[%s] %s: %s\n", timeStr, playerName, content));
+            }
+
+            if (recentMessages.isEmpty()) {
+                discussionBuilder.append("暂无近期讨论记录\n");
+            }
+
+            String recentDiscussion = discussionBuilder.toString();
+            
+            // 缓存近期讨论
+            discussionHistoryCache.put(cacheKey, recentDiscussion);
+            
+            log.debug("获取到 {} 条近期讨论记录，游戏ID: {}", recentMessages.size(), gameId);
+            return recentDiscussion;
+
+        } catch (Exception e) {
+            log.error("获取近期讨论失败: {}", e.getMessage(), e);
+            return "\n【近期讨论（短期记忆）】\n暂无近期讨论记录\n";
+        }
+    }
+
+    /**
+     * 从消息中获取时间戳
+     *
+     * @param message 消息Map
+     * @return 时间戳（毫秒）
+     */
+    private long getTimestamp(Map<String, Object> message) {
+        Object timestampObj = message.get("timestamp");
+        if (timestampObj != null) {
+            if (timestampObj instanceof java.time.LocalDateTime) {
+                // 处理 LocalDateTime 类型
+                java.time.LocalDateTime localDateTime = (java.time.LocalDateTime) timestampObj;
+                return localDateTime.toInstant(java.time.ZoneOffset.of("+8")).toEpochMilli();
+            } else if (timestampObj instanceof Long) {
+                // 处理 Long 类型
+                return (Long) timestampObj;
+            } else if (timestampObj instanceof Number) {
+                // 处理其他数字类型
+                return ((Number) timestampObj).longValue();
+            }
+        }
+        return System.currentTimeMillis();
     }
 }
