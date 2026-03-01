@@ -17,6 +17,7 @@ import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.service.util.ResponseUtils;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.service.clue.ClueService;
 import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
@@ -86,6 +87,18 @@ public class InvestigationAgentHandler {
 
             // 延迟初始化服务
             lazyInitServices();
+
+            // 验证游戏状态
+            if (!validateGameState(gameId)) {
+                log.warn("游戏状态验证失败，跳过处理搜证消息: 游戏ID={}", gameId);
+                return;
+            }
+
+            // 检查任务是否已被取消
+            if (isTaskCancelled(gameId)) {
+                log.warn("任务已被取消，跳过处理搜证消息: 游戏ID={}", gameId);
+                return;
+            }
 
             // 获取玩家角色信息
             String characterName = getPlayerCharacterName(gameId, playerId);
@@ -303,5 +316,56 @@ public class InvestigationAgentHandler {
         
         // 否则尝试直接解析为长整型
         return Long.parseLong(clueIdStr);
+    }
+
+    /**
+     * 验证游戏状态是否有效
+     *
+     * @param gameId 游戏ID
+     * @return 是否有效
+     */
+    private boolean validateGameState(Long gameId) {
+        try {
+            // 检查游戏是否存在
+            var gameOpt = gameService.getGameById(gameId);
+            if (!gameOpt.isPresent()) {
+                log.warn("游戏不存在: 游戏ID={}", gameId);
+                return false;
+            }
+            
+            // 检查游戏状态是否为搜证阶段或相关阶段
+            var game = gameOpt.get();
+            var currentPhase = game.getCurrentPhase();
+            if (currentPhase == null) {
+                log.warn("游戏状态未设置: 游戏ID={}", gameId);
+                return false;
+            }
+            
+            // 只处理处于搜证阶段的游戏
+            return GamePhase.SEARCH.equals(currentPhase);
+        } catch (Exception e) {
+            log.error("验证游戏状态失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 检查任务是否已被取消
+     *
+     * @param gameId 游戏ID
+     * @return 是否已取消
+     */
+    private boolean isTaskCancelled(Long gameId) {
+        try {
+            // 获取工作流上下文
+            var context = investigationService.getWorkflowContext(gameId);
+            if (context != null) {
+                return context.isCancelled();
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("检查任务取消状态失败: {}", e.getMessage(), e);
+            return false;
+        }
     }
 }
