@@ -247,3 +247,5 @@ ALTER TABLE clues MODIFY COLUMN type ENUM('PHYSICAL', 'DOCUMENT', 'MEDIA', 'OTHE
 
 -- 为线索表添加player_id列，存储发现线索的玩家ID
 ALTER TABLE clues ADD COLUMN player_id BIGINT DEFAULT NULL COMMENT '发现线索的玩家ID';
+-- cover_image_url增加长度
+ALTER TABLE scripts MODIFY COLUMN cover_image_url VARCHAR(2048);
