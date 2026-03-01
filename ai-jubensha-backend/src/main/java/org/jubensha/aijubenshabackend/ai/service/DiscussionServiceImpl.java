@@ -69,6 +69,9 @@ public class DiscussionServiceImpl implements DiscussionService {
     private DiscussionReasoningManager discussionReasoningManager;
 
     @Resource
+    private org.jubensha.aijubenshabackend.ai.service.util.ScrollingSummaryManager scrollingSummaryManager;
+
+    @Resource
     private GamePlayerService gamePlayerService;
 
     @Resource
@@ -266,6 +269,9 @@ public class DiscussionServiceImpl implements DiscussionService {
         turnManager.switchPhase(gameId, TurnManager.PHASE_FREE_DISCUSSION);
         log.debug("[自由讨论] 已切换到自由讨论阶段");
 
+        // 取消陈述阶段的计时器
+        timerService.cancelTimer("STATEMENT");
+
         // 通知DM开始自由讨论阶段
         log.debug("[自由讨论] 通知DM开始自由讨论阶段");
         DMAgent dmAgent = aiService.getDMAgent(dmId);
@@ -283,7 +289,13 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         // 启动自由讨论阶段计时器（2分钟）
         log.debug("[自由讨论] 启动自由讨论阶段计时器，时长: 2分钟");
-        timerService.startTimer("FREE_DISCUSSION", 120L, this::startAnswerPhase);
+        timerService.startTimer("FREE_DISCUSSION", 120L, () -> {
+            log.info("[自由讨论] 自由讨论时间结束，准备进入答题环节");
+            // 停止中央调度器
+            stopCentralDirector();
+            // 进入答题环节
+            startAnswerPhase();
+        });
         log.info("[自由讨论] 自由讨论阶段计时器已启动，2分钟后结束");
         log.info("[自由讨论] 跳过单聊环节，直接进入答题阶段");
     }
@@ -354,6 +366,9 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         // 切换到答题阶段
         turnManager.switchPhase(gameId, TurnManager.PHASE_ANSWER);
+
+        // 取消自由讨论阶段的计时器
+        timerService.cancelTimer("FREE_DISCUSSION");
 
         // 通知DM开始答题阶段
         DMAgent dmAgent = aiService.getDMAgent(dmId);
@@ -432,7 +447,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         // 检测是否所有玩家都已提交答案
         if (playerAnswers.size() == playerIds.size()) {
             log.info("所有玩家都已提交答案，开始评分流程");
-            endDiscussion();
+            endDiscussionPhase();
         }
     }
 
@@ -702,21 +717,6 @@ public class DiscussionServiceImpl implements DiscussionService {
             String characterName = character.getName();
             log.debug("[发言生成] 玩家 {} 对应角色: {}", getCharacterName(playerId), characterName);
             
-            // 获取思考结果
-            String thinkingResult = null;
-            try {
-                thinkingResult = aiMindService.getComprehensiveThinkingResult(
-                        gameId, playerId, thinkingTask
-                );
-                if (thinkingResult != null && !thinkingResult.isEmpty()) {
-                    log.debug("[发言生成] 玩家 {} 思考结果长度: {}", getCharacterName(playerId), thinkingResult.length());
-                } else {
-                    log.warn("[发言生成] 玩家 {} 思考结果为空", getCharacterName(playerId));
-                }
-            } catch (Exception e) {
-                log.warn("[发言生成] 获取思考结果失败: {}", e.getMessage());
-            }
-            
             // 获取角色信息
             String timeline = character.getTimeline();
             String secret = character.getSecret();
@@ -732,15 +732,45 @@ public class DiscussionServiceImpl implements DiscussionService {
             try {
                 String response;
                 if ("分析所有信息并确定凶手".equals(thinkingTask)) {
-                    // 使用专门的answer方法生成答案
-                    response = playerAgent.answer(
+                    // 答题阶段：使用带上下文的answer方法生成答案
+                    // 获取剧情快照（长期记忆）
+                    String plotSnapshot = scrollingSummaryManager.getPlotSnapshot(gameId);
+                    // 获取近期讨论（滑动窗口）
+                    String recentDiscussion = discussionReasoningManager.getRecentDiscussion(gameId);
+                    // 构建完整的上下文信息
+                    String context = plotSnapshot + recentDiscussion;
+                    // 调用带上下文的answer方法
+                    response = playerAgent.answerWithContext(
                             gameId.toString(),
                             playerId.toString(),
-                            characterName
+                            characterName,
+                            context
                     );
                     log.info("[答案生成] 玩家 {} 成功生成答案，长度: {}", getCharacterName(playerId), response != null ? response.length() : 0);
+                } else if ("分析当前讨论并生成回应".equals(thinkingTask)) {
+                    // 自由讨论阶段：直接生成发言，不使用推理
+                    response = playerAgent.speak(
+                            gameId.toString(),
+                            playerId.toString()
+                    );
+                    log.info("[自由讨论] 玩家 {} 成功生成发言，长度: {}", getCharacterName(playerId), response != null ? response.length() : 0);
                 } else {
-                    // 使用speakWithReasoning方法生成普通发言
+                    // 其他阶段：使用speakWithReasoning方法生成发言
+                    // 获取思考结果（仅用于非自由讨论阶段）
+                    String thinkingResult = null;
+                    try {
+                        thinkingResult = aiMindService.getComprehensiveThinkingResult(
+                                gameId, playerId, thinkingTask
+                        );
+                        if (thinkingResult != null && !thinkingResult.isEmpty()) {
+                            log.debug("[发言生成] 玩家 {} 思考结果长度: {}", getCharacterName(playerId), thinkingResult.length());
+                        } else {
+                            log.warn("[发言生成] 玩家 {} 思考结果为空", getCharacterName(playerId));
+                        }
+                    } catch (Exception e) {
+                        log.warn("[发言生成] 获取思考结果失败: {}", e.getMessage());
+                    }
+                    
                     response = playerAgent.speakWithReasoning(
                             gameId.toString(),
                             playerId.toString(),
