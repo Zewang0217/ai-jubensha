@@ -15,6 +15,7 @@ import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+import org.jubensha.aijubenshabackend.core.util.JsonValidationUtil;
 
 import java.util.List;
 import java.util.Map;
@@ -143,17 +144,38 @@ public class DMModerator {
                     Optional<Character> characterOpt = characterService.getCharacterById(characterId);
                     if (characterOpt.isPresent()) {
                         Character character = characterOpt.get();
-                        // 调用PlayerAgent的generateStatement方法
-                        String statement = playerAgent.generateStatement(
-                                gameId.toString(),
-                                playerId.toString(),
-                                character.getId().toString(),
-                                character.getName(),
-                                scriptId.toString(),
-                                character.getBackgroundStory() != null ? character.getBackgroundStory() : "暂无背景故事",
-                                character.getSecret() != null ? character.getSecret() : "暂无秘密信息",
-                                character.getTimeline() != null ? character.getTimeline() : "暂无时间线信息"
-                        );
+                        // 调用PlayerAgent的generateStatement方法，并使用JsonValidationUtil进行验证和重试
+                        String statement = null;
+                        try {
+                            String jsonStatement = JsonValidationUtil.generateWithRetry(() -> {
+                                return playerAgent.generateStatement(
+                                        gameId.toString(),
+                                        playerId.toString(),
+                                        character.getId().toString(),
+                                        character.getName(),
+                                        scriptId.toString(),
+                                        character.getBackgroundStory() != null ? character.getBackgroundStory() : "暂无背景故事",
+                                        character.getSecret() != null ? character.getSecret() : "暂无秘密信息",
+                                        character.getTimeline() != null ? character.getTimeline() : "暂无时间线信息"
+                                );
+                            });
+                            
+                            // 解析JSON，提取content字段
+                            if (jsonStatement != null && !jsonStatement.isEmpty()) {
+                                com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                                com.fasterxml.jackson.databind.JsonNode rootNode = objectMapper.readTree(jsonStatement);
+                                if (rootNode.has("content")) {
+                                    statement = rootNode.get("content").asText();
+                                } else {
+                                    log.warn("JSON格式不正确，缺少content字段: {}", jsonStatement);
+                                    statement = "我是" + character.getName() + "，我需要时间整理一下思路。";
+                                }
+                            }
+                        } catch (Exception e) {
+                            log.error("AI玩家陈述生成失败，玩家ID: {}, 角色: {}", playerId, character.getName(), e);
+                            // 生成备用陈述
+                            statement = "我是" + character.getName() + "，我需要时间整理一下思路。";
+                        }
                         
                         // 发送陈述消息
                         if (statement != null && !statement.isEmpty()) {
