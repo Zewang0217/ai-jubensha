@@ -738,7 +738,19 @@ public class DiscussionServiceImpl implements DiscussionService {
                     // 获取近期讨论（滑动窗口）
                     String recentDiscussion = discussionReasoningManager.getRecentDiscussion(gameId);
                     // 构建完整的上下文信息
-                    String context = plotSnapshot + recentDiscussion;
+                    String context = "游戏ID：" + gameId + "\n" +
+                                   "玩家ID：" + playerId + "\n" +
+                                   "角色名称：" + characterName + "\n\n" +
+                                   plotSnapshot + recentDiscussion + "\n\n" +
+                                   "请作为" + characterName + "角色，基于以上上下文信息，分析整个案件，包括：\n" +
+                                   "- 凶手身份\n" +
+                                   "- 作案动机\n" +
+                                   "- 作案手法\n" +
+                                   "- 关键线索分析\n" +
+                                   "- 对其他玩家的怀疑理由\n\n" +
+                                   "如果觉得信息不够，可以调用工具获取更多信息。\n\n" +
+                                   "请生成一个全面、详细的案件答案，确保答案基于通过工具获取的真实信息，而不是虚构内容。\n\n" +
+                                   "请直接开始你的答案，不需要任何开场白或引言。";
                     // 调用带上下文的answer方法
                     response = playerAgent.answerWithContext(
                             gameId.toString(),
