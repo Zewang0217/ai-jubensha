@@ -6,6 +6,7 @@ import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.bsc.langgraph4j.prebuilt.MessagesStateGraph;
 import org.jubensha.aijubenshabackend.ai.workflow.node.AssemblyNode;
 import org.jubensha.aijubenshabackend.ai.workflow.node.CharacterGenNode;
+import org.jubensha.aijubenshabackend.ai.workflow.node.CoverImageGeneratorNode;
 import org.jubensha.aijubenshabackend.ai.workflow.node.OutlineNode;
 import org.jubensha.aijubenshabackend.ai.workflow.node.SceneClueNode;
 import org.jubensha.aijubenshabackend.service.script.ScriptService;
@@ -42,12 +43,16 @@ public class ScriptCreationWorkflow {
             // 添加组装节点
             workflow.addNode("assembly_node", AssemblyNode.create());
 
+            // 添加封面生成节点
+            workflow.addNode("cover_image_generator_node", CoverImageGeneratorNode.create());
+
             // 定义节点流转关系
             workflow.addEdge("__START__", "outline_node");
             workflow.addEdge("outline_node", "character_gen_node");
             workflow.addEdge("character_gen_node", "scene_clue_node");
             workflow.addEdge("scene_clue_node", "assembly_node");
-            workflow.addEdge("assembly_node", "__END__");
+            workflow.addEdge("assembly_node", "cover_image_generator_node");
+            workflow.addEdge("cover_image_generator_node", "__END__");
 
             return workflow;
         } catch (Exception e) {
