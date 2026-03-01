@@ -3,7 +3,8 @@ import {motion} from 'framer-motion'
 import {useNavigate} from 'react-router-dom'
 import {BookOpen, Filter, Search, Sparkles} from 'lucide-react'
 import ScriptCard from '../../components/ui/ScriptCard'
-import {getScripts} from '../../services/api/script'
+import ScriptCreationForm from '../../components/ui/ScriptCreationForm'
+import {getScripts, startScriptCreationWorkflow} from '../../services/api/script'
 
 /**
  * ScriptList 页面 - 剧本列表
@@ -16,6 +17,10 @@ const ScriptList = () => {
     const [error, setError] = useState(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [filterDifficulty, setFilterDifficulty] = useState('ALL')
+    const [showForm, setShowForm] = useState(false)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [submitError, setSubmitError] = useState(null)
+    const [submitSuccess, setSubmitSuccess] = useState(null)
 
     // 获取剧本列表
     useEffect(() => {
@@ -66,9 +71,48 @@ const ScriptList = () => {
         navigate(`/scripts/${id}`)
     }
 
-    // 处理创建剧本
-    const handleCreateScript = () => {
-        navigate('/scripts/create')
+    // 处理AI生成剧本按钮点击
+    const handleAIScriptButtonClick = () => {
+        setShowForm(true)
+        setSubmitError(null)
+        setSubmitSuccess(null)
+    }
+
+    // 处理表单提交
+    const handleFormSubmit = async (originalPrompt) => {
+        setIsSubmitting(true)
+        setSubmitError(null)
+        setSubmitSuccess(null)
+        
+        try {
+            const response = await startScriptCreationWorkflow(originalPrompt)
+            // 生成成功后直接跳转到剧本详情页
+            navigate(`/scripts/${response.scriptId}`)
+        } catch (err) {
+            console.error('生成剧本失败:', err)
+            // 区分不同类型的错误
+            if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
+                setSubmitError('剧本生成超时，请稍后重试。生成过程可能需要较长时间。')
+            } else if (err.response) {
+                // 服务器返回错误
+                setSubmitError(`生成剧本失败: ${err.response.data?.message || '服务器内部错误'}`)
+            } else if (err.request) {
+                // 请求已发送但没有收到响应
+                setSubmitError('网络错误，请检查网络连接后重试')
+            } else {
+                // 其他错误
+                setSubmitError('生成剧本失败，请稍后重试')
+            }
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    // 处理表单取消
+    const handleFormCancel = () => {
+        setShowForm(false)
+        setSubmitError(null)
+        setSubmitSuccess(null)
     }
 
     return (
@@ -142,11 +186,11 @@ const ScriptList = () => {
                             </div>
                         </div>
 
-                        {/* 创建按钮 */}
+                        {/* AI生成剧本按钮 */}
                         <motion.button
                             whileHover={{scale: 1.02}}
                             whileTap={{scale: 0.98}}
-                            onClick={handleCreateScript}
+                            onClick={handleAIScriptButtonClick}
                             className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300"
                         >
                             <Sparkles className="w-5 h-5"/>
@@ -242,6 +286,39 @@ const ScriptList = () => {
                     </motion.div>
                 )}
             </div>
+
+            {/* 剧本生成表单 */}
+            {showForm && (
+                <ScriptCreationForm
+                    onSubmit={handleFormSubmit}
+                    onCancel={handleFormCancel}
+                    isLoading={isSubmitting}
+                />
+            )}
+
+            {/* 成功消息 */}
+            {submitSuccess && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
+                >
+                    剧本生成成功！正在跳转到剧本详情页...
+                </motion.div>
+            )}
+
+            {/* 错误消息 */}
+            {submitError && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg z-50"
+                >
+                    {submitError}
+                </motion.div>
+            )}
         </div>
     )
 }
