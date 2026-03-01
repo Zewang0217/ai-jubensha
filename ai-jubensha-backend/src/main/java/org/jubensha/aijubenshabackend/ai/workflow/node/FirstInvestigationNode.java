@@ -136,6 +136,17 @@ public class FirstInvestigationNode {
                 investigationService.saveWorkflowContext(context.getGameId(), context);
                 log.info("[上下文管理] 已保存工作流上下文到InvestigationService缓存，游戏ID: {}", context.getGameId());
 
+                // 更新游戏状态为搜证阶段
+                if (context.getGameId() != null) {
+                    var gameOpt = gameService.getGameById(context.getGameId());
+                    if (gameOpt.isPresent()) {
+                        Game game = gameOpt.get();
+                        game.setCurrentPhase(GamePhase.SEARCH);
+                        gameService.updateGame(context.getGameId(), game);
+                        log.info("[状态转换] 游戏状态已更新为: SEARCH");
+                    }
+                }
+
                 /*
                 Map<String, Object> assignment = Map.of(
                     "playerType", "REAL",

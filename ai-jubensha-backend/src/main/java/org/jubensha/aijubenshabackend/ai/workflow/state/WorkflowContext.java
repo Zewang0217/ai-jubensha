@@ -215,6 +215,12 @@ public class WorkflowContext implements Serializable {
      * 生成的迷惑线索数量
      */
     private Integer generatedClueCount;
+    
+    // ====== 任务取消相关字段 ======
+    /**
+     * 任务取消标记
+     */
+    private boolean cancelled;
 
     // ====== 上下文操作方法 ======
 
@@ -412,5 +418,23 @@ public class WorkflowContext implements Serializable {
             return new java.util.HashMap<>();
         }
         return new java.util.HashMap<>(this.playerInvestigationCounts);
+    }
+    
+    // ====== 任务取消相关方法 ======
+    
+    /**
+     * 标记任务为已取消
+     */
+    public void cancel() {
+        this.cancelled = true;
+    }
+    
+    /**
+     * 检查任务是否已被取消
+     *
+     * @return 是否已取消
+     */
+    public boolean isCancelled() {
+        return this.cancelled;
     }
 }
