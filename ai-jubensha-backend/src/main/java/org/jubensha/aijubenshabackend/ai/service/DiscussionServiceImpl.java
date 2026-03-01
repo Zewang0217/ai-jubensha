@@ -266,6 +266,9 @@ public class DiscussionServiceImpl implements DiscussionService {
         turnManager.switchPhase(gameId, TurnManager.PHASE_FREE_DISCUSSION);
         log.debug("[自由讨论] 已切换到自由讨论阶段");
 
+        // 取消陈述阶段的计时器
+        timerService.cancelTimer("STATEMENT");
+
         // 通知DM开始自由讨论阶段
         log.debug("[自由讨论] 通知DM开始自由讨论阶段");
         DMAgent dmAgent = aiService.getDMAgent(dmId);
@@ -360,6 +363,9 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         // 切换到答题阶段
         turnManager.switchPhase(gameId, TurnManager.PHASE_ANSWER);
+
+        // 取消自由讨论阶段的计时器
+        timerService.cancelTimer("FREE_DISCUSSION");
 
         // 通知DM开始答题阶段
         DMAgent dmAgent = aiService.getDMAgent(dmId);

@@ -507,4 +507,96 @@ public class GameController {
                     .body(Map.of("error", "Failed to test DM score", "message", e.getMessage()));
         }
     }
+
+    /**
+     * 直接测试自由讨论和答题环节
+     *
+     * @param request 包含游戏ID、玩家ID列表、DM ID和Judge ID的请求
+     * @return 测试结果，包含讨论和答题的完整流程信息
+     */
+    @PostMapping("/test-discussion-answer")
+    public ResponseEntity<?> testDiscussionAnswer(@RequestBody Map<String, Object> request) {
+        try {
+            // 获取游戏参数
+            Object gameIdObj = request.get("gameId");
+            if (gameIdObj == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "gameId is required"));
+            }
+            Long gameId = gameIdObj instanceof Number ? ((Number) gameIdObj).longValue() : Long.parseLong(gameIdObj.toString());
+
+            // 获取玩家ID列表
+            List<Long> playerIds = new java.util.ArrayList<>();
+            Object playerIdsObj = request.get("playerIds");
+            if (playerIdsObj instanceof List) {
+                for (Object obj : (List<?>) playerIdsObj) {
+                    if (obj instanceof Number) {
+                        playerIds.add(((Number) obj).longValue());
+                    } else if (obj instanceof String) {
+                        playerIds.add(Long.parseLong((String) obj));
+                    }
+                }
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "playerIds is required and must be a list"));
+            }
+
+            // 获取DM ID
+            Object dmIdObj = request.get("dmId");
+            if (dmIdObj == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "dmId is required"));
+            }
+            Long dmId = dmIdObj instanceof Number ? ((Number) dmIdObj).longValue() : Long.parseLong(dmIdObj.toString());
+
+            // 获取Judge ID
+            Object judgeIdObj = request.get("judgeId");
+            if (judgeIdObj == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "judgeId is required"));
+            }
+            Long judgeId = judgeIdObj instanceof Number ? ((Number) judgeIdObj).longValue() : Long.parseLong(judgeIdObj.toString());
+
+            log.info("开始测试自由讨论和答题环节，游戏ID: {}, 玩家数量: {}, DM ID: {}, Judge ID: {}", gameId, playerIds.size(), dmId, judgeId);
+
+            // 初始化讨论服务
+            discussionService.startDiscussion(gameId, playerIds, dmId, judgeId);
+
+            // 直接进入自由讨论阶段
+            log.info("进入自由讨论阶段");
+            discussionService.startFreeDiscussionPhase();
+
+            // 等待一段时间让自由讨论进行
+            log.info("等待自由讨论进行...");
+            Thread.sleep(60000); // 等待60秒
+
+            // 手动进入答题阶段
+            log.info("进入答题阶段");
+            discussionService.startAnswerPhase();
+
+            // 等待一段时间让答题进行
+            log.info("等待答题进行...");
+            Thread.sleep(30000); // 等待30秒
+
+            // 结束讨论，获取结果
+            Map<String, Object> result = discussionService.endDiscussion();
+
+            // 构建响应
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("success", true);
+            response.put("result", result);
+            response.put("gameId", gameId);
+            response.put("playerCount", playerIds.size());
+
+            return ResponseEntity.ok(response);
+        } catch (NumberFormatException e) {
+            log.error("ID格式错误: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Invalid ID format", "message", e.getMessage()));
+        } catch (Exception e) {
+            log.error("测试自由讨论和答题环节失败: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to test discussion and answer phases", "message", e.getMessage()));
+        }
+    }
 }
