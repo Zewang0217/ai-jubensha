@@ -68,7 +68,7 @@ public interface PlayerAgent {
     String answerQuestion(String gameId, String playerId, String question);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n当前讨论阶段：{{phase}}\n请通过调用工具收集讨论历史、线索和其他相关信息，然后生成下一步的讨论内容。")
-    String reasonAndDiscuss(String gameId, String playerId, String phase);
+    String reasonAndDiscuss(@V("gameId") String gameId, @V("playerId") String playerId, @V("phase") String phase);
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。")
     String analyzeTopic(@V("gameId") String gameId, @V("playerId") String playerId, @V("topic") String topic);
@@ -76,7 +76,39 @@ public interface PlayerAgent {
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请通过调用工具分析当前讨论情况和其他玩家状态，决定是否需要发起单聊，并选择合适的目标玩家。")
     String decidePrivateChat(String gameId, String playerId);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n角色ID：{{characterId}}\n角色名称：{{characterName}}\n剧本ID：{{scriptId}}\n\n【角色信息】\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请作为{{characterName}}角色，基于以上角色信息，通过调用工具获取以下信息：\n1. 讨论历史，了解当前游戏进展\n2. 你的角色线索，掌握关键信息（使用剧本ID：{{scriptId}}）\n3. 其他玩家状态，掌握全局情况\n\n请以自然、流畅的语言风格，像真人一样进行陈述，内容包括：\n- 你的自我介绍和背景\n- 案发时间前后你的行动\n- 你发现的重要线索\n- 你对案件的分析\n- 你对其他玩家的观察\n\n请保持{{characterName}}的性格特点，语言自然真实，逻辑清晰，信息准确。确保你的陈述基于角色设定和通过工具获取的真实信息，而不是虚构内容。请直接开始你的陈述，不需要任何开场白或引言。每一次都请返回完整的,没有任何开场白的陈述")
+    @UserMessage("""
+游戏ID：{{gameId}}
+玩家ID：{{playerId}}
+角色ID：{{characterId}}
+角色名称：{{characterName}}
+剧本ID：{{scriptId}}
+
+【角色信息】
+背景故事：{{backgroundStory}}
+角色秘密：{{secret}}
+角色时间线：{{timeline}}
+
+请作为{{characterName}}角色，基于以上角色信息，通过调用工具获取以下信息：
+1. 讨论历史，了解当前游戏进展
+2. 你的角色线索，掌握关键信息（使用剧本ID：{{scriptId}}）
+3. 其他玩家状态，掌握全局情况
+
+请以自然、流畅的语言风格，像真人一样进行陈述，内容包括：
+- 你的自我介绍和背景
+- 案发时间前后你的行动
+- 你发现的重要线索
+- 你对案件的分析
+- 你对其他玩家的观察
+
+请保持{{characterName}}的性格特点，语言自然真实，逻辑清晰，信息准确。确保你的陈述基于角色设定和通过工具获取的真实信息，而不是虚构内容。
+
+请严格返回以下JSON格式的陈述内容：
+{
+  "content": "玩家的主要陈述内容，包含完整的发言文本"
+}
+
+请确保返回的JSON格式正确，只包含content字段即可。
+    """)
     String generateStatement(@V("gameId") String gameId,
                            @V("playerId") String playerId,
                            @V("characterId") String characterId,
