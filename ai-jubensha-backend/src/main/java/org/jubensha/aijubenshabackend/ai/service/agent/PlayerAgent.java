@@ -247,4 +247,29 @@ public interface PlayerAgent {
 请直接开始你的答案，不需要任何开场白或引言。
 """)
     String answer(@V("gameId") String gameId, @V("playerId") String playerId, @V("characterName") String characterName);
+
+    @UserMessage("""
+游戏ID：{{gameId}}
+玩家ID：{{playerId}}
+角色名称：{{characterName}}
+
+{{context}}
+
+请作为{{characterName}}角色，基于以上上下文信息，通过调用工具获取以下信息：
+1. 讨论历史，了解当前游戏进展和其他玩家的观点
+2. 你的角色线索，掌握关键信息
+3. 其他玩家状态，了解全局情况
+
+基于以上信息，分析整个案件，包括：
+- 凶手身份
+- 作案动机
+- 作案手法
+- 关键线索分析
+- 对其他玩家的怀疑理由
+
+请生成一个全面、详细的案件答案，确保答案基于通过工具获取的真实信息，而不是虚构内容。
+
+请直接开始你的答案，不需要任何开场白或引言。
+""")
+    String answerWithContext(@V("gameId") String gameId, @V("playerId") String playerId, @V("characterName") String characterName, @V("context") String context);
 }

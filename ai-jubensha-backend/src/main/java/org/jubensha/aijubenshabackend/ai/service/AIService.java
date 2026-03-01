@@ -64,8 +64,8 @@ public class AIService {
             .build();
     @Resource(name = "openAiChatModel")
     private ChatModel chatModel;
-    @Resource
-    private ToolManager toolManager;
+//    @Resource
+//    private ToolManager toolManager;
     @Resource
     private org.jubensha.aijubenshabackend.ai.tools.permission.DMAgentToolManager dmAgentToolManager;
     @Resource

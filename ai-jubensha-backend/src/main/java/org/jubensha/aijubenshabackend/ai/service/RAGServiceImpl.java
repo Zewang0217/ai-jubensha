@@ -378,6 +378,8 @@ public class RAGServiceImpl implements RAGService {
         StringBuilder filterBuilder = new StringBuilder();
         if (scriptId != null) {
             filterBuilder.append("script_id == ").append(scriptId).append(" and ");
+        } else {
+            filterBuilder.append("script_id is null and ");
         }
         filterBuilder.append("type == 'clue'");
 
@@ -463,6 +465,8 @@ public class RAGServiceImpl implements RAGService {
         StringBuilder filterBuilder = new StringBuilder();
         if (scriptId != null) {
             filterBuilder.append("script_id == ").append(scriptId).append(" and ");
+        } else {
+            filterBuilder.append("script_id is null and ");
         }
         filterBuilder.append("type == 'timeline'");
 
@@ -549,6 +553,8 @@ public class RAGServiceImpl implements RAGService {
         StringBuilder filterBuilder = new StringBuilder();
         if (scriptId != null) {
             filterBuilder.append("script_id == ").append(scriptId).append(" and ");
+        } else {
+            filterBuilder.append("script_id is null and ");
         }
         filterBuilder.append("type == 'clue' and character_id == 0");
 

@@ -69,6 +69,9 @@ public class DiscussionServiceImpl implements DiscussionService {
     private DiscussionReasoningManager discussionReasoningManager;
 
     @Resource
+    private org.jubensha.aijubenshabackend.ai.service.util.ScrollingSummaryManager scrollingSummaryManager;
+
+    @Resource
     private GamePlayerService gamePlayerService;
 
     @Resource
@@ -729,11 +732,19 @@ public class DiscussionServiceImpl implements DiscussionService {
             try {
                 String response;
                 if ("分析所有信息并确定凶手".equals(thinkingTask)) {
-                    // 答题阶段：使用专门的answer方法生成答案（保留推理功能）
-                    response = playerAgent.answer(
+                    // 答题阶段：使用带上下文的answer方法生成答案
+                    // 获取剧情快照（长期记忆）
+                    String plotSnapshot = scrollingSummaryManager.getPlotSnapshot(gameId);
+                    // 获取近期讨论（滑动窗口）
+                    String recentDiscussion = discussionReasoningManager.getRecentDiscussion(gameId);
+                    // 构建完整的上下文信息
+                    String context = plotSnapshot + recentDiscussion;
+                    // 调用带上下文的answer方法
+                    response = playerAgent.answerWithContext(
                             gameId.toString(),
                             playerId.toString(),
-                            characterName
+                            characterName,
+                            context
                     );
                     log.info("[答案生成] 玩家 {} 成功生成答案，长度: {}", getCharacterName(playerId), response != null ? response.length() : 0);
                 } else if ("分析当前讨论并生成回应".equals(thinkingTask)) {

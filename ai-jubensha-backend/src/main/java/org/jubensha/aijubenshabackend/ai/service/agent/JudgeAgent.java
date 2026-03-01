@@ -26,6 +26,6 @@ public interface JudgeAgent {
     @UserMessage("讨论内容：{{discussionContent}}")
     boolean monitorDiscussion(String discussionContent);
 
-    @UserMessage("讨论内容：{{discussionContent}}")
+    @UserMessage("请你总结下面的讨论内容：{{discussionContent}}")
     String summarizeDiscussion(String discussionContent);
 }
