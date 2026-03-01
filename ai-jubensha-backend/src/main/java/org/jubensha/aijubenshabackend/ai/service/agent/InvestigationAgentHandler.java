@@ -100,6 +100,18 @@ public class InvestigationAgentHandler {
                 return;
             }
 
+            // 检查消息是否过期（10分钟内的消息才处理）
+            if (isMessageExpired(message)) {
+                log.warn("消息已过期，跳过处理搜证消息: 游戏ID={}", gameId);
+                return;
+            }
+
+            // 检查工作流上下文是否存在
+            if (!isWorkflowContextExists(gameId)) {
+                log.warn("工作流上下文不存在，跳过处理搜证消息: 游戏ID={}", gameId);
+                return;
+            }
+
             // 获取玩家角色信息
             String characterName = getPlayerCharacterName(gameId, playerId);
             if (characterName == null) {
@@ -365,6 +377,47 @@ public class InvestigationAgentHandler {
             return false;
         } catch (Exception e) {
             log.error("检查任务取消状态失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 检查消息是否过期
+     *
+     * @param message 消息内容
+     * @return 是否过期
+     */
+    private boolean isMessageExpired(Map<String, Object> message) {
+        try {
+            // 获取消息时间戳
+            Object timestampObj = message.get("timestamp");
+            if (timestampObj instanceof Number timestampNum) {
+                long messageTimestamp = timestampNum.longValue();
+                long currentTime = System.currentTimeMillis();
+                long tenMinutesInMillis = 10 * 60 * 1000; // 10分钟
+                
+                // 检查消息是否超过10分钟
+                return currentTime - messageTimestamp > tenMinutesInMillis;
+            }
+            return true; // 如果没有时间戳，视为过期
+        } catch (Exception e) {
+            log.error("检查消息过期状态失败: {}", e.getMessage(), e);
+            return true; // 出错时视为过期
+        }
+    }
+
+    /**
+     * 检查工作流上下文是否存在
+     *
+     * @param gameId 游戏ID
+     * @return 是否存在
+     */
+    private boolean isWorkflowContextExists(Long gameId) {
+        try {
+            var context = investigationService.getWorkflowContext(gameId);
+            return context != null;
+        } catch (Exception e) {
+            log.error("检查工作流上下文失败: {}", e.getMessage(), e);
             return false;
         }
     }
