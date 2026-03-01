@@ -283,7 +283,13 @@ public class DiscussionServiceImpl implements DiscussionService {
 
         // 启动自由讨论阶段计时器（2分钟）
         log.debug("[自由讨论] 启动自由讨论阶段计时器，时长: 2分钟");
-        timerService.startTimer("FREE_DISCUSSION", 120L, this::startAnswerPhase);
+        timerService.startTimer("FREE_DISCUSSION", 120L, () -> {
+            log.info("[自由讨论] 自由讨论时间结束，准备进入答题环节");
+            // 停止中央调度器
+            stopCentralDirector();
+            // 进入答题环节
+            startAnswerPhase();
+        });
         log.info("[自由讨论] 自由讨论阶段计时器已启动，2分钟后结束");
         log.info("[自由讨论] 跳过单聊环节，直接进入答题阶段");
     }
@@ -432,7 +438,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         // 检测是否所有玩家都已提交答案
         if (playerAnswers.size() == playerIds.size()) {
             log.info("所有玩家都已提交答案，开始评分流程");
-            endDiscussion();
+            endDiscussionPhase();
         }
     }
 

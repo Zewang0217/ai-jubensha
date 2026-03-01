@@ -2,6 +2,8 @@ package org.jubensha.aijubenshabackend.ai.service;
 
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
@@ -146,8 +148,14 @@ public class MessageQueueServiceImpl implements MessageQueueService {
                 "timestamp", System.currentTimeMillis()
         );
 
-        // 发送到系统交换机
-        rabbitTemplate.convertAndSend(SYSTEM_EXCHANGE, SYSTEM_ROUTING_KEY_PREFIX + "investigation." + playerId, messageContent);
-        log.info("AI玩家搜证通知已发送");
+        // 设置消息过期时间为30分钟（1800000毫秒）
+        MessagePostProcessor messagePostProcessor = message -> {
+            message.getMessageProperties().setExpiration("1800000");
+            return message;
+        };
+
+        // 发送到系统交换机，设置消息过期时间
+        rabbitTemplate.convertAndSend(SYSTEM_EXCHANGE, SYSTEM_ROUTING_KEY_PREFIX + "investigation." + playerId, messageContent, messagePostProcessor);
+        log.info("AI玩家搜证通知已发送，过期时间设置为30分钟");
     }
 }
