@@ -428,6 +428,12 @@ public class DiscussionServiceImpl implements DiscussionService {
         if (dmAgent != null) {
             messageQueueService.sendAnswerMessage(answer, playerId, dmId);
         }
+
+        // 检测是否所有玩家都已提交答案
+        if (playerAnswers.size() == playerIds.size()) {
+            log.info("所有玩家都已提交答案，开始评分流程");
+            endDiscussion();
+        }
     }
 
     @Override
@@ -637,7 +643,11 @@ public class DiscussionServiceImpl implements DiscussionService {
     private void endDiscussionPhase() {
         log.info("结束当前讨论阶段: {}", currentPhase);
 
-        if (discussionRound == 1) {
+        // 无论当前是第几轮，如果是答题阶段结束，直接结束讨论
+        if ("ANSWER".equals(currentPhase)) {
+            log.info("答题时间结束，结束讨论并进行评分");
+            endDiscussion();
+        } else if (discussionRound == 1) {
             // 开始第二轮讨论
             startSecondDiscussion();
         } else {
@@ -1099,7 +1109,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 log.debug("[中央调度器] 没有玩家的发言欲望值超过阈值 {}", SPEAK_THRESHOLD);
                 // 打印所有玩家的欲望值，以便调试
                 for (Long playerId : playerIds) {
-                    log.debug("[中央调度器] 玩家 {} 的欲望值: {}", getCharacterName(playerId), currentScores.get(playerId));
+//                    log.debug("[中央调度器] 玩家 {} 的欲望值: {}", getCharacterName(playerId), currentScores.get(playerId));
                 }
             }
         } catch (Exception e) {

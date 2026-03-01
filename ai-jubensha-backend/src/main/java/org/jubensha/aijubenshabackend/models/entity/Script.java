@@ -39,6 +39,7 @@ public class Script implements Serializable {
 
     private Integer playerCount;
 
+    @Column(length = 2048)
     private String coverImageUrl;
 
     @Column(columnDefinition = "TEXT")
