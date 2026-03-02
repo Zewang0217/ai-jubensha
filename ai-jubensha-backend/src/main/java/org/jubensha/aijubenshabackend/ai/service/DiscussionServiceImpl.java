@@ -527,16 +527,30 @@ public class DiscussionServiceImpl implements DiscussionService {
         } catch (Exception e) {
             log.warn("[消息发送] 获取玩家角色名称失败: {}", e.getMessage());
         }
-        log.info("[消息发送] {}发言: {}", playerName, message);
-//        log.debug("[消息发送] 发言长度: {}字符", message.length());
+        
+        // 提取JSON中的content字段
+        String processedMessage = message;
+        try {
+            if (message != null && !message.trim().isEmpty()) {
+                com.fasterxml.jackson.databind.JsonNode jsonNode = org.jubensha.aijubenshabackend.ai.service.util.ResponseUtils.extractJson(message);
+                if (jsonNode != null && jsonNode.has("content")) {
+                    processedMessage = jsonNode.get("content").asText();
+                    log.info("[消息处理] 成功提取JSON中的content字段");
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[消息处理] JSON解析失败，使用原始消息: {}", e.getMessage());
+            // 解析失败时使用原始消息
+        }
+        
+        log.info("[消息发送] {}发言: {}", playerName, processedMessage);
 
         // 发送消息到所有玩家
-//        log.debug("[消息发送] 发送消息到所有玩家，接收者数量: {}", playerIds != null ? playerIds.size() : 0);
-        messageQueueService.sendDiscussionMessage(message, playerIds);
+        messageQueueService.sendDiscussionMessage(processedMessage, playerIds);
         log.info("[消息发送] 讨论消息已成功发送");
         
         // 存储讨论内容到数据库
-        storeDiscussionMessageToDatabase(playerId, characterId, message);
+        storeDiscussionMessageToDatabase(playerId, characterId, processedMessage);
         
         // 更新最后发言时间
         LocalDateTime now = LocalDateTime.now();
@@ -760,10 +774,24 @@ public class DiscussionServiceImpl implements DiscussionService {
                     );
                     log.info("[答案生成] 玩家 {} 成功生成答案，长度: {}", getCharacterName(playerId), response != null ? response.length() : 0);
                 } else if ("分析当前讨论并生成回应".equals(thinkingTask)) {
-                    // 自由讨论阶段：直接生成发言，不使用推理
-                    response = playerAgent.speak(
+                    // 自由讨论阶段：构建包含陈述环节总结和自由讨论对话的提示词
+                    String plotSnapshot = scrollingSummaryManager.getPlotSnapshot(gameId);
+                    String recentDiscussion = discussionReasoningManager.getRecentDiscussion(gameId);
+                    
+                    // 构建完整的上下文信息
+                    String context = "[陈述环节总结]\n" + plotSnapshot + "\n\n" +
+                                   "[自由讨论环节对话]\n" + recentDiscussion + "\n\n" +
+                                   "请作为" + characterName + "角色，基于以上上下文信息，分析当前讨论并生成回应。\n" +
+                                   "请直接开始你的发言，不需要任何开场白或引言。";
+                    
+                    response = playerAgent.speakWithReasoning(
                             gameId.toString(),
-                            playerId.toString()
+                            playerId.toString(),
+                            context,
+                            characterName,
+                            secret != null ? secret : "",
+                            timeline != null ? timeline : "",
+                            backgroundStory != null ? backgroundStory : ""
                     );
                     log.info("[自由讨论] 玩家 {} 成功生成发言，长度: {}", getCharacterName(playerId), response != null ? response.length() : 0);
                 } else {
@@ -933,19 +961,15 @@ public class DiscussionServiceImpl implements DiscussionService {
             return;
         }
         
-        // 随机选择一个玩家设置为120，其他玩家依次下降
-        int randomIndex = new java.util.Random().nextInt(playerIds.size());
-        int baseScore = 120;
+        java.util.Random random = new java.util.Random();
         
-        for (int i = 0; i < playerIds.size(); i++) {
-            Long playerId = playerIds.get(i);
-            int score = i == randomIndex ? baseScore : baseScore - (i * 10);
-            // 确保分数不为负
-            score = Math.max(score, 0);
+        for (Long playerId : playerIds) {
+            // 生成10-100的随机整数作为初始欲望值
+            int score = random.nextInt(91) + 10; // 0-90 + 10 = 10-100
             desireScores.put(playerId, score);
             log.debug("[中央调度器] 重置玩家 {} 的欲望值为: {}", getCharacterName(playerId), score);
         }
-        log.info("[中央调度器] 已重置 {} 个玩家的欲望值，随机选择的发言者初始值为: {}", playerIds.size(), baseScore);
+        log.info("[中央调度器] 已重置 {} 个玩家的欲望值，初始值为10-100的随机整数", playerIds.size());
     }
     
     /**
