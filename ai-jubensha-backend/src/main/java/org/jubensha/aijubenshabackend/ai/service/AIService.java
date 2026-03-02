@@ -175,15 +175,10 @@ public class AIService {
      */
     private Object createDMAgentInstance(Long dmId) {
         log.info("创建新的DM Agent实例, DM ID：{}", dmId);
-        MessageWindowChatMemory chatMemory = MessageWindowChatMemory
-                .builder()
-                .id(dmId)
-                .maxMessages(20)
-                .build();
 
         return AiServices.builder(DMAgent.class)
                 .chatModel(chatModel)
-                .chatMemory(chatMemory)
+                .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
                 .tools(dmAgentToolManager.getAvailableTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
@@ -197,15 +192,10 @@ public class AIService {
      */
     private Object createJudgeAgentInstance(Long judgeId) {
         log.info("创建新的Judge Agent实例, Judge ID：{}", judgeId);
-        MessageWindowChatMemory chatMemory = MessageWindowChatMemory
-                .builder()
-                .id(judgeId)
-                .maxMessages(20)
-                .build();
 
         return AiServices.builder(JudgeAgent.class)
                 .chatModel(chatModel)
-                .chatMemory(chatMemory)
+                .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
                 .tools(judgeAgentToolManager.getAvailableTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
@@ -219,11 +209,6 @@ public class AIService {
      */
     private Object createPlayerAgentInstance(Long playerId, Long characterId) {
         log.info("创建新的Player Agent实例, 玩家ID：{}, 角色ID：{}", playerId, characterId);
-        MessageWindowChatMemory chatMemory = MessageWindowChatMemory
-                .builder()
-                .id(playerId)
-                .maxMessages(50) // 增加内存容量，支持更长的对话历史
-                .build();
 
         // 获取角色信息，包括backgroundStory和secret
         org.jubensha.aijubenshabackend.service.character.CharacterService characterService = SpringContextUtil.getBean(org.jubensha.aijubenshabackend.service.character.CharacterService.class);
@@ -243,12 +228,41 @@ public class AIService {
 
         return AiServices.builder(PlayerAgent.class)
                 .chatModel(chatModel)
-                .chatMemory(chatMemory)
+                .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
                 .tools(playerAgentToolManager.getAvailableTools())
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
                                 "Error: there is no tool called " + toolExecutionRequest.name()))
                 .maxSequentialToolsInvocations(30) // 增加最大工具调用次数
+                .build();
+    }
+
+    /**
+     * 创建无工具的Player Agent实例，用于答题阶段
+     */
+    private Object createPlayerAgentInstanceWithoutTools(Long playerId, Long characterId) {
+        log.info("创建新的无工具Player Agent实例, 玩家ID：{}, 角色ID：{}", playerId, characterId);
+
+        // 获取角色信息，包括backgroundStory和secret
+        org.jubensha.aijubenshabackend.service.character.CharacterService characterService = SpringContextUtil.getBean(org.jubensha.aijubenshabackend.service.character.CharacterService.class);
+        org.jubensha.aijubenshabackend.models.entity.Character character = null;
+        try {
+            Optional<Character> characterOptional = characterService.getCharacterById(characterId);
+            character = characterOptional.orElse(null);
+            if (character != null) {
+                log.info("获取到角色信息: {}, 背景故事长度: {}, 秘密长度: {}", 
+                        character.getName(), 
+                        character.getBackgroundStory() != null ? character.getBackgroundStory().length() : 0, 
+                        character.getSecret() != null ? character.getSecret().length() : 0);
+            }
+        } catch (Exception e) {
+            log.error("获取角色信息失败: {}", e.getMessage(), e);
+        }
+
+        return AiServices.builder(PlayerAgent.class)
+                .chatModel(chatModel)
+                .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
+                // 不添加任何工具，避免在答题阶段调用工具
                 .build();
     }
 
@@ -274,6 +288,14 @@ public class AIService {
     public PlayerAgent getPlayerAgent(Long playerId) {
         String cacheKey = "player:" + playerId;
         return (PlayerAgent) agentCache.getIfPresent(cacheKey);
+    }
+
+    /**
+     * 获取无工具的Player Agent，用于答题阶段
+     */
+    public PlayerAgent getPlayerAgentWithoutTools(Long playerId, Long characterId) {
+        String cacheKey = "player:no-tools:" + playerId;
+        return (PlayerAgent) agentCache.get(cacheKey, key -> createPlayerAgentInstanceWithoutTools(playerId, characterId));
     }
 
     /**
