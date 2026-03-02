@@ -15,6 +15,7 @@ import io.milvus.v2.service.vector.response.SearchResp;
 import io.milvus.v2.service.vector.response.UpsertResp;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.util.MessageChunker;
+import org.jubensha.aijubenshabackend.ai.service.util.MemoryChunker;
 import org.jubensha.aijubenshabackend.core.config.ai.MilvusSchemaConfig;
 import org.jubensha.aijubenshabackend.memory.MilvusCollectionManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,7 @@ public class RAGServiceImpl implements RAGService {
     private final Gson gson;
     private final RerankService rerankService;
     private final MessageChunker messageChunker;
+    private final MemoryChunker memoryChunker;
     private final ParentDocumentService parentDocumentService;
     private final FactExtractor factExtractor;
     
@@ -64,6 +66,7 @@ public class RAGServiceImpl implements RAGService {
                           MilvusSchemaConfig schemaConfig,
                           RerankService rerankService,
                           MessageChunker messageChunker,
+                          MemoryChunker memoryChunker,
                           ParentDocumentService parentDocumentService,
                           FactExtractor factExtractor,
                           com.github.benmanes.caffeine.cache.Cache<String, List<Map<String, Object>>> conversationMemoryCache,
@@ -78,6 +81,7 @@ public class RAGServiceImpl implements RAGService {
         this.gson = new Gson();
         this.rerankService = rerankService;
         this.messageChunker = messageChunker;
+        this.memoryChunker = memoryChunker;
         this.parentDocumentService = parentDocumentService;
         this.factExtractor = factExtractor;
         this.conversationMemoryCache = conversationMemoryCache;
@@ -1116,49 +1120,73 @@ public class RAGServiceImpl implements RAGService {
             return null;
         }
 
-        // 生成嵌入向量
-        List<Float> embedding = embeddingService.generateEmbedding(content);
-        if (embedding == null || embedding.isEmpty()) {
-            log.warn("生成嵌入向量失败，内容: {}", content);
+        // 对长文本进行分块处理
+        List<String> chunks = memoryChunker.chunkMemory(content, MemoryChunker.MemoryType.CLUE);
+        if (chunks.isEmpty()) {
+            log.warn("分块处理失败，内容: {}", content);
             return null;
         }
 
-        // 构建插入数据
-        JsonObject data = new JsonObject();
-        data.addProperty("script_id", scriptId);
-        data.addProperty("character_id", characterId);
-        data.addProperty("player_id", playerId);
-        data.addProperty("type", "clue");
-        data.addProperty("content", content);
-        data.addProperty("timestamp", String.valueOf(System.currentTimeMillis()));
-        // 直接将向量作为JSON数组添加
-        com.google.gson.JsonArray embeddingArray = new com.google.gson.JsonArray();
-        for (Float value : embedding) {
-            embeddingArray.add(value);
-        }
-        data.add("embedding", embeddingArray);
+        Long firstId = null;
+        int successCount = 0;
 
-        // 构建插入请求
-        InsertReq insertReq = InsertReq.builder()
-                .collectionName(collectionName)
-                .data(List.of(data))
-                .build();
+        for (int i = 0; i < chunks.size(); i++) {
+            String chunk = chunks.get(i);
+            log.debug("存储线索分块 {}，大小: {}", i + 1, chunk.length());
 
-        // 执行插入
-        try {
-            InsertResp insertResp = milvusClientV2.insert(insertReq);
-            if (insertResp != null && !insertResp.getPrimaryKeys().isEmpty()) {
-                // 处理类型转换，确保返回Long类型
-                Object idObj = insertResp.getPrimaryKeys().get(0);
-                Long id = idObj instanceof Long ? (Long) idObj : Long.valueOf(idObj.toString());
-                log.debug("插入全局线索记忆成功，剧本ID: {}, 记录ID: {}", scriptId, id);
-                return id;
+            try {
+                // 生成嵌入向量
+                List<Float> embedding = embeddingService.generateEmbedding(chunk);
+                if (embedding == null || embedding.isEmpty()) {
+                    log.warn("生成嵌入向量失败，跳过存储，块大小: {}", chunk.length());
+                    continue;
+                }
+
+                // 构建插入数据
+                JsonObject data = new JsonObject();
+                data.addProperty("script_id", scriptId);
+                data.addProperty("character_id", characterId);
+                data.addProperty("player_id", playerId);
+                data.addProperty("type", "clue");
+                data.addProperty("content", chunk);
+                data.addProperty("timestamp", String.valueOf(System.currentTimeMillis()));
+                // 直接将向量作为JSON数组添加
+                com.google.gson.JsonArray embeddingArray = new com.google.gson.JsonArray();
+                for (Float value : embedding) {
+                    embeddingArray.add(value);
+                }
+                data.add("embedding", embeddingArray);
+
+                // 构建插入请求
+                InsertReq insertReq = InsertReq.builder()
+                        .collectionName(collectionName)
+                        .data(List.of(data))
+                        .build();
+
+                // 执行插入
+                InsertResp insertResp = milvusClientV2.insert(insertReq);
+                if (insertResp != null && !insertResp.getPrimaryKeys().isEmpty()) {
+                    // 处理类型转换，确保返回Long类型
+                    Object idObj = insertResp.getPrimaryKeys().get(0);
+                    Long id = idObj instanceof Long ? (Long) idObj : Long.valueOf(idObj.toString());
+                    log.debug("插入全局线索记忆分块成功，剧本ID: {}, 分块索引: {}, 记录ID: {}", scriptId, i, id);
+                    
+                    if (firstId == null) {
+                        firstId = id;
+                    }
+                    successCount++;
+                }
+            } catch (Exception e) {
+                log.error("插入全局线索记忆分块失败: {}", e.getMessage(), e);
+                // 继续处理下一个分块
+                continue;
             }
-        } catch (Exception e) {
-            log.error("插入全局线索记忆失败，剧本ID: {}", scriptId, e);
         }
 
-        return null;
+        log.info("线索分块存储完成，总块数: {}, 成功: {}, 失败: {}",
+                chunks.size(), successCount, chunks.size() - successCount);
+
+        return firstId;
     }
 
     @Override
@@ -1171,48 +1199,72 @@ public class RAGServiceImpl implements RAGService {
             return null;
         }
 
-        // 生成嵌入向量
-        List<Float> embedding = embeddingService.generateEmbedding(content);
-        if (embedding == null || embedding.isEmpty()) {
-            log.warn("生成嵌入向量失败，内容: {}", content);
+        // 对长文本进行分块处理
+        List<String> chunks = memoryChunker.chunkMemory(content, MemoryChunker.MemoryType.TIMELINE);
+        if (chunks.isEmpty()) {
+            log.warn("分块处理失败，内容: {}", content);
             return null;
         }
 
-        // 构建插入数据
-        JsonObject data = new JsonObject();
-        data.addProperty("script_id", scriptId);
-        data.addProperty("character_id", characterId);
-        data.addProperty("type", "timeline");
-        data.addProperty("content", content);
-        data.addProperty("timestamp", timestamp);
-        // 直接将向量作为JSON数组添加
-        com.google.gson.JsonArray embeddingArray = new com.google.gson.JsonArray();
-        for (Float value : embedding) {
-            embeddingArray.add(value);
-        }
-        data.add("embedding", embeddingArray);
+        Long firstId = null;
+        int successCount = 0;
 
-        // 构建插入请求
-        InsertReq insertReq = InsertReq.builder()
-                .collectionName(collectionName)
-                .data(List.of(data))
-                .build();
+        for (int i = 0; i < chunks.size(); i++) {
+            String chunk = chunks.get(i);
+            log.debug("存储时间线分块 {}，大小: {}", i + 1, chunk.length());
 
-        // 执行插入
-        try {
-            InsertResp insertResp = milvusClientV2.insert(insertReq);
-            if (insertResp != null && !insertResp.getPrimaryKeys().isEmpty()) {
-                // 处理类型转换，确保返回Long类型
-                Object idObj = insertResp.getPrimaryKeys().get(0);
-                Long id = idObj instanceof Long ? (Long) idObj : Long.valueOf(idObj.toString());
-                log.debug("插入全局时间线记忆成功，剧本ID: {}, 记录ID: {}", scriptId, id);
-                return id;
+            try {
+                // 生成嵌入向量
+                List<Float> embedding = embeddingService.generateEmbedding(chunk);
+                if (embedding == null || embedding.isEmpty()) {
+                    log.warn("生成嵌入向量失败，跳过存储，块大小: {}", chunk.length());
+                    continue;
+                }
+
+                // 构建插入数据
+                JsonObject data = new JsonObject();
+                data.addProperty("script_id", scriptId);
+                data.addProperty("character_id", characterId);
+                data.addProperty("type", "timeline");
+                data.addProperty("content", chunk);
+                data.addProperty("timestamp", timestamp);
+                // 直接将向量作为JSON数组添加
+                com.google.gson.JsonArray embeddingArray = new com.google.gson.JsonArray();
+                for (Float value : embedding) {
+                    embeddingArray.add(value);
+                }
+                data.add("embedding", embeddingArray);
+
+                // 构建插入请求
+                InsertReq insertReq = InsertReq.builder()
+                        .collectionName(collectionName)
+                        .data(List.of(data))
+                        .build();
+
+                // 执行插入
+                InsertResp insertResp = milvusClientV2.insert(insertReq);
+                if (insertResp != null && !insertResp.getPrimaryKeys().isEmpty()) {
+                    // 处理类型转换，确保返回Long类型
+                    Object idObj = insertResp.getPrimaryKeys().get(0);
+                    Long id = idObj instanceof Long ? (Long) idObj : Long.valueOf(idObj.toString());
+                    log.debug("插入全局时间线记忆分块成功，剧本ID: {}, 分块索引: {}, 记录ID: {}", scriptId, i, id);
+                    
+                    if (firstId == null) {
+                        firstId = id;
+                    }
+                    successCount++;
+                }
+            } catch (Exception e) {
+                log.error("插入全局时间线记忆分块失败: {}", e.getMessage(), e);
+                // 继续处理下一个分块
+                continue;
             }
-        } catch (Exception e) {
-            log.error("插入全局时间线记忆失败，剧本ID: {}", scriptId, e);
         }
 
-        return null;
+        log.info("时间线分块存储完成，总块数: {}, 成功: {}, 失败: {}",
+                chunks.size(), successCount, chunks.size() - successCount);
+
+        return firstId;
     }
 
     @Override

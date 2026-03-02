@@ -186,12 +186,13 @@ public class DiscussionReasoningManager {
             String recentDiscussion = getRecentDiscussion(gameId);
 
             // 构建完整的提示词，添加最终指令
-            String prompt = "游戏ID：" + gameId + "\n" +
-                           "玩家ID：" + playerId + "\n" +
-                           currentPhase + publicClues + plotSnapshot + recentDiscussion + "\n\n" +
-                           "请根据以上上下文，结合你的剧本进行发言：\n" +
+            String prompt = "请根据以下上下文，结合你的剧本进行发言：\n" +
                            "如果觉得信息不够，可以调用工具获取更多信息。\n" +
-                           "请直接开始你的发言，不需要任何开场白。";
+                           "请直接开始你的发言，不需要任何开场白。\n\n" +
+                           "游戏ID：" + gameId + "\n" +
+                           "玩家ID：" + playerId + "\n\n" +
+                           currentPhase + publicClues + plotSnapshot + "\n" +
+                           recentDiscussion;
 
             // 调用推理方法生成讨论内容（传递完整的提示词）
             String result = playerAgent.reasonAndDiscuss(
@@ -460,10 +461,8 @@ public class DiscussionReasoningManager {
             for (Map<String, Object> message : recentMessages) {
                 String playerName = (String) message.getOrDefault("player_name", "未知玩家");
                 String content = (String) message.getOrDefault("content", "");
-                long timestamp = getTimestamp(message);
                 
-                String timeStr = new SimpleDateFormat("HH:mm").format(new Date(timestamp));
-                discussionBuilder.append(String.format("[%s] %s: %s\n", timeStr, playerName, content));
+                discussionBuilder.append(String.format("%s: %s\n", playerName, content));
             }
 
             if (recentMessages.isEmpty()) {
