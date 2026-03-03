@@ -1,6 +1,5 @@
 package org.jubensha.aijubenshabackend.service.game;
 
-import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
 import org.jubensha.aijubenshabackend.models.enums.GamePlayerStatus;
 import org.jubensha.aijubenshabackend.repository.game.GamePlayerRepository;
@@ -26,8 +25,9 @@ public class GamePlayerServiceImpl implements GamePlayerService {
 
     @Override
     public GamePlayer createGamePlayer(GamePlayer gamePlayer) {
-        logger.info("Creating game player relation: gameId={}, playerId={}, characterId={}", 
-                gamePlayer.getGame().getId(), gamePlayer.getPlayer().getId(), gamePlayer.getCharacter().getId());
+        logger.info("Creating new game player relationship: gameId={}, playerId={}",
+                gamePlayer.getGame() != null ? gamePlayer.getGame().getId() : null,
+                gamePlayer.getPlayer() != null ? gamePlayer.getPlayer().getId() : null);
         return gamePlayerRepository.save(gamePlayer);
     }
 
@@ -39,7 +39,7 @@ public class GamePlayerServiceImpl implements GamePlayerService {
 
     @Override
     public Optional<GamePlayer> getGamePlayerByGameIdAndPlayerId(Long gameId, Long playerId) {
-//        logger.info("Getting game player by gameId={} and playerId={}", gameId, playerId);
+        logger.info("Getting game player by gameId: {} and playerId: {}", gameId, playerId);
         return gamePlayerRepository.findByGameIdAndPlayerId(gameId, playerId);
     }
 
@@ -56,6 +56,14 @@ public class GamePlayerServiceImpl implements GamePlayerService {
     }
 
     @Override
+    public Optional<GamePlayer> getCharacterByPlayerId(Long playerId) {
+        logger.info("Getting game player by playerId (alias method): {}", playerId);
+        List<GamePlayer> gamePlayers = gamePlayerRepository.findByPlayerId(playerId);
+        // 返回第一个找到的游戏玩家关系（通常一个玩家在同一时间只参与一个游戏）
+        return gamePlayers.isEmpty() ? Optional.empty() : Optional.of(gamePlayers.get(0));
+    }
+
+    @Override
     public List<GamePlayer> getGamePlayersByCharacterId(Long characterId) {
         logger.info("Getting game players by characterId: {}", characterId);
         return gamePlayerRepository.findByCharacterId(characterId);
@@ -63,14 +71,20 @@ public class GamePlayerServiceImpl implements GamePlayerService {
 
     @Override
     public Optional<GamePlayer> getGamePlayerByGameIdAndCharacterId(Long gameId, Long characterId) {
-        logger.info("Getting game player by gameId={} and characterId={}", gameId, characterId);
+        logger.info("Getting game player by gameId: {} and characterId: {}", gameId, characterId);
         return gamePlayerRepository.findByGameIdAndCharacterId(gameId, characterId);
     }
 
     @Override
     public List<GamePlayer> getGamePlayersByGameIdAndIsDm(Long gameId, Boolean isDm) {
-        logger.info("Getting game players by gameId={} and isDm={}", gameId, isDm);
+        logger.info("Getting game players by gameId: {} and isDm: {}", gameId, isDm);
         return gamePlayerRepository.findByGameIdAndIsDm(gameId, isDm);
+    }
+
+    @Override
+    public List<GamePlayer> getAllGamePlayers() {
+        logger.info("Getting all game players");
+        return gamePlayerRepository.findAll();
     }
 
     @Override
@@ -99,7 +113,7 @@ public class GamePlayerServiceImpl implements GamePlayerService {
 
             return gamePlayerRepository.save(updatedGamePlayer);
         } else {
-            throw new IllegalArgumentException("Game player not found with id: " + id);
+            throw new IllegalArgumentException("GamePlayer not found with id: " + id);
         }
     }
 
@@ -112,7 +126,7 @@ public class GamePlayerServiceImpl implements GamePlayerService {
             updatedGamePlayer.setStatus(status);
             return gamePlayerRepository.save(updatedGamePlayer);
         } else {
-            throw new IllegalArgumentException("Game player not found with id: " + id);
+            throw new IllegalArgumentException("GamePlayer not found with id: " + id);
         }
     }
 
@@ -124,21 +138,52 @@ public class GamePlayerServiceImpl implements GamePlayerService {
 
     @Override
     public void deleteGamePlayersByGameId(Long gameId) {
-        logger.info("Deleting all game players for gameId: {}", gameId);
+        logger.info("Deleting all game players by gameId: {}", gameId);
         List<GamePlayer> gamePlayers = gamePlayerRepository.findByGameId(gameId);
         gamePlayerRepository.deleteAll(gamePlayers);
     }
 
     @Override
-    public void deleteGamePlayersByPlayerId(Long playerId) {
-        logger.info("Deleting all game players for playerId: {}", playerId);
-        List<GamePlayer> gamePlayers = gamePlayerRepository.findByPlayerId(playerId);
-        gamePlayerRepository.deleteAll(gamePlayers);
+    public GamePlayer setPlayerAsDm(Long id) {
+        logger.info("Setting player as DM: {}", id);
+        Optional<GamePlayer> existingGamePlayer = gamePlayerRepository.findById(id);
+        if (existingGamePlayer.isPresent()) {
+            GamePlayer updatedGamePlayer = existingGamePlayer.get();
+            updatedGamePlayer.setIsDm(true);
+            return gamePlayerRepository.save(updatedGamePlayer);
+        } else {
+            throw new IllegalArgumentException("GamePlayer not found with id: " + id);
+        }
     }
 
     @Override
-    public Optional<GamePlayer> getCharacterByPlayerId(Long playerId) {
-        logger.info("通过playerId获取角色");
-        return gamePlayerRepository.findByPlayerId(playerId).stream().findFirst();
+    public GamePlayer removePlayerAsDm(Long id) {
+        logger.info("Removing player as DM: {}", id);
+        Optional<GamePlayer> existingGamePlayer = gamePlayerRepository.findById(id);
+        if (existingGamePlayer.isPresent()) {
+            GamePlayer updatedGamePlayer = existingGamePlayer.get();
+            updatedGamePlayer.setIsDm(false);
+            return gamePlayerRepository.save(updatedGamePlayer);
+        } else {
+            throw new IllegalArgumentException("GamePlayer not found with id: " + id);
+        }
+    }
+
+    @Override
+    public GamePlayer playerReady(Long id) {
+        logger.info("Setting player ready: {}", id);
+        return updateGamePlayerStatus(id, GamePlayerStatus.READY);
+    }
+
+    @Override
+    public GamePlayer playerStartPlaying(Long id) {
+        logger.info("Setting player playing: {}", id);
+        return updateGamePlayerStatus(id, GamePlayerStatus.PLAYING);
+    }
+
+    @Override
+    public GamePlayer playerLeave(Long id) {
+        logger.info("Setting player left: {}", id);
+        return updateGamePlayerStatus(id, GamePlayerStatus.LEFT);
     }
 }
