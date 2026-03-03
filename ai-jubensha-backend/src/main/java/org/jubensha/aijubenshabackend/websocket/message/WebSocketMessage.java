@@ -8,14 +8,27 @@ import lombok.Data;
 @Data
 public class WebSocketMessage {
 
+    /**
+     * 消息类型
+     */
     private String type;
+
+    /**
+     * 发送者ID (GamePlayerId)
+     */
+    private Long sender;
+
+    /**
+     * 消息内容
+     */
     private Object payload;
 
     public WebSocketMessage() {
     }
 
-    public WebSocketMessage(String type, Object payload) {
+    public WebSocketMessage(String type, Long sender, Object payload) {
         this.type = type;
+        this.sender = sender;
         this.payload = payload;
     }
 
