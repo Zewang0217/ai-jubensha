@@ -16,7 +16,7 @@ import org.jubensha.aijubenshabackend.service.clue.ClueService;
 import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.investigation.InvestigationService;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
-import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
+import org.jubensha.aijubenshabackend.websocket.service.WebSocketServiceImpl;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,7 +75,7 @@ public class FirstInvestigationNode {
                 // 获取AI服务
                 AIService aiService = SpringContextUtil.getBean(AIService.class);
                 // 获取WebSocket服务
-                WebSocketService webSocketService = SpringContextUtil.getBean(WebSocketService.class);
+                WebSocketServiceImpl webSocketService = SpringContextUtil.getBean(WebSocketServiceImpl.class);
                 // 获取消息队列服务
                 MessageQueueService messageQueueService = SpringContextUtil.getBean(MessageQueueService.class);
                 // 获取游戏服务
