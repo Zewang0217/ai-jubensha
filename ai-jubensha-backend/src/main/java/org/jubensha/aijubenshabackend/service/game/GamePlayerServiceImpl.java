@@ -82,6 +82,18 @@ public class GamePlayerServiceImpl implements GamePlayerService {
     }
 
     @Override
+    public List<GamePlayer> getRealPlayersByGameId(Long gameId) {
+        logger.info("Getting real players by gameId: {}", gameId);
+        List<GamePlayer> allPlayers = gamePlayerRepository.findByGameId(gameId);
+        // 过滤出Real玩家（非AI、非DM的玩家）
+        return allPlayers.stream()
+                .filter(gp -> gp.getPlayer() != null
+                        && gp.getPlayer().getRole() != null
+                        && gp.getPlayer().getRole().name().equals("REAL"))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
     public List<GamePlayer> getAllGamePlayers() {
         logger.info("Getting all game players");
         return gamePlayerRepository.findAll();

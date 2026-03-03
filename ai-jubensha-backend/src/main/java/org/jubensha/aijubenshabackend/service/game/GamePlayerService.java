@@ -54,6 +54,11 @@ public interface GamePlayerService {
     List<GamePlayer> getGamePlayersByGameIdAndIsDm(Long gameId, Boolean isDm);
 
     /**
+     * 根据游戏ID获取所有Real玩家（真人玩家）
+     */
+    List<GamePlayer> getRealPlayersByGameId(Long gameId);
+
+    /**
      * 获取所有游戏玩家关系
      */
     List<GamePlayer> getAllGamePlayers();
