@@ -3,6 +3,7 @@ package org.jubensha.aijubenshabackend.controller;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
+import org.jubensha.aijubenshabackend.ai.service.WorkflowStatusService;
 import org.jubensha.aijubenshabackend.ai.workflow.jubenshaWorkflow;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.models.dto.GameCreateDTO;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -32,11 +34,13 @@ public class GameController {
     private final GameService gameService;
     private final jubenshaWorkflow workflow;
     private final DiscussionService discussionService;
+    private final WorkflowStatusService workflowStatusService;
 
-    public GameController(GameService gameService, jubenshaWorkflow workflow, DiscussionService discussionService) {
+    public GameController(GameService gameService, jubenshaWorkflow workflow, DiscussionService discussionService, WorkflowStatusService workflowStatusService) {
         this.gameService = gameService;
         this.workflow = workflow;
         this.discussionService = discussionService;
+        this.workflowStatusService = workflowStatusService;
     }
 
     /**
@@ -342,24 +346,44 @@ public class GameController {
                 log.info("未设置真人玩家数量，使用默认值");
             }
 
-            WorkflowContext result = workflow.executeWorkflow(originalPrompt, createNewScript, scriptId, useStreaming, gameId, realPlayerCount);
-
-            // 构建响应
+            // 创建工作流状态
+            WorkflowStatusService.WorkflowStatus status = workflowStatusService.createWorkflowStatus(gameId);
+            
+            // 立即返回响应，工作流在后台执行
             Map<String, Object> response = new java.util.HashMap<>();
             response.put("success", true);
-            response.put("scriptId", result.getScriptId());
-            response.put("scriptName", result.getScriptName());
-            response.put("currentStep", result.getCurrentStep());
-            response.put("playerAssignments", result.getPlayerAssignments());
-            response.put("dmId", result.getDmId());
-            response.put("judgeId", result.getJudgeId());
-            response.put("realPlayerCount", result.getRealPlayerCount());
-            response.put("aiPlayerCount", result.getAiPlayerCount());
-            response.put("totalPlayerCount", result.getTotalPlayerCount());
-            response.put("createNewScript", result.getCreateNewScript());
-            response.put("existingScriptId", result.getExistingScriptId());
+            response.put("gameId", gameId);
+            response.put("workflowId", status.getWorkflowId());
+            response.put("createNewScript", createNewScript);
+            response.put("scriptId", scriptId);
             response.put("useStreaming", useStreaming);
-            response.put("gameId", result.getGameId());
+            response.put("realPlayerCount", realPlayerCount);
+            response.put("message", "工作流已在后台启动");
+
+            // 复制变量为final，以便在lambda表达式中使用
+            final Long finalGameId = gameId;
+            final String finalOriginalPrompt = originalPrompt;
+            final Boolean finalCreateNewScript = createNewScript;
+            final Long finalScriptId = scriptId;
+            final Boolean finalUseStreaming = useStreaming;
+            final Integer finalRealPlayerCount = realPlayerCount;
+            final WorkflowStatusService.WorkflowStatus finalStatus = status;
+            
+            // 异步执行工作流
+            CompletableFuture.runAsync(() -> {
+                try {
+                    log.info("开始异步执行工作流，游戏ID: {}, 工作流ID: {}", finalGameId, finalStatus.getWorkflowId());
+                    workflowStatusService.updateWorkflowRunning(finalGameId, "工作流启动");
+                    
+                    WorkflowContext result = workflow.executeWorkflow(finalOriginalPrompt, finalCreateNewScript, finalScriptId, finalUseStreaming, finalGameId, finalRealPlayerCount);
+                    
+                    workflowStatusService.updateWorkflowCompleted(finalGameId, result);
+                    log.info("工作流执行完成，游戏ID: {}, 工作流ID: {}", finalGameId, finalStatus.getWorkflowId());
+                } catch (Exception e) {
+                    log.error("工作流执行失败: {}", e.getMessage(), e);
+                    workflowStatusService.updateWorkflowFailed(finalGameId, e.getMessage());
+                }
+            });
 
             return ResponseEntity.ok(response);
         } catch (NumberFormatException e) {
@@ -597,6 +621,53 @@ public class GameController {
             log.error("测试自由讨论和答题环节失败: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to test discussion and answer phases", "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 查询工作流状态
+     *
+     * @param gameId 游戏ID
+     * @return 工作流状态信息
+     */
+    @GetMapping("/{gameId}/workflow/status")
+    public ResponseEntity<?> getWorkflowStatus(@PathVariable Long gameId) {
+        try {
+            WorkflowStatusService.WorkflowStatus status = workflowStatusService.getWorkflowStatus(gameId);
+            if (status == null) {
+                return ResponseEntity.notFound()
+                        .build();
+            }
+
+            // 构建响应
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("success", true);
+            response.put("workflowId", status.getWorkflowId());
+            response.put("gameId", status.getGameId());
+            response.put("state", status.getState().name());
+            response.put("currentStep", status.getCurrentStep());
+            response.put("errorMessage", status.getErrorMessage());
+            
+            // 如果工作流已完成，添加工作流上下文信息
+            if (status.getWorkflowContext() != null) {
+                WorkflowContext context = status.getWorkflowContext();
+                Map<String, Object> contextInfo = new java.util.HashMap<>();
+                contextInfo.put("scriptId", context.getScriptId());
+                contextInfo.put("scriptName", context.getScriptName());
+                contextInfo.put("playerAssignments", context.getPlayerAssignments());
+                contextInfo.put("dmId", context.getDmId());
+                contextInfo.put("judgeId", context.getJudgeId());
+                contextInfo.put("realPlayerCount", context.getRealPlayerCount());
+                contextInfo.put("aiPlayerCount", context.getAiPlayerCount());
+                contextInfo.put("totalPlayerCount", context.getTotalPlayerCount());
+                response.put("workflowContext", contextInfo);
+            }
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("查询工作流状态失败: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to get workflow status", "message", e.getMessage()));
         }
     }
 }
