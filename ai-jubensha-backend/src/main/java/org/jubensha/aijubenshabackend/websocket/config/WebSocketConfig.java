@@ -1,6 +1,10 @@
 package org.jubensha.aijubenshabackend.websocket.config;
 
+import lombok.RequiredArgsConstructor;
+import org.jubensha.aijubenshabackend.websocket.interceptor.GameChannelInterceptor;
+import org.jubensha.aijubenshabackend.websocket.interceptor.GameHandshakeInterceptor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -12,7 +16,11 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  */
 @Configuration
 @EnableWebSocketMessageBroker
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    private final GameHandshakeInterceptor handshakeInterceptor;
+    private final GameChannelInterceptor channelInterceptor;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -32,7 +40,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // 注册WebSocket端点，允许客户端连接
         registry.addEndpoint("/ws")
+                .addInterceptors(handshakeInterceptor)
                 .withSockJS()
                 .setHeartbeatTime(25000);
+    }
+
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        // 添加通道拦截器，处理 CONNECT 事件
+        registration.interceptors(channelInterceptor);
     }
 }

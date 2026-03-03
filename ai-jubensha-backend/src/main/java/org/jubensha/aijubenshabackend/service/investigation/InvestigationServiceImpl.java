@@ -1,6 +1,7 @@
 package org.jubensha.aijubenshabackend.service.investigation;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.exception.InvalidInvestigationException;
 import org.jubensha.aijubenshabackend.core.exception.NoInvestigationChanceException;
@@ -8,14 +9,13 @@ import org.jubensha.aijubenshabackend.models.dto.InvestigationRequestDTO;
 import org.jubensha.aijubenshabackend.models.dto.InvestigationResponseDTO;
 import org.jubensha.aijubenshabackend.models.dto.InvestigationStatusDTO;
 import org.jubensha.aijubenshabackend.models.entity.Clue;
-import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.entity.Scene;
 import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
 import org.jubensha.aijubenshabackend.service.clue.ClueService;
 import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
-import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
+import org.jubensha.aijubenshabackend.websocket.service.WebSocketServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -43,14 +43,14 @@ public class InvestigationServiceImpl implements InvestigationService {
     private final GameService gameService;
     private final ClueService clueService;
     private final SceneService sceneService;
-    private final WebSocketService webSocketService;
+    private final WebSocketServiceImpl webSocketService;
     private final RAGService ragService;
 
     @Autowired
     public InvestigationServiceImpl(GameService gameService,
                                     ClueService clueService,
                                     SceneService sceneService,
-                                    WebSocketService webSocketService,
+                                    WebSocketServiceImpl webSocketService,
                                     RAGService ragService) {
         this.gameService = gameService;
         this.clueService = clueService;

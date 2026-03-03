@@ -4,23 +4,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.bsc.langgraph4j.action.AsyncNodeAction;
 import org.bsc.langgraph4j.prebuilt.MessagesState;
 import org.jubensha.aijubenshabackend.ai.service.AIService;
-import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.entity.Character;
+import org.jubensha.aijubenshabackend.models.entity.Game;
+import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
+import org.jubensha.aijubenshabackend.models.enums.GamePlayerStatus;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
 import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
-import org.jubensha.aijubenshabackend.models.entity.Game;
-import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
-import org.jubensha.aijubenshabackend.models.enums.GamePlayerStatus;
-import org.jubensha.aijubenshabackend.models.enums.GameStatus;
-import org.jubensha.aijubenshabackend.models.enums.GamePhase;
-import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
-import java.time.LocalDateTime;
+import org.jubensha.aijubenshabackend.websocket.service.WebSocketServiceImpl;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -72,7 +67,7 @@ public class ScriptReaderNode {
                 // 获取AI服务
                 AIService aiService = SpringContextUtil.getBean(AIService.class);
                 // 获取WebSocket服务
-                WebSocketService webSocketService = SpringContextUtil.getBean(WebSocketService.class);
+                WebSocketServiceImpl webSocketService = SpringContextUtil.getBean(WebSocketServiceImpl.class);
                 // 获取游戏服务
                 GameService gameService = SpringContextUtil.getBean(GameService.class);
                 // 获取玩家服务
