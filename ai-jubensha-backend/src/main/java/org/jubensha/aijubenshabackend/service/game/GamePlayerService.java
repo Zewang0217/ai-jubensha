@@ -34,6 +34,11 @@ public interface GamePlayerService {
     List<GamePlayer> getGamePlayersByPlayerId(Long playerId);
 
     /**
+     * 根据玩家ID获取游戏玩家关系（别名方法，兼容DiscussionServiceImpl调用）
+     */
+    Optional<GamePlayer> getCharacterByPlayerId(Long playerId);
+
+    /**
      * 根据角色ID获取所有游戏玩家关系
      */
     List<GamePlayer> getGamePlayersByCharacterId(Long characterId);
@@ -47,6 +52,16 @@ public interface GamePlayerService {
      * 根据游戏ID和是否为DM获取游戏玩家关系
      */
     List<GamePlayer> getGamePlayersByGameIdAndIsDm(Long gameId, Boolean isDm);
+
+    /**
+     * 根据游戏ID获取所有Real玩家（真人玩家）
+     */
+    List<GamePlayer> getRealPlayersByGameId(Long gameId);
+
+    /**
+     * 获取所有游戏玩家关系
+     */
+    List<GamePlayer> getAllGamePlayers();
 
     /**
      * 更新游戏玩家关系
@@ -64,17 +79,32 @@ public interface GamePlayerService {
     void deleteGamePlayer(Long id);
 
     /**
-     * 删除游戏的所有玩家关系
+     * 根据游戏ID删除所有游戏玩家关系
      */
     void deleteGamePlayersByGameId(Long gameId);
 
     /**
-     * 删除玩家的所有游戏关系
+     * 设置玩家为DM
      */
-    void deleteGamePlayersByPlayerId(Long playerId);
+    GamePlayer setPlayerAsDm(Long id);
 
     /**
-     * 根据playerid获取character
+     * 取消玩家DM身份
      */
-    Optional<GamePlayer> getCharacterByPlayerId(Long playerId);
+    GamePlayer removePlayerAsDm(Long id);
+
+    /**
+     * 玩家准备就绪
+     */
+    GamePlayer playerReady(Long id);
+
+    /**
+     * 玩家开始游戏
+     */
+    GamePlayer playerStartPlaying(Long id);
+
+    /**
+     * 玩家离开游戏
+     */
+    GamePlayer playerLeave(Long id);
 }
