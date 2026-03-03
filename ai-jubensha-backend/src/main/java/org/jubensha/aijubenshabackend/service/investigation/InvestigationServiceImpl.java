@@ -379,7 +379,7 @@ public class InvestigationServiceImpl implements InvestigationService {
      */
     private void notifyClueFound(Long gameId, Long playerId, Clue clue) {
         try {
-            webSocketService.sendClueFoundMessage(gameId, clue.getName(), clue.getDescription());
+//            webSocketService.sendClueFoundMessage(gameId, clue.getName(), clue.getDescription());
             log.debug("已通知游戏 {} 内的玩家 {} 发现了线索 {}", gameId, playerId, clue.getName());
         } catch (Exception e) {
             log.warn("发送线索发现通知失败: {}", e.getMessage());
