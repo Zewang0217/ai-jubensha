@@ -13,7 +13,7 @@ WebSocketMessageType
 ### 需要实现的service
 
 1. 向指定gameId的所有真人GamePlayer对应的ws连接广播聊天室信息，设计成前端订阅接收信息的形式。
-2. notifyGamePlayerScriptReady(gamePlayerId, payload..)
+2. notifyGamePlayerScriptReady(gamePlayerId, payload...)
    根据gamePlayerId向对应ws发送剧本生成成功通知，带有payload为scriptId和gamePlayerId。
 3. notifyPlayerStartInvestigation(Long gamePlayerId, Map<String, Object> investigationScenes)
    根据gamePlayerId向对应ws发送开始调查环节通知，带有payload为investigationScenes
