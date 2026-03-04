@@ -1,5 +1,6 @@
 package org.jubensha.aijubenshabackend.websocket.controller;
 
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.websocket.message.WebSocketMessage;
@@ -41,5 +42,6 @@ public class WebSocketController {
             @Payload WebSocketMessage message) {
         log.info("游戏 {} 收到投票: {}", gameId, message.getPayload());
         // TODO: 处理投票逻辑
+
     }
 }
