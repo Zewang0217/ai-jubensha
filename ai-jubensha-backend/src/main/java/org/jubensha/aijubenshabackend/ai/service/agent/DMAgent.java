@@ -61,10 +61,11 @@ public interface DMAgent {
     },
     ...
   ],
-  "summary": "整体游戏表现总结"
+  "summary": "整体游戏表现总结",
+  "ending": "百字左右的小说风格结局叙述，详细描述案发当天的真实情况"
 }
 
-请确保JSON格式正确，评分合理，评论内容符合玩家表现。
+请确保JSON格式正确，评分合理，评论内容符合玩家表现，结局叙述采用小说叙事风格，控制在百字左右。
 """)
     String scoreAnswers(List<Map<String, Object>> answers);
-}
+} 

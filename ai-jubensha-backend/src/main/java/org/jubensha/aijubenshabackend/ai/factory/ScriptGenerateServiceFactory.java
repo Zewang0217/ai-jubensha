@@ -17,6 +17,7 @@ import org.jubensha.aijubenshabackend.ai.tools.ToolManager;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
+@Profile("!mock-ai")
 public class ScriptGenerateServiceFactory {
 
     /**

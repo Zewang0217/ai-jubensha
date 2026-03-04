@@ -183,12 +183,12 @@ const CandidateCard = memo(({player, isSelected, hasVoted, onVote, onHover}) => 
         onMouseEnter={() => onHover?.(player)}
         onMouseLeave={() => onHover?.(null)}
         className={`
-      w-full p-3 rounded-xl transition-all border flex items-center gap-3
+      w-full p-3 rounded-xl transition-all border flex items-center gap-3 cursor-pointer
       ${isSelected
             ? 'bg-[#F5A9C9]/10 border-[#F5A9C9]/50'
             : hasVoted
                 ? 'bg-white/30 dark:bg-[#222631]/30 border-[#E0E5EE]/50 dark:border-[#363D4D]/50 opacity-50'
-                : 'bg-white/60 dark:bg-[#222631]/60 border-[#E0E5EE] dark:border-[#363D4D]'
+                : 'bg-white/60 dark:bg-[#222631]/60 border-[#E0E5EE] dark:border-[#363D4D] hover:bg-white/80 dark:hover:bg-[#222631]/80'
         }
     `}
     >
@@ -213,14 +213,14 @@ const CandidateCard = memo(({player, isSelected, hasVoted, onVote, onHover}) => 
         <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">{player.role}</p>
       </div>
 
-      {/* 投票按钮 */}
+      {/* 选择状态 */}
       {!hasVoted ? (
-          <GhostButton
+          <div
               onClick={() => onVote(player.id)}
-              className={`text-xs px-2 py-1 ${isSelected ? 'text-[#F5A9C9]' : ''}`}
+              className={`text-xs px-2 py-1 rounded ${isSelected ? 'text-[#F5A9C9] font-medium' : 'text-[#8C96A5]'}`}
           >
-            {isSelected ? '已选择' : '投票'}
-          </GhostButton>
+            {isSelected ? '已选择' : '选择'}
+          </div>
       ) : (
           isSelected && (
               <div className="w-5 h-5 rounded-full bg-[#5DD9A8]/20 flex items-center justify-center">
@@ -276,11 +276,12 @@ TabSwitcher.displayName = 'TabSwitcher'
 // 主要组件
 // =============================================================================
 
-function Discussion({_config, gameData, onComplete, onAction}) {
+function Discussion({_config, gameData, playerData, onComplete, onAction}) {
   const [messages, setMessages] = useState([])
   const [inputText, setInputText] = useState('')
   const [selectedTarget, setSelectedTarget] = useState(null)
   const [hasVoted, setHasVoted] = useState(false)
+  const [voteMessage, setVoteMessage] = useState('')
   const [activeTab, setActiveTab] = useState('discussion')
   const [hoveredPlayer, setHoveredPlayer] = useState(null)
   const [hoveredClue, setHoveredClue] = useState(null)
@@ -344,11 +345,21 @@ function Discussion({_config, gameData, onComplete, onAction}) {
     }, 1500)
   }, [inputText, onAction, otherPlayers])
 
-  const handleVote = useCallback((playerId) => {
-    setSelectedTarget(playerId)
+  const handleVote = useCallback(() => {
+    if (!selectedTarget || !voteMessage.trim()) return
+    
+    // 获取游戏ID和玩家ID
+    const gameId = gameData?.id || 'unknown'
+    const playerId = playerData?.id || 'unknown'
+    
     setHasVoted(true)
-    onAction?.('vote_cast', {targetId: playerId})
-  }, [onAction])
+    onAction?.('vote_cast', {
+      targetId: selectedTarget,
+      gameId: gameId,
+      playerId: playerId,
+      voteMessage: voteMessage.trim()
+    })
+  }, [onAction, selectedTarget, voteMessage, gameData, playerData])
 
   const handleComplete = () => {
     onAction?.('discussion_complete', {messageCount: messages.length, hasVoted})
@@ -551,7 +562,7 @@ function Discussion({_config, gameData, onComplete, onAction}) {
                           )}
                         </div>
 
-                        {/* 左右布局：左侧候选人列表，右侧详情 */}
+                        {/* 左右布局：左侧候选人列表，右侧详情和答题输入 */}
                         <div className="flex-1 min-h-0 flex gap-4">
                           {/* 左侧：候选人列表（单列） */}
                           <div className="w-1/2 min-h-0 overflow-y-auto scrollbar-thin pr-1">
@@ -562,15 +573,16 @@ function Discussion({_config, gameData, onComplete, onAction}) {
                                       player={player}
                                       isSelected={selectedTarget === player.id}
                                       hasVoted={hasVoted}
-                                      onVote={handleVote}
+                                      onVote={(playerId) => setSelectedTarget(playerId)}
                                       onHover={setHoveredPlayer}
                                   />
                               ))}
                             </div>
                           </div>
 
-                          {/* 右侧：详情面板 */}
-                          <div className="w-1/2 min-h-0">
+                          {/* 右侧：详情面板和答题输入 */}
+                          <div className="w-1/2 min-h-0 flex flex-col gap-4">
+                            {/* 人物详情 */}
                             <AnimatePresence mode="wait">
                               {hoveredPlayer ? (
                                   <motion.div
@@ -579,7 +591,7 @@ function Discussion({_config, gameData, onComplete, onAction}) {
                                       animate={{opacity: 1, x: 0}}
                                       exit={{opacity: 0, x: -10}}
                                       transition={{duration: 0.2}}
-                                      className="h-full rounded-xl bg-white/80 dark:bg-[#222631]/80 backdrop-blur-md border border-[#E0E5EE] dark:border-[#363D4D] p-4 flex flex-col"
+                                      className="flex-1 rounded-xl bg-white/80 dark:bg-[#222631]/80 backdrop-blur-md border border-[#E0E5EE] dark:border-[#363D4D] p-4 flex flex-col"
                                   >
                                     <div
                                         className="flex items-center gap-3 mb-4 pb-3 border-b border-[#E0E5EE] dark:border-[#363D4D]">
@@ -614,13 +626,36 @@ function Discussion({_config, gameData, onComplete, onAction}) {
                                       initial={{opacity: 0}}
                                       animate={{opacity: 1}}
                                       exit={{opacity: 0}}
-                                      className="h-full rounded-xl bg-white/40 dark:bg-[#222631]/40 backdrop-blur-sm border border-dashed border-[#E0E5EE] dark:border-[#363D4D] flex flex-col items-center justify-center text-[#8C96A5] dark:text-[#6B7788]"
+                                      className="flex-1 rounded-xl bg-white/40 dark:bg-[#222631]/40 backdrop-blur-sm border border-dashed border-[#E0E5EE] dark:border-[#363D4D] flex flex-col items-center justify-center text-[#8C96A5] dark:text-[#6B7788]"
                                   >
                                     <User className="w-8 h-8 mb-2 opacity-50"/>
                                     <p className="text-sm">悬停查看嫌疑人详情</p>
                                   </motion.div>
                               )}
                             </AnimatePresence>
+
+                            {/* 答题输入区域 */}
+                            <div className="rounded-xl bg-white/80 dark:bg-[#222631]/80 backdrop-blur-md border border-[#E0E5EE] dark:border-[#363D4D] p-4">
+                              <p className="text-sm font-medium text-[#2D3748] dark:text-[#E8ECF2] mb-2">
+                                详细答题
+                              </p>
+                              <textarea
+                                  value={voteMessage}
+                                  onChange={(e) => setVoteMessage(e.target.value)}
+                                  placeholder="请详细描述你的推理过程和投票理由..."
+                                  className="w-full px-3 py-2.5 rounded-lg bg-white dark:bg-[#1A1D26] border border-[#E0E5EE] dark:border-[#363D4D] text-[#2D3748] dark:text-[#E8ECF2] placeholder-[#8C96A5] focus:outline-none focus:border-[#7C8CD6] text-sm h-32 resize-none"
+                                  disabled={hasVoted}
+                              />
+                              <div className="mt-3 flex justify-end">
+                                <GhostButton
+                                    onClick={handleVote}
+                                    disabled={!selectedTarget || !voteMessage.trim() || hasVoted}
+                                    className={(!selectedTarget || !voteMessage.trim() || hasVoted) ? 'opacity-40' : ''}
+                                >
+                                  提交投票
+                                </GhostButton>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </motion.div>

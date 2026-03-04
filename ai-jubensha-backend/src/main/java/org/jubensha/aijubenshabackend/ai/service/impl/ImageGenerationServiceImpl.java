@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.client.SiliconFlowClient;
 import org.jubensha.aijubenshabackend.ai.service.ImageGenerationService;
+import org.jubensha.aijubenshabackend.ai.service.ImageStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,9 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * 图像生成服务实现类
- * 使用SiliconFlow API生成剧本封面图片
+ * 使用SiliconFlow API生成剧本封面图片，并自动下载保存到本地存储
+ *
+ * @author zewang
  */
 @Slf4j
 @Service
@@ -26,6 +29,7 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
 
     private final SiliconFlowClient siliconFlowClient;
     private final ObjectMapper objectMapper;
+    private final ImageStorageService imageStorageService;
 
     @Value("${ai.image-generation-model:stabilityai/stable-diffusion-3-medium}")
     private String imageGenerationModel;
@@ -37,9 +41,12 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
     private String imageGenerationApiKey;
 
     @Autowired
-    public ImageGenerationServiceImpl(SiliconFlowClient siliconFlowClient, ObjectMapper objectMapper) {
+    public ImageGenerationServiceImpl(SiliconFlowClient siliconFlowClient, 
+                                      ObjectMapper objectMapper,
+                                      ImageStorageService imageStorageService) {
         this.siliconFlowClient = siliconFlowClient;
         this.objectMapper = objectMapper;
+        this.imageStorageService = imageStorageService;
     }
 
     @Override
@@ -47,21 +54,25 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
         try {
             log.info("开始生成剧本封面图片: {}, 类型: {}", scriptName, scriptGenre);
 
-            // 构建图像生成提示词
+            // Step 1: 构建图像生成提示词
             String prompt = buildImagePrompt(scriptName, scriptDescription, scriptGenre);
             
-            // 构建请求体
+            // Step 2: 构建请求体
             Map<String, Object> requestBody = buildImageGenerationRequest(prompt);
 
-            // 调用API
+            // Step 3: 调用AI API生成图片
             Map<String, Object> response = siliconFlowClient.callImageGenerationApi(
                     imageGenerationBaseUrl, imageGenerationApiKey, requestBody);
 
-            // 解析响应获取图片URL
-            String imageUrl = extractImageUrlFromResponse(response);
+            // Step 4: 解析响应获取远程图片URL
+            String remoteImageUrl = extractImageUrlFromResponse(response);
+            log.info("AI生成远程图片URL成功: {}", remoteImageUrl);
             
-            log.info("剧本封面图片生成成功: {}", imageUrl);
-            return imageUrl;
+            // Step 5: 下载图片并保存到本地存储
+            String localImageUrl = imageStorageService.downloadAndStore(remoteImageUrl, scriptName);
+            
+            log.info("剧本封面图片生成并保存成功，本地URL: {}", localImageUrl);
+            return localImageUrl;
 
         } catch (Exception e) {
             log.error("生成剧本封面图片失败: {}", e.getMessage(), e);
@@ -76,14 +87,27 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
             try {
                 log.info("开始流式生成剧本封面图片: {}, 类型: {}", scriptName, scriptGenre);
 
+                // Step 1: 构建图像生成提示词
                 String prompt = buildImagePrompt(scriptName, scriptDescription, scriptGenre);
+                
+                // Step 2: 构建请求体
                 Map<String, Object> requestBody = buildImageGenerationRequest(prompt);
 
-                // 发送请求并处理响应流
+                // Step 3: 发送请求并处理响应流
                 return Mono.fromCallable(() -> {
+                    // Step 3.1: 调用AI API生成图片
                     Map<String, Object> response = siliconFlowClient.callImageGenerationApi(
                             imageGenerationBaseUrl, imageGenerationApiKey, requestBody);
-                    return extractImageUrlFromResponse(response);
+                    
+                    // Step 3.2: 解析响应获取远程图片URL
+                    String remoteImageUrl = extractImageUrlFromResponse(response);
+                    log.info("AI生成远程图片URL成功: {}", remoteImageUrl);
+                    
+                    // Step 3.3: 下载图片并保存到本地存储
+                    String localImageUrl = imageStorageService.downloadAndStore(remoteImageUrl, scriptName);
+                    log.info("流式生成图片保存成功，本地URL: {}", localImageUrl);
+                    
+                    return localImageUrl;
                 })
                 .flux()
                 .onErrorResume(error -> {
