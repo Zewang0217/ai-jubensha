@@ -13,6 +13,9 @@ import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
+import org.jubensha.aijubenshabackend.websocket.message.WebSocketMessage;
+import org.jubensha.aijubenshabackend.websocket.message.WebSocketMessage.MessageType;
+import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -82,6 +85,9 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Resource
     private org.jubensha.aijubenshabackend.service.player.PlayerService playerService;
+
+    @Resource
+    private WebSocketService webSocketService;
 
     // 讨论状态
     private final Map<String, Object> discussionState = new ConcurrentHashMap<>();
@@ -473,6 +479,18 @@ public class DiscussionServiceImpl implements DiscussionService {
             String scoreData = dmAgent.scoreAnswers(answers);
             log.info("DM评分响应: {}", scoreData);
             discussionState.put("scoreResponse", scoreData);
+            
+            // 提取结局内容并添加到讨论状态
+            try {
+                com.fasterxml.jackson.databind.JsonNode jsonNode = org.jubensha.aijubenshabackend.ai.service.util.ResponseUtils.extractJson(scoreData);
+                if (jsonNode != null && jsonNode.has("ending")) {
+                    String ending = jsonNode.get("ending").asText();
+                    log.info("提取到结局叙述: {}", ending);
+                    discussionState.put("ending", ending);
+                }
+            } catch (Exception e) {
+                log.warn("解析评分响应失败: {}", e.getMessage());
+            }
         }
 
         // 通知Judge总结讨论
@@ -548,6 +566,19 @@ public class DiscussionServiceImpl implements DiscussionService {
         // 发送消息到所有玩家
         messageQueueService.sendDiscussionMessage(processedMessage, playerIds);
         log.info("[消息发送] 讨论消息已成功发送");
+
+        // 通过websocket发送给前端
+        try {
+            WebSocketMessage wsMsg = new WebSocketMessage();
+            wsMsg.setType(MessageType.CHAT_MESSAGE);
+            wsMsg.setSender(playerId);
+            wsMsg.setPayload(processedMessage);
+
+            webSocketService.broadcastChatMessage(gameId, wsMsg);
+            log.info("[WebSocket] 已广播 AI 玩家 {} 的消息到前端", playerId);
+        } catch (Exception e) {
+            log.error("[WebSocket] 广播 AI 玩家消息失败: {}", e.getMessage(), e);
+        }
         
         // 存储讨论内容到数据库
         storeDiscussionMessageToDatabase(playerId, characterId, processedMessage);

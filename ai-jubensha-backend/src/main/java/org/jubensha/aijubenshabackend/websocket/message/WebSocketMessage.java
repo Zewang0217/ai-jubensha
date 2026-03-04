@@ -37,10 +37,15 @@ public class WebSocketMessage {
     }
 
     public enum MessageType {
-        CHAT_MESSAGE,
+        CHAT_MESSAGE,          // 普通聊天
+        SYSTEM_MESSAGE,        // DM/系统播报 (重要剧情推动)
+        PHASE_CHANGE,          // ⚠️阶段切换 (重要：强制前端进入下一环节)
+        TURN_CHANGE,           // 轮次切换 (通知谁正在发言)
         SCRIPT_READY,
         START_INVESTIGATION,
         PUBLIC_CLUE,
+        PRIVATE_CLUE,          // 私密线索获得通知
+        VOTE_REQUEST,          // 要求玩家开始投票
         VOTE_RESULT
     }
 }

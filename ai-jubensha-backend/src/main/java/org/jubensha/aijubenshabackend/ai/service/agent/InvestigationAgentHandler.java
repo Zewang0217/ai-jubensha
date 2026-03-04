@@ -9,6 +9,7 @@ import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import dev.langchain4j.model.chat.ChatModel;
@@ -39,6 +40,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
+@Profile("!mock-ai")
 public class InvestigationAgentHandler {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
