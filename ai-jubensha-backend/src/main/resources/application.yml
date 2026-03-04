@@ -1,5 +1,7 @@
 # 应用配置
 spring:
+  profiles:
+    active: dev, mock-ai # mock-ai开启时, 使用模拟ai而不是真实ai
   jackson:
     deserialization:
       read-enums-using-to-string: true
@@ -133,6 +135,13 @@ ai:
 
 pexels:
   api-key: Mpb0VvYO65aSOLAxFczBELv738mXR27mAIEDpTo7TgQ4PNXXqo2gFCbH
+
+# 图片存储配置
+image:
+  storage:
+    path: ./uploads/images/covers
+    url-prefix: /api/images/covers
+    default-cover: /images/default-cover.jpg
 
 # 游戏配置
 game:
