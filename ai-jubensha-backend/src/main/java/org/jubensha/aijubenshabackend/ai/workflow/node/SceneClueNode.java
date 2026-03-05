@@ -248,7 +248,44 @@ public class SceneClueNode {
     }
     
     /**
+     * 规范化场景名称
+     * 去除前后空格、统一全角/半角标点、去除常见连接词
+     * 
+     * @param name 原始场景名称
+     * @return 规范化后的场景名称
+     */
+    private static String normalizeSceneName(String name) {
+        if (name == null || name.isEmpty()) {
+            return "";
+        }
+        
+        String normalized = name.trim();
+        
+        // 统一全角字符为半角字符
+        normalized = normalized.replace("（", "(").replace("）", ")");
+        normalized = normalized.replace("【", "[").replace("】", "]");
+        normalized = normalized.replace("，", ",").replace("、", ",");
+        normalized = normalized.replace("：", ":").replace("；", ";");
+        normalized = normalized.replace("　", " ");
+        
+        // 去除常见的连接词"的"、"之"
+        normalized = normalized.replace("的", "").replace("之", "");
+        
+        // 再次去除可能产生的多余空格
+        normalized = normalized.replaceAll("\\s+", "");
+        
+        return normalized;
+    }
+    
+    /**
      * 找到与给定位置字符串最相似的场景名称
+     * 匹配策略（按优先级）：
+     * 1. 精确匹配（规范化后）
+     * 2. 包含关系匹配（location包含场景名或场景名包含location）
+     * 3. 常见变体匹配（去除"的"、"之"等连接词后匹配）
+     * 4. 编辑距离相似度匹配（相似度 > 0.5）
+     * 5. 组合场景名称拆分匹配（如"餐厅/二楼客厅"）
+     * 
      * @param location 线索的location字段
      * @param sceneNames 场景名称列表
      * @return 最相似的场景名称，如果没有找到则返回null
@@ -258,23 +295,87 @@ public class SceneClueNode {
             return null;
         }
         
+        String normalizedLocation = normalizeSceneName(location);
+        log.debug("尝试匹配 location: '{}' (规范化后: '{}')", location, normalizedLocation);
+        
+        // 策略1: 精确匹配（规范化后）
+        for (String sceneName : sceneNames) {
+            if (normalizedLocation.equals(normalizeSceneName(sceneName))) {
+                log.debug("精确匹配成功: '{}' -> '{}'", location, sceneName);
+                return sceneName;
+            }
+        }
+        
+        // 策略2: 包含关系匹配
+        for (String sceneName : sceneNames) {
+            String normalizedSceneName = normalizeSceneName(sceneName);
+            // location 包含场景名
+            if (normalizedLocation.contains(normalizedSceneName) && normalizedSceneName.length() >= 2) {
+                log.debug("包含关系匹配成功 (location包含场景名): '{}' -> '{}'", location, sceneName);
+                return sceneName;
+            }
+            // 场景名包含 location
+            if (normalizedSceneName.contains(normalizedLocation) && normalizedLocation.length() >= 2) {
+                log.debug("包含关系匹配成功 (场景名包含location): '{}' -> '{}'", location, sceneName);
+                return sceneName;
+            }
+        }
+        
+        // 策略3: 常见变体匹配（已经通过规范化处理，这里检查是否部分匹配）
+        for (String sceneName : sceneNames) {
+            String normalizedSceneName = normalizeSceneName(sceneName);
+            // 检查是否只是添加/删除了房间类型后缀
+            String[] roomSuffixes = {"房间", "卧室", "书房", "客厅", "厨房", "浴室", "阳台", "密室"};
+            for (String suffix : roomSuffixes) {
+                String locationWithoutSuffix = normalizedLocation.replace(suffix, "");
+                String sceneWithoutSuffix = normalizedSceneName.replace(suffix, "");
+                if (!locationWithoutSuffix.isEmpty() && locationWithoutSuffix.equals(sceneWithoutSuffix)) {
+                    log.debug("变体匹配成功 (去除房间后缀): '{}' -> '{}'", location, sceneName);
+                    return sceneName;
+                }
+            }
+        }
+        
+        // 策略4: 组合场景名称拆分匹配（如"餐厅/二楼客厅"）
+        if (location.contains("/") || location.contains("、") || location.contains(",")) {
+            String[] parts = location.split("[/、,]");
+            for (String part : parts) {
+                String trimmedPart = part.trim();
+                for (String sceneName : sceneNames) {
+                    if (normalizeSceneName(trimmedPart).equals(normalizeSceneName(sceneName))) {
+                        log.debug("组合场景拆分匹配成功: '{}' -> '{}' (使用第一个部分 '{}')", location, sceneName, trimmedPart);
+                        return sceneName;
+                    }
+                }
+            }
+        }
+        
+        // 策略5: 编辑距离相似度匹配
         String bestMatch = null;
         double highestSimilarity = 0.0;
         
         for (String sceneName : sceneNames) {
-            double similarity = calculateSimilarity(location, sceneName);
+            double similarity = calculateSimilarity(normalizedLocation, normalizeSceneName(sceneName));
+            log.debug("相似度计算: '{}' vs '{}' = {}", normalizedLocation, normalizeSceneName(sceneName), similarity);
             if (similarity > highestSimilarity) {
                 highestSimilarity = similarity;
                 bestMatch = sceneName;
             }
         }
         
-        // 只有当相似度超过0.6时才返回匹配结果
-        return highestSimilarity > 0.6 ? bestMatch : null;
+        // 降低相似度阈值到0.5，因为已经做了规范化处理
+        if (highestSimilarity > 0.5) {
+            log.debug("相似度匹配成功: '{}' -> '{}' (相似度: {})", location, bestMatch, highestSimilarity);
+            return bestMatch;
+        }
+        
+        log.debug("未找到匹配的场景: '{}'", location);
+        return null;
     }
     
     /**
-     * 计算两个字符串的相似度（简单的编辑距离算法）
+     * 计算两个字符串的相似度（编辑距离算法）
+     * 
      * @param s1 第一个字符串
      * @param s2 第二个字符串
      * @return 相似度，范围0-1
@@ -282,6 +383,10 @@ public class SceneClueNode {
     private static double calculateSimilarity(String s1, String s2) {
         if (s1 == null || s2 == null) {
             return 0.0;
+        }
+        
+        if (s1.equals(s2)) {
+            return 1.0;
         }
         
         int maxLength = Math.max(s1.length(), s2.length());
