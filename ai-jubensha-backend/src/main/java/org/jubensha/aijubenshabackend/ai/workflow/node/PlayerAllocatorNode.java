@@ -7,10 +7,12 @@ import org.jubensha.aijubenshabackend.ai.service.AIService;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.entity.Character;
+import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.models.enums.PlayerRole;
 import org.jubensha.aijubenshabackend.models.enums.PlayerStatus;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
+import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import java.util.ArrayList;
 import java.util.List;
@@ -119,16 +121,19 @@ public class PlayerAllocatorNode {
 
     /**
      * 分配真人玩家
+     * 每次游戏都创建新的真人玩家，确保每个游戏有独立的真人玩家
      */
     private static void assignRealPlayers(PlayerService playerService, List<Character> characters, 
                                          int realPlayerCount, List<Map<String, Object>> assignments) {
-        // 获取所有真人玩家
-        List<Player> realPlayers = getRealPlayers(playerService);
+        // 使用时间戳确保真人玩家唯一性
+        long timestamp = System.currentTimeMillis();
         
         // 分配真人玩家到角色
         for (int i = 0; i < realPlayerCount && i < characters.size(); i++) {
             Character character = characters.get(i);
-            Player realPlayer = getOrCreateRealPlayer(playerService, realPlayers, i);
+            // 为每个游戏创建新的真人玩家
+            String uniqueName = "REAL_" + timestamp + "_" + (i + 1);
+            Player realPlayer = createRealPlayer(playerService, uniqueName);
             
             Map<String, Object> assignment = Map.of(
                     "playerType", "REAL",
@@ -137,46 +142,7 @@ public class PlayerAllocatorNode {
                     "characterName", character.getName()
             );
             assignments.add(assignment);
-            log.info("分配真人玩家 {} 到角色：{}", realPlayer.getNickname(), character.getName());
-        }
-    }
-
-    /**
-     * 获取所有真人玩家
-     */
-    private static List<Player> getRealPlayers(PlayerService playerService) {
-        try {
-            return playerService.getPlayersByRole(PlayerRole.valueOf("REAL"));
-        } catch (Exception e) {
-            log.warn("获取真人玩家失败，返回空列表", e);
-            return new ArrayList<>();
-        }
-    }
-
-    /**
-     * 获取或创建真人玩家
-     */
-    private static Player getOrCreateRealPlayer(PlayerService playerService, List<Player> realPlayers, int index) {
-        // 尝试从现有真人玩家中获取
-        if (realPlayers != null && !realPlayers.isEmpty() && index < realPlayers.size()) {
-            Player player = realPlayers.get(index);
-            log.info("从数据库获取真人玩家：{}", player.getNickname());
-            return player;
-        }
-        
-        // 创建新的真人玩家
-        try {
-            Player newPlayer = createRealPlayer(playerService, "REAL_PLAYER_" + (index + 1));
-            log.info("创建真人玩家：{}", newPlayer.getNickname());
-            return newPlayer;
-        } catch (Exception e) {
-            // 如果创建失败，使用默认玩家
-            log.warn("创建真人玩家失败，使用默认玩家", e);
-            Player defaultPlayer = new Player();
-            defaultPlayer.setId((long) (index + 1));
-            defaultPlayer.setNickname("REAL_PLAYER_" + (index + 1));
-            defaultPlayer.setRole(PlayerRole.valueOf("REAL"));
-            return defaultPlayer;
+            log.info("创建并分配真人玩家 {} 到角色：{}", realPlayer.getNickname(), character.getName());
         }
     }
 
@@ -232,6 +198,23 @@ public class PlayerAllocatorNode {
         context.setAiPlayerCount(aiPlayerCount);
         context.setTotalPlayerCount(totalRoles);
         context.setSuccess(true);
+
+        // 保存真人玩家数量到数据库
+        Long gameId = context.getGameId();
+        if (gameId != null) {
+            try {
+                GameService gameService = SpringContextUtil.getBean(GameService.class);
+                var gameOpt = gameService.getGameById(gameId);
+                if (gameOpt.isPresent()) {
+                    Game game = gameOpt.get();
+                    game.setRealPlayerCount(realPlayerCount);
+                    gameService.updateGame(gameId, game);
+                    log.info("[数据库] 已保存真人玩家数量 {} 到游戏 {}", realPlayerCount, gameId);
+                }
+            } catch (Exception e) {
+                log.error("[数据库] 保存真人玩家数量失败: {}", e.getMessage(), e);
+            }
+        }
 
         log.info("玩家分配完成，共分配 {} 个角色", assignments.size());
         log.info("DM ID: {}", savedDM.getId());

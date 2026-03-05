@@ -13,6 +13,7 @@ import org.jubensha.aijubenshabackend.models.enums.GamePlayerStatus;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
 import org.jubensha.aijubenshabackend.service.game.GameService;
+import org.jubensha.aijubenshabackend.service.investigation.InvestigationService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.jubensha.aijubenshabackend.websocket.service.WebSocketServiceImpl;
 
@@ -183,6 +184,11 @@ public class ScriptReaderNode {
                 context.setCurrentNodeReady(false);
                 context.setWaitingMessage("等待玩家阅读剧本");
                 
+                // 保存上下文到 InvestigationService 缓存
+                InvestigationService investigationService = SpringContextUtil.getBean(InvestigationService.class);
+                investigationService.saveWorkflowContext(context.getGameId(), context);
+                log.info("[阶段同步] 已保存上下文到缓存，游戏ID: {}", context.getGameId());
+                
                 // 更新游戏的工作流节点状态
                 if (context.getGameId() != null) {
                     Game game = gameOpt.get();
@@ -204,9 +210,16 @@ public class ScriptReaderNode {
                     int checkInterval = 3; // 检查间隔3秒
                     
                     // 等待观察者确认（通过 observerConfirmed 标志）
+                    // 从缓存中获取最新的上下文状态
                     while (!context.isObserverConfirmed() && waitCount < maxWaitTime) {
                         Thread.sleep(checkInterval * 1000);
                         waitCount += checkInterval;
+                        
+                        // 从缓存中获取最新的上下文状态
+                        WorkflowContext latestContext = investigationService.getWorkflowContext(context.getGameId());
+                        if (latestContext != null) {
+                            context = latestContext;
+                        }
                         
                         // 每30秒输出一次等待日志
                         if (waitCount % 30 == 0) {
@@ -230,6 +243,12 @@ public class ScriptReaderNode {
                     while (!context.isAllPlayersConfirmed() && waitCount < maxWaitTime) {
                         Thread.sleep(checkInterval * 1000);
                         waitCount += checkInterval;
+                        
+                        // 从缓存中获取最新的上下文状态
+                        WorkflowContext latestContext = investigationService.getWorkflowContext(context.getGameId());
+                        if (latestContext != null) {
+                            context = latestContext;
+                        }
                         
                         // 每30秒输出一次等待日志
                         if (waitCount % 30 == 0) {
