@@ -1,0 +1,1089 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "默认模块",
+    "description": "",
+    "version": "1.0.0"
+  },
+  "tags": [],
+  "paths": {
+    "/api/scripts": {
+      "post": {
+        "summary": "创建剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptCreateDTO",
+                "description": "剧本实体"
+              },
+              "example": {
+                "name": "盍家豪",
+                "description": "速所据设收。外感九。至今力界边看民角值。",
+                "author": "consectetur dolor Duis esse",
+                "difficulty": "HARD",
+                "duration": 24,
+                "playerCount": 3,
+                "coverImage": "https://loremflickr.com/400/400?lock=3124427399484550"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityScriptResponseDTO",
+                  "description": "创建的剧本响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      },
+      "get": {
+        "summary": "查询所有剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScriptResponseDTO"
+                  },
+                  "description": "剧本列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/{id}": {
+      "put": {
+        "summary": "更新剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "剧本ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptUpdateDTO",
+                "description": "剧本实体"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityScriptResponseDTO",
+                  "description": "更新后的剧本"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      },
+      "delete": {
+        "summary": "删除剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "剧本ID",
+            "required": true,
+            "example": 1,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      },
+      "get": {
+        "summary": "根据ID查询剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "剧本ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityScriptResponseDTO",
+                  "description": "剧本实体"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/author/{author}": {
+      "get": {
+        "summary": "根据作者查询剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "author",
+            "in": "path",
+            "description": "作者",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScriptResponseDTO"
+                  },
+                  "description": "剧本响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/difficulty/{difficulty}": {
+      "get": {
+        "summary": "根据难度查询剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "difficulty",
+            "in": "path",
+            "description": "难度",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScriptResponseDTO"
+                  },
+                  "description": "剧本列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/player-count/{playerCount}": {
+      "get": {
+        "summary": "根据玩家人数查询剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "playerCount",
+            "in": "path",
+            "description": "玩家人数",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScriptResponseDTO"
+                  },
+                  "description": "剧本列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/search/{name}": {
+      "get": {
+        "summary": "根据名称搜索剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "名称",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScript"
+                  },
+                  "description": "剧本列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/duration/{duration}": {
+      "get": {
+        "summary": "根据时长查询剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "duration",
+            "in": "path",
+            "description": "游戏时长",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScriptResponseDTO"
+                  },
+                  "description": "剧本响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/duration/{maxDuration}": {
+      "get": {
+        "summary": "根据时长查询剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "maxDuration",
+            "in": "path",
+            "description": "最大时长",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScript"
+                  },
+                  "description": "剧本列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/search": {
+      "get": {
+        "summary": "根据名称搜索剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "名称",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScriptResponseDTO"
+                  },
+                  "description": "剧本响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/search/description": {
+      "get": {
+        "summary": "根据描述关键词搜索剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "关键词",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScriptResponseDTO"
+                  },
+                  "description": "剧本响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/difficulty/{difficulty}/player-count/{playerCount}": {
+      "get": {
+        "summary": "根据难度和玩家人数查询剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "difficulty",
+            "in": "path",
+            "description": "难度",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "playerCount",
+            "in": "path",
+            "description": "玩家人数",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScriptResponseDTO"
+                  },
+                  "description": "剧本响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/created": {
+      "get": {
+        "summary": "根据创建时间范围查询剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "startTime",
+            "in": "query",
+            "description": "开始时间",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "description": "结束时间",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListScriptResponseDTO"
+                  },
+                  "description": "剧本响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/{id}/cover-image": {
+      "put": {
+        "summary": "更新剧本封面图片",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "剧本ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "coverImageUrl",
+            "in": "query",
+            "description": "封面图片URL",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityScriptResponseDTO",
+                  "description": "更新后的剧本响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/{id}/timeline": {
+      "put": {
+        "summary": "更新剧本时间线",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "剧本ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "timeline",
+            "in": "query",
+            "description": "时间线内容",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityScriptResponseDTO",
+                  "description": "更新后的剧本响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/batch": {
+      "delete": {
+        "summary": "批量删除剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "description": "剧本ID列表",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/task/{taskId}": {
+      "get": {
+        "summary": "查询任务状态",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "description": "任务ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntity%3F",
+                  "description": "任务状态信息"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/generate/stream": {
+      "get": {
+        "summary": "流式生成剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "prompt",
+            "in": "query",
+            "description": "用户需求",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServerSentEventString"
+                  },
+                  "description": "流式响应"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/scripts/generate/new": {
+      "get": {
+        "summary": "使用新的剧本生成工作流生成剧本",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "prompt",
+            "in": "query",
+            "description": "用户需求",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServerSentEventString"
+                  },
+                  "description": "流式响应"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ListScript": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "description": {
+            "type": "string",
+            "description": ""
+          },
+          "author": {
+            "type": "string",
+            "description": ""
+          },
+          "difficulty": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "EASY",
+              "MEDIUM",
+              "HARD"
+            ]
+          },
+          "duration": {
+            "type": "integer",
+            "description": ""
+          },
+          "playerCount": {
+            "type": "integer",
+            "description": ""
+          },
+          "coverImage": {
+            "type": "string",
+            "description": ""
+          },
+          "timeline": {
+            "type": "string",
+            "description": ""
+          },
+          "createTime": {
+            "type": "string",
+            "description": ""
+          },
+          "updateTime": {
+            "type": "string",
+            "description": ""
+          }
+        }
+      },
+      "ResponseEntity?": {
+        "type": "object",
+        "properties": {}
+      },
+      "ResponseEntityScriptResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "description": {
+            "type": "string",
+            "description": ""
+          },
+          "author": {
+            "type": "string",
+            "description": ""
+          },
+          "difficulty": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "EASY",
+              "MEDIUM",
+              "HARD"
+            ]
+          },
+          "duration": {
+            "type": "integer",
+            "description": ""
+          },
+          "playerCount": {
+            "type": "integer",
+            "description": ""
+          },
+          "coverImageUrl": {
+            "type": "string",
+            "description": ""
+          },
+          "createTime": {
+            "type": "string",
+            "description": ""
+          },
+          "updateTime": {
+            "type": "string",
+            "description": ""
+          }
+        }
+      },
+      "ScriptCreateDTO": {
+        "type": "object",
+        "properties": {
+          "coverImage": {
+            "type": "string",
+            "description": ""
+          },
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "description": {
+            "type": "string",
+            "description": ""
+          },
+          "author": {
+            "type": "string",
+            "description": ""
+          },
+          "difficulty": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "EASY",
+              "MEDIUM",
+              "HARD"
+            ]
+          },
+          "duration": {
+            "type": "integer",
+            "description": "",
+            "minimum": 1
+          },
+          "playerCount": {
+            "type": "integer",
+            "description": "",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "difficulty"
+        ]
+      },
+      "ScriptUpdateDTO": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "description": {
+            "type": "string",
+            "description": ""
+          },
+          "author": {
+            "type": "string",
+            "description": ""
+          },
+          "difficulty": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "EASY",
+              "MEDIUM",
+              "HARD"
+            ]
+          },
+          "duration": {
+            "type": "integer",
+            "description": "",
+            "minimum": 1
+          },
+          "playerCount": {
+            "type": "integer",
+            "description": "",
+            "minimum": 1
+          },
+          "coverImageUrl": {
+            "type": "string",
+            "description": ""
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "difficulty"
+        ]
+      },
+      "ListScriptResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "description": {
+            "type": "string",
+            "description": ""
+          },
+          "author": {
+            "type": "string",
+            "description": ""
+          },
+          "difficulty": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "EASY",
+              "MEDIUM",
+              "HARD"
+            ]
+          },
+          "duration": {
+            "type": "integer",
+            "description": ""
+          },
+          "playerCount": {
+            "type": "integer",
+            "description": ""
+          },
+          "coverImageUrl": {
+            "type": "string",
+            "description": ""
+          },
+          "createTime": {
+            "type": "string",
+            "description": ""
+          },
+          "updateTime": {
+            "type": "string",
+            "description": ""
+          }
+        }
+      },
+      "Duration": {
+        "type": "object",
+        "properties": {
+          "seconds": {
+            "type": "integer",
+            "description": "The number of seconds in the duration.",
+            "format": "int64"
+          },
+          "nanos": {
+            "type": "integer",
+            "description": "The number of nanoseconds in the duration, expressed as a fraction of the\nnumber of seconds. This is always positive, and never exceeds 999,999,999."
+          }
+        }
+      },
+      "ServerSentEventString": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "",
+            "nullable": true
+          },
+          "event": {
+            "type": "string",
+            "description": "",
+            "nullable": true
+          },
+          "retry": {
+            "description": "",
+            "$ref": "#/components/schemas/Duration",
+            "nullable": true
+          },
+          "comment": {
+            "type": "string",
+            "description": "",
+            "nullable": true
+          },
+          "data": {
+            "type": "string",
+            "description": "",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "responses": {},
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": []
+}
