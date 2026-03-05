@@ -27,9 +27,15 @@ public class PlayerSessionManager {
      * 注册session与GamePlayerId的关联
      *
      * @param sessionId    WebSocket Session ID
-     * @param gamePlayerId 游戏玩家ID
+     * @param gamePlayerId 游戏玩家ID（观察者模式下为null）
      */
     public void register(String sessionId, Long gamePlayerId) {
+        // 观察者模式下 gamePlayerId 为 null，不进行注册
+        if (gamePlayerId == null) {
+            log.info("观察者模式连接，不注册 session: sessionId={}", sessionId);
+            return;
+        }
+        
         // 如果该gamePlayerId已有session，先移除
         String oldSession = gamePlayerSessionMap.get(gamePlayerId);
         if (oldSession != null && !oldSession.equals(sessionId)) {

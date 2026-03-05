@@ -221,6 +221,26 @@ public class WorkflowContext implements Serializable {
      * 任务取消标记
      */
     private boolean cancelled;
+    
+    // ====== 阶段同步相关字段 ======
+    /**
+     * 玩家阶段确认状态
+     * key: 玩家ID, value: 是否已确认当前阶段
+     */
+    private Map<Long, Boolean> playerPhaseConfirmations;
+    /**
+     * 当前节点是否就绪
+     */
+    private Boolean currentNodeReady;
+    /**
+     * 等待提示信息
+     */
+    private String waitingMessage;
+    /**
+     * 观察者确认标志
+     * 用于全AI玩家模式下，观察者确认阶段完成
+     */
+    private boolean observerConfirmed;
 
     // ====== 上下文操作方法 ======
 
@@ -436,5 +456,76 @@ public class WorkflowContext implements Serializable {
      */
     public boolean isCancelled() {
         return this.cancelled;
+    }
+    
+    // ====== 阶段同步相关方法 ======
+    
+    /**
+     * 初始化所有玩家的阶段确认状态为 false
+     * 在进入新的游戏阶段时调用,为所有参与玩家初始化确认状态
+     *
+     * @param playerIds 玩家ID列表
+     */
+    public void initPhaseConfirmations(List<Long> playerIds) {
+        if (this.playerPhaseConfirmations == null) {
+            this.playerPhaseConfirmations = new java.util.HashMap<>();
+        }
+        // 清空之前的确认状态
+        this.playerPhaseConfirmations.clear();
+        // 初始化所有玩家为未确认状态
+        for (Long playerId : playerIds) {
+            this.playerPhaseConfirmations.put(playerId, false);
+        }
+        // 重置节点就绪状态
+        this.currentNodeReady = false;
+    }
+    
+    /**
+     * 标记某个玩家已确认当前阶段
+     *
+     * @param playerId 玩家ID
+     */
+    public void confirmPhase(Long playerId) {
+        if (this.playerPhaseConfirmations == null) {
+            this.playerPhaseConfirmations = new java.util.HashMap<>();
+        }
+        this.playerPhaseConfirmations.put(playerId, true);
+    }
+    
+    /**
+     * 检查是否所有玩家都已确认当前阶段
+     *
+     * @return true 如果所有玩家都已确认, false 如果还有玩家未确认或确认列表为空
+     */
+    public boolean isAllPlayersConfirmed() {
+        if (this.playerPhaseConfirmations == null || this.playerPhaseConfirmations.isEmpty()) {
+            return false;
+        }
+        // 检查所有玩家的确认状态
+        for (Boolean confirmed : this.playerPhaseConfirmations.values()) {
+            if (!confirmed) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    /**
+     * 获取未确认当前阶段的玩家ID列表
+     *
+     * @return 未确认的玩家ID列表
+     */
+    public List<Long> getUnconfirmedPlayers() {
+        List<Long> unconfirmedPlayers = new java.util.ArrayList<>();
+        if (this.playerPhaseConfirmations == null) {
+            return unconfirmedPlayers;
+        }
+        // 遍历找出所有未确认的玩家
+        for (Map.Entry<Long, Boolean> entry : this.playerPhaseConfirmations.entrySet()) {
+            if (!entry.getValue()) {
+                unconfirmedPlayers.add(entry.getKey());
+            }
+        }
+        return unconfirmedPlayers;
     }
 }
