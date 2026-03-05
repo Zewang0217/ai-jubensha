@@ -54,11 +54,14 @@ export const adaptGameData = async (gameData, players) => {
 
             // 获取每个场景的线索
             if (Array.isArray(scenes) && scenes.length > 0) {
+                console.log('[adaptGameData] Fetching clues for scenes:', scenes.map(s => s.id))
                 const scenesWithClues = await Promise.all(
                     scenes.map(async (scene) => {
                         try {
+                            console.log(`[adaptGameData] Fetching clues for scene ${scene.id} (${scene.name})`)
                             const cluesResponse = await getSceneClues(scene.id)
                             const clues = cluesResponse?.data || cluesResponse || []
+                            console.log(`[adaptGameData] Got ${clues.length} clues for scene ${scene.id}:`, clues.map(c => ({ id: c.id, name: c.name })))
                             return {
                                 ...scene,
                                 clues: Array.isArray(clues) ? clues : [],
@@ -75,6 +78,7 @@ export const adaptGameData = async (gameData, players) => {
                     })
                 )
                 scenes = scenesWithClues
+                console.log('[adaptGameData] All scenes with clues:', scenes.map(s => ({ id: s.id, name: s.name, clueCount: s.clueCount })))
             }
         } catch (err) {
             console.error('[adaptGameData] Failed to fetch scenes:', err)
@@ -119,15 +123,29 @@ export const adaptGameData = async (gameData, players) => {
         })) : [],
 
         // 场景列表
-        scenes: Array.isArray(scenes) ? scenes.map(scene => ({
-            id: scene.id,
-            name: scene.name,
-            description: scene.description,
-            imageUrl: scene.imageUrl,
-            isLocked: false,
-            clueCount: scene.clueCount || 0,
-            clues: scene.clues || [],
-        })) : [],
+        scenes: Array.isArray(scenes) ? scenes.map(scene => {
+            const adaptedClues = Array.isArray(scene.clues) ? scene.clues.map(clue => ({
+                id: String(clue.id),
+                name: clue.name || '',
+                description: clue.description || '',
+                type: clue.type || 'OTHER',
+                visibility: clue.visibility || 'PUBLIC',
+                sceneId: clue.sceneId,
+                imageUrl: clue.imageUrl,
+                importance: clue.importance,
+                playerId: clue.playerId,
+            })) : []
+
+            return {
+                id: String(scene.id),
+                name: scene.name,
+                description: scene.description,
+                imageUrl: scene.imageUrl,
+                isLocked: false,
+                clueCount: adaptedClues.length,
+                clues: adaptedClues,
+            }
+        }) : [],
 
         // 玩家列表
         players: Array.isArray(players) ? players.map(player => ({

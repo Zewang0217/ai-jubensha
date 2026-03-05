@@ -1,9 +1,10 @@
 import {useCallback, useMemo, useState} from 'react'
 import {DEFAULT_PHASE_SEQUENCE, PHASE_CONFIG} from '../types'
+import {getPhaseStatus, confirmPhase} from '../../../services/api'
 
 /**
  * @fileoverview 阶段管理器 Hook
- * @description 管理游戏阶段的切换、数据缓存和历史记录，支持自定义阶段序列
+ * @description 管理游戏阶段的切换、数据缓存和历史记录，支持自定义阶段序列和阶段同步
  *
  * @example
  * const {
@@ -16,6 +17,9 @@ import {DEFAULT_PHASE_SEQUENCE, PHASE_CONFIG} from '../types'
  *   getPhaseData,
  *   canGoNext,
  *   canGoBack,
+ *   isBackendReady,
+ *   waitingMessage,
+ *   confirmCurrentPhase,
  * } = usePhaseManager({
  *   sequence: DEFAULT_PHASE_SEQUENCE,
  *   onPhaseChange: (phase, prevPhase) => console.log(`切换到 ${phase}`),
@@ -46,6 +50,11 @@ export function usePhaseManager(options = {}) {
     // 各阶段数据缓存
     const [phaseDataMap, setPhaseDataMap] = useState({})
 
+    // 后端同步状态
+    const [isBackendReady, setIsBackendReady] = useState(true)
+    const [waitingMessage, setWaitingMessage] = useState(null)
+    const [isCheckingBackend, setIsCheckingBackend] = useState(false)
+
     // 当前阶段索引
     const currentPhase = history[history.length - 1]
     const currentIndex = sequence.indexOf(currentPhase)
@@ -75,6 +84,7 @@ export function usePhaseManager(options = {}) {
 
     /**
      * 进入下一阶段
+     * 注意：后端同步检查已移至 GameRoom 组件通过 WebSocket 处理
      */
     const goToNext = useCallback(() => {
         if (!canGoNext) {
@@ -174,6 +184,24 @@ export function usePhaseManager(options = {}) {
     }, [])
 
     /**
+     * 确认当前阶段完成
+     * @param {string|number} gameId - 游戏ID
+     * @param {string|number} playerId - 玩家ID
+     * @returns {Promise<void>}
+     */
+    const confirmCurrentPhase = useCallback(async (gameId, playerId) => {
+        try {
+            await confirmPhase(gameId, {
+                playerId,
+                phase: currentPhase
+            })
+            console.log('[usePhaseManager] 阶段确认成功:', currentPhase)
+        } catch (error) {
+            console.error('[usePhaseManager] 阶段确认失败:', error)
+        }
+    }, [currentPhase])
+
+    /**
      * 重置到初始阶段
      */
     const reset = useCallback(() => {
@@ -215,6 +243,16 @@ export function usePhaseManager(options = {}) {
         updatePhaseData,
         getPhaseData,
         clearPhaseData,
+
+        // 后端同步状态
+        isBackendReady,
+        waitingMessage,
+        isCheckingBackend,
+
+        // 后端同步方法
+        confirmCurrentPhase,
+        setWaitingMessage,
+        setIsBackendReady,
 
         // 工具方法
         reset,
