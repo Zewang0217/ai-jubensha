@@ -15,6 +15,7 @@ import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 import org.jubensha.aijubenshabackend.service.game.GameService;
+import org.jubensha.aijubenshabackend.service.investigation.InvestigationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,12 +38,14 @@ public class GameController {
     private final jubenshaWorkflow workflow;
     private final DiscussionService discussionService;
     private final WorkflowStatusService workflowStatusService;
+    private final InvestigationService investigationService;
 
-    public GameController(GameService gameService, jubenshaWorkflow workflow, DiscussionService discussionService, WorkflowStatusService workflowStatusService) {
+    public GameController(GameService gameService, jubenshaWorkflow workflow, DiscussionService discussionService, WorkflowStatusService workflowStatusService, InvestigationService investigationService) {
         this.gameService = gameService;
         this.workflow = workflow;
         this.discussionService = discussionService;
         this.workflowStatusService = workflowStatusService;
+        this.investigationService = investigationService;
     }
 
     /**
@@ -760,19 +763,7 @@ public class GameController {
             }
             Game game = gameOptional.get();
 
-            // 2. 验证阶段是否匹配
-            String currentPhase = game.getCurrentPhase() != null ? game.getCurrentPhase().name() : null;
-            if (currentPhase == null || !currentPhase.equals(confirmDTO.getPhase())) {
-                log.warn("阶段不匹配，当前阶段: {}, 请求确认阶段: {}", currentPhase, confirmDTO.getPhase());
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of(
-                                "error", "阶段不匹配",
-                                "currentPhase", currentPhase,
-                                "requestedPhase", confirmDTO.getPhase()
-                        ));
-            }
-
-            // 3. 获取工作流状态
+            // 2. 获取工作流状态
             WorkflowStatusService.WorkflowStatus status = workflowStatusService.getWorkflowStatus(gameId);
             if (status == null) {
                 log.warn("工作流状态不存在，游戏ID: {}", gameId);
@@ -780,10 +771,10 @@ public class GameController {
                         .body(Map.of("error", "工作流尚未启动"));
             }
 
-            // 4. 获取工作流上下文
+            // 3. 获取工作流上下文
             WorkflowContext context = status.getWorkflowContext();
             
-            // 5. 处理确认逻辑
+            // 4. 处理确认逻辑
             boolean isObserver = confirmDTO.getPlayerId() == null || confirmDTO.getPlayerId() <= 0;
             
             if (isObserver) {
@@ -798,6 +789,12 @@ public class GameController {
                     context.confirmPhase(confirmDTO.getPlayerId());
                     log.info("玩家确认阶段完成，游戏ID: {}, 玩家ID: {}, 阶段: {}", gameId, confirmDTO.getPlayerId(), confirmDTO.getPhase());
                 }
+            }
+            
+            // 同步更新 InvestigationService 缓存中的上下文
+            if (context != null) {
+                investigationService.saveWorkflowContext(gameId, context);
+                log.info("已同步更新 InvestigationService 缓存，游戏ID: {}", gameId);
             }
 
             // 6. 构建确认成功响应

@@ -228,8 +228,12 @@ public class AssemblyNode {
                 }
             }
             
+            // 保存场景并收集场景ID映射
+            java.util.Map<String, Long> sceneNameToIdMap = new java.util.HashMap<>();
             for (Scene scene : scenes) {
-                sceneService.createScene(scene);
+                Scene savedScene = sceneService.createScene(scene);
+                sceneNameToIdMap.put(savedScene.getName(), savedScene.getId());
+                log.debug("场景已保存: {} -> ID: {}", savedScene.getName(), savedScene.getId());
             }
             
             log.info("已保存 {} 个场景", scenes.size());
@@ -258,7 +262,18 @@ public class AssemblyNode {
                         clue.setVisibility(ClueVisibility.UNDISCOVERED);
                     }
                     
-                    clue.setScene(clueNode.path("location").asText(""));
+                    String location = clueNode.path("location").asText("");
+                    clue.setScene(location);
+                    
+                    // 根据场景名称查找对应的场景ID并设置
+                    Long sceneId = sceneNameToIdMap.get(location);
+                    if (sceneId != null) {
+                        clue.setSceneId(sceneId);
+                        log.debug("线索 '{}' 关联到场景 '{}'，sceneId: {}", clue.getName(), location, sceneId);
+                    } else {
+                        log.warn("线索 '{}' 的场景 '{}' 未找到对应的场景ID", clue.getName(), location);
+                    }
+                    
                     clue.setImageUrl("");
                     clue.setImportance(1);
                     clue.setCreateTime(LocalDateTime.now());

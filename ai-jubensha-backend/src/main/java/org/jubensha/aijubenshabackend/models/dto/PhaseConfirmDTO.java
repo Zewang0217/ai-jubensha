@@ -18,8 +18,8 @@ import lombok.NoArgsConstructor;
 public class PhaseConfirmDTO {
     /**
      * 玩家ID
+     * 观察者模式下可以为null
      */
-    @NotNull(message = "玩家ID不能为空")
     private Long playerId;
 
     /**
