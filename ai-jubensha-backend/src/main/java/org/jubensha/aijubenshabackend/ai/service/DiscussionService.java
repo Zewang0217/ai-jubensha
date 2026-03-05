@@ -115,4 +115,16 @@ public interface DiscussionService {
      * @return 评分结果，包含每个玩家的评分和评论
      */
     String testDMScore(Long dmId, List<Map<String, Object>> answers);
+
+    /**
+     * 停止讨论
+     * <p>
+     * 用于强制停止当前讨论，清理所有讨论相关的状态和资源。
+     * 包括停止中央调度器、清理讨论状态映射、重置讨论完成标记、
+     * 清理玩家相关状态以及取消计时器。
+     * </p>
+     *
+     * @param gameId 游戏ID
+     */
+    void stopDiscussion(Long gameId);
 }

@@ -254,6 +254,21 @@ public class WebSocketServiceImpl implements WebSocketService {
     }
 
     @Override
+    public void broadcastInvestigationComplete(Long gameId, String message) {
+        WebSocketMessage wsMessage = new WebSocketMessage();
+        wsMessage.setType(WebSocketMessage.MessageType.INVESTIGATION_COMPLETE);
+        
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("message", message);
+        payload.put("timestamp", System.currentTimeMillis());
+        wsMessage.setPayload(payload);
+        
+        String destination = "/topic/game/" + gameId + "/investigation";
+        messagingTemplate.convertAndSend(destination, wsMessage);
+        log.info("广播搜证完成通知到游戏 {}: {}", gameId, message);
+    }
+
+    @Override
     public void handleVote(Long gameId, WebSocketMessage message) {
         try {
             log.info("处理投票消息: gameId={}, message={}", gameId, message);

@@ -47,6 +47,7 @@ public class WebSocketMessage {
         PRIVATE_CLUE,          // 私密线索获得通知
         VOTE_REQUEST,          // 要求玩家开始投票
         VOTE_RESULT,
-        PHASE_READY            // 阶段就绪通知
+        PHASE_READY,           // 阶段就绪通知
+        INVESTIGATION_COMPLETE // 搜证完成通知
     }
 }

@@ -1334,4 +1334,44 @@ public class DiscussionServiceImpl implements DiscussionService {
             return "{\"error\": \"测试DM评分功能失败: " + e.getMessage() + "\"}";
         }
     }
+
+    @Override
+    public void stopDiscussion(Long gameId) {
+        log.info("[停止讨论] 开始停止讨论，游戏ID: {}", gameId);
+
+        // 停止中央调度器
+        stopCentralDirector();
+        log.info("[停止讨论] 中央调度器已停止");
+
+        // 清理讨论状态映射
+        discussionState.clear();
+        log.info("[停止讨论] 讨论状态映射已清理");
+
+        // 重置讨论完成标记
+        discussionCompleted = false;
+        log.info("[停止讨论] 讨论完成标记已重置");
+
+        // 清理玩家相关状态
+        playerAnswers.clear();
+        privateChatInvitations.clear();
+        privateChatCounts.clear();
+        desireScores.clear();
+        lastSpeakTimes.clear();
+        log.info("[停止讨论] 玩家相关状态已清理");
+
+        // 取消所有计时器
+        timerService.cancelTimer("STATEMENT");
+        timerService.cancelTimer("FREE_DISCUSSION");
+        timerService.cancelTimer("PRIVATE_CHAT");
+        timerService.cancelTimer("ANSWER");
+        log.info("[停止讨论] 所有计时器已取消");
+
+        // 重置当前阶段
+        currentPhase = null;
+        
+        // 重置讨论轮次
+        discussionRound = 1;
+
+        log.info("[停止讨论] 讨论已完全停止，游戏ID: {}", gameId);
+    }
 }

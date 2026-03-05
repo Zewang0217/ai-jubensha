@@ -253,6 +253,12 @@ public class FirstInvestigationNode {
                     log.info("[状态转换] 所有玩家已完成搜证，准备进入讨论阶段");
                     log.info("[状态监控] 最终搜证状态: {}", context.getPlayerInvestigationCompleted());
                     log.info("[状态监控] 总等待时间: {}秒", waitCount);
+
+                    // 通知前端所有玩家搜证完成
+                    webSocketService.broadcastInvestigationComplete(context.getGameId(), "所有玩家搜证完毕，可以进入讨论阶段");
+                    context.setAllInvestigationComplete(true);
+                    investigationService.saveWorkflowContext(context.getGameId(), context);
+                    log.info("[状态转换] 已通知前端所有玩家搜证完成");
                     
                     // ====== 阶段同步：等待前端确认 ======
                     // 初始化阶段确认状态（只针对真人玩家）
@@ -290,9 +296,15 @@ public class FirstInvestigationNode {
                             Thread.sleep(confirmCheckInterval * 1000);
                             confirmWaitCount += confirmCheckInterval;
                             
+                            // 从缓存中获取最新的上下文状态
+                            WorkflowContext latestContext = investigationService.getWorkflowContext(context.getGameId());
+                            if (latestContext != null) {
+                                context = latestContext;
+                            }
+                            
                             // 每30秒输出一次等待日志
                             if (confirmWaitCount % 30 == 0) {
-                                log.info("[阶段同步] 等待观察者确认搜证完成，已等待: {}秒", confirmWaitCount);
+                                log.info("[阶段同步] 等待观察者确认搜证完成，已等待: {}秒，observerConfirmed: {}", confirmWaitCount, context.isObserverConfirmed());
                             }
                         }
                         
@@ -312,6 +324,12 @@ public class FirstInvestigationNode {
                         while (!context.isAllPlayersConfirmed() && confirmWaitCount < maxConfirmWaitTime) {
                             Thread.sleep(confirmCheckInterval * 1000);
                             confirmWaitCount += confirmCheckInterval;
+                            
+                            // 从缓存中获取最新的上下文状态
+                            WorkflowContext latestContext = investigationService.getWorkflowContext(context.getGameId());
+                            if (latestContext != null) {
+                                context = latestContext;
+                            }
                             
                             // 每30秒输出一次等待日志
                             if (confirmWaitCount % 30 == 0) {
