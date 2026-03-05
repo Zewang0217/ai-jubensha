@@ -51,21 +51,51 @@ public interface ScriptGenerateService {
     @UserMessage("主题为:{{topic}}")
     Flux<String> generateWorldOutline(String topic);
 
-    // 2. 设计搜证线索(基于大纲)
+    /**
+     * 设计搜证线索(基于大纲)
+     * 
+     * @param outlineJson 剧本大纲 JSON
+     * @return 场景和线索的 JSON 流
+     */
     @SystemMessage("""
-        你是一个剧本杀编剧,熟知各种剧本杀,善于布置和完善剧本啥游戏所需要的场景和线索.
+        你是一个剧本杀编剧,熟知各种剧本杀,善于布置和完善剧本杀游戏所需要的场景和线索.
         基于以下大纲，设计游戏所需的场景和线索：
-               \s
-                要求：
-                1. 线索必须指向凶手，但要有干扰项。
-                2. 包含尸体线索、现场线索和每个角色的房间线索。
-               \s
-                返回 JSON 格式：
-                {
-                    "scenes": [{"name": "...", "desc": "..."}],
-                    "clues": [{"name": "...", "content": "...", "location": "..."}]
-                }
-    """
+        
+        【重要约束 - 必须严格遵守】
+        线索的 location 字段必须**精确匹配** scenes 数组中某个场景的 name 值。
+        不允许使用场景名称的变体、缩写或组合形式。
+        
+        【生成步骤】
+        第一步：设计所有场景
+        - 根据大纲中的角色和背景，设计5-8个场景
+        - 场景名称要简洁明确，如"大厅"、"书房"、"李明卧室"
+        - 每个场景名称必须唯一
+        
+        第二步：设计线索
+        - 每个场景放置3-5个线索
+        - 线索的 location 必须从第一步设计的场景名称中选择
+        - 线索要指向凶手，但要有干扰项
+        
+        【线索要求】
+        1. 包含尸体线索、现场线索和每个角色的房间线索
+        2. 线索内容要有推理价值
+        3. location 字段只能是场景名称，不能是描述性文字
+        
+        【返回 JSON 格式】
+        {
+            "scenes": [
+                {"name": "场景名称（简洁明确，如：大厅）", "desc": "场景描述"}
+            ],
+            "clues": [
+                {"name": "线索名称", "content": "线索内容", "location": "必须精确匹配 scenes 中某个 name 值"}
+            ]
+        }
+        
+        【示例】
+        如果 scenes 包含：[{"name": "大厅"}, {"name": "书房"}, {"name": "李明卧室"}]
+        那么线索的 location 只能是："大厅"、"书房" 或 "李明卧室"
+        不能是："大厅角落"、"李明的卧室"、"书房/卧室" 等变体形式
+        """
     )
     @UserMessage("大纲为：{{outlineJson}}")
     Flux<String> generateMechanics(String outlineJson);

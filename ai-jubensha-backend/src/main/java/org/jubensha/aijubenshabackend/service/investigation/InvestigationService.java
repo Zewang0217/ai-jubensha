@@ -84,4 +84,13 @@ public interface InvestigationService {
      * @param context 工作流上下文
      */
     void saveWorkflowContext(Long gameId, WorkflowContext context);
+
+    /**
+     * 移除工作流上下文
+     * 用于在游戏退出时清理缓存，释放资源
+     *
+     * @param gameId 游戏ID
+     * @return 被移除的工作流上下文，如果不存在则返回 null
+     */
+    WorkflowContext removeWorkflowContext(Long gameId);
 }

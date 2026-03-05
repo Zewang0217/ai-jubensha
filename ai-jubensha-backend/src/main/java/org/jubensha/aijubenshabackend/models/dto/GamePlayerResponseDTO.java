@@ -3,6 +3,7 @@ package org.jubensha.aijubenshabackend.models.dto;
 import lombok.Data;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
 import org.jubensha.aijubenshabackend.models.enums.GamePlayerStatus;
+import org.jubensha.aijubenshabackend.models.enums.PlayerRole;
 
 import java.time.LocalDateTime;
 
@@ -19,6 +20,10 @@ public class GamePlayerResponseDTO {
     private Boolean isDm;
     private GamePlayerStatus status;
     private LocalDateTime joinTime;
+    /**
+     * 玩家角色类型（REAL/AI）
+     */
+    private PlayerRole playerRole;
 
     /**
      * 从实体对象创建响应DTO
@@ -35,6 +40,10 @@ public class GamePlayerResponseDTO {
         dto.setIsDm(gamePlayer.getIsDm());
         dto.setStatus(gamePlayer.getStatus());
         dto.setJoinTime(gamePlayer.getJoinTime());
+        // 添加玩家角色类型
+        if (gamePlayer.getPlayer() != null) {
+            dto.setPlayerRole(gamePlayer.getPlayer().getRole());
+        }
         return dto;
     }
 }

@@ -81,6 +81,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private org.jubensha.aijubenshabackend.repository.dialogue.DialogueRepository dialogueRepository;
 
     @Resource
+    @org.springframework.context.annotation.Lazy
     private org.jubensha.aijubenshabackend.service.game.GameService gameService;
 
     @Resource
