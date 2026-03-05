@@ -1,11 +1,11 @@
 /**
  * @fileoverview ClueCard 组件 - 竖版扑克牌样式线索卡牌
- * @description 游戏卡牌组件，上下长左右短，支持翻牌动画
+ * @description 游戏卡牌组件，上下长左右短，支持翻牌动画和公开功能
  */
 
 import {memo} from 'react'
 import {AnimatePresence, motion} from 'framer-motion'
-import {FileText, Search, Sparkles} from 'lucide-react'
+import {Eye, FileText, Globe, Search, Sparkles} from 'lucide-react'
 
 // =============================================================================
 // 卡牌背面装饰图案
@@ -47,9 +47,12 @@ CardCorner.displayName = 'CardCorner'
 // 线索卡牌组件 - 竖版扑克牌样式
 // =============================================================================
 
-const ClueCard = memo(({clue, isRevealed, onReveal, index}) => {
+const ClueCard = memo(({clue, isRevealed, isPublic, isObserverMode, onReveal, onPublic, index}) => {
     // 卡牌尺寸：宽度固定，高度约为宽度的 1.45 倍（扑克牌比例）
     const cardHeight = 'h-[250px]'
+
+    // 观察者模式下始终显示内容
+    const showContent = isObserverMode || isRevealed
 
     return (
         <motion.div
@@ -60,7 +63,7 @@ const ClueCard = memo(({clue, isRevealed, onReveal, index}) => {
             style={{perspective: '1000px'}}
         >
             <AnimatePresence mode="wait">
-                {!isRevealed ? (
+                {!showContent ? (
                     <motion.button
                         key="hidden"
                         onClick={onReveal}
@@ -73,7 +76,7 @@ const ClueCard = memo(({clue, isRevealed, onReveal, index}) => {
                             transition: {duration: 0.15}
                         }}
                         whileTap={{scale: 0.98}}
-                        className="absolute inset-0 w-full rounded-xl overflow-hidden shadow-sm"
+                        className="absolute inset-0 w-full rounded-xl overflow-hidden shadow-sm cursor-pointer"
                         style={{transformStyle: 'preserve-3d', backfaceVisibility: 'hidden'}}
                     >
                         {/* 卡牌背面背景 */}
@@ -114,23 +117,42 @@ const ClueCard = memo(({clue, isRevealed, onReveal, index}) => {
                             y: -2,
                             transition: {duration: 0.15}
                         }}
-                        className="absolute inset-0 w-full rounded-xl overflow-hidden flex flex-col shadow-sm"
+                        className={`absolute inset-0 w-full rounded-xl overflow-hidden flex flex-col shadow-sm ${isObserverMode ? 'cursor-default' : 'cursor-pointer'}`}
                         style={{transformStyle: 'preserve-3d', backfaceVisibility: 'hidden'}}
                     >
                         {/* 卡牌正面背景 */}
                         <div className="absolute inset-0 bg-white dark:bg-[#1A1D26]"/>
 
-                        {/* 顶部渐变条 */}
-                        <div className="h-2 bg-gradient-to-r from-[#7C8CD6] via-[#A78BFA] to-[#F5A9C9]"/>
+                        {/* 顶部渐变条 - 公开线索显示不同颜色 */}
+                        <div className={`h-2 ${isPublic 
+                            ? 'bg-gradient-to-r from-[#5DD9A8] via-[#4ECDC4] to-[#45B7AA]' 
+                            : 'bg-gradient-to-r from-[#7C8CD6] via-[#A78BFA] to-[#F5A9C9]'}`}/>
 
                         {/* 卡牌内容 */}
                         <div className="relative flex-1 flex flex-col p-3">
                             {/* 顶部：类型标签 + 角标 */}
                             <div className="flex items-start justify-between mb-2">
-                <span
-                    className="text-[9px] px-2 py-0.5 rounded-full bg-[#7C8CD6]/10 text-[#7C8CD6] font-bold uppercase tracking-wider">
-                  {clue.type}
-                </span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                                        isPublic 
+                                            ? 'bg-[#5DD9A8]/10 text-[#5DD9A8]' 
+                                            : 'bg-[#7C8CD6]/10 text-[#7C8CD6]'
+                                    }`}>
+                                        {clue.type}
+                                    </span>
+                                    {isPublic && (
+                                        <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-[#5DD9A8]/20 text-[#5DD9A8] flex items-center gap-0.5">
+                                            <Globe className="w-2 h-2"/>
+                                            公开
+                                        </span>
+                                    )}
+                                    {isObserverMode && (
+                                        <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-[#7C8CD6]/20 text-[#7C8CD6] flex items-center gap-0.5">
+                                            <Eye className="w-2 h-2"/>
+                                            观察
+                                        </span>
+                                    )}
+                                </div>
                                 <div
                                     className="w-5 h-5 rounded-md bg-gradient-to-br from-[#7C8CD6]/20 to-[#A78BFA]/20 flex items-center justify-center">
                                     <FileText className="w-2.5 h-2.5 text-[#7C8CD6]"/>
@@ -156,11 +178,28 @@ const ClueCard = memo(({clue, isRevealed, onReveal, index}) => {
                             </p>
                         </div>
 
-                        {/* 底部装饰 */}
-                        <div
-                            className="h-6 bg-gradient-to-t from-[#EEF1F6]/80 to-transparent dark:from-[#2A2F3C]/80 flex items-center justify-center">
-                            <div className="w-8 h-1 rounded-full bg-[#E0E5EE] dark:bg-[#363D4D]"/>
-                        </div>
+                        {/* 底部操作区 - 仅在非观察者模式且已揭示时显示 */}
+                        {!isObserverMode && isRevealed && !isPublic && onPublic && (
+                            <motion.button
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    onPublic()
+                                }}
+                                whileHover={{scale: 1.02}}
+                                whileTap={{scale: 0.98}}
+                                className="h-8 bg-gradient-to-t from-[#5DD9A8]/20 to-transparent flex items-center justify-center gap-1 text-[#5DD9A8] text-[10px] font-medium hover:from-[#5DD9A8]/30 transition-colors"
+                            >
+                                <Globe className="w-3 h-3"/>
+                                公开线索
+                            </motion.button>
+                        )}
+
+                        {/* 底部装饰 - 观察者模式或已公开时显示 */}
+                        {(isObserverMode || isPublic) && (
+                            <div className="h-6 bg-gradient-to-t from-[#EEF1F6]/80 to-transparent dark:from-[#2A2F3C]/80 flex items-center justify-center">
+                                <div className="w-8 h-1 rounded-full bg-[#E0E5EE] dark:bg-[#363D4D]"/>
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
