@@ -40,6 +40,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     private GamePlayerService gamePlayerService;
     
     @Resource
+    @org.springframework.context.annotation.Lazy
     private GameService gameService;
     
     @Resource

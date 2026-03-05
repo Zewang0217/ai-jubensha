@@ -17,6 +17,7 @@ import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.scene.SceneService;
 import org.jubensha.aijubenshabackend.websocket.service.WebSocketServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -47,7 +48,7 @@ public class InvestigationServiceImpl implements InvestigationService {
     private final RAGService ragService;
 
     @Autowired
-    public InvestigationServiceImpl(GameService gameService,
+    public InvestigationServiceImpl(@Lazy GameService gameService,
                                     ClueService clueService,
                                     SceneService sceneService,
                                     WebSocketServiceImpl webSocketService,
@@ -285,6 +286,21 @@ public class InvestigationServiceImpl implements InvestigationService {
     @Override
     public void saveWorkflowContext(Long gameId, WorkflowContext context) {
         workflowContextCache.put(gameId, context);
+        log.debug("保存工作流上下文，游戏ID: {}", gameId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public WorkflowContext removeWorkflowContext(Long gameId) {
+        WorkflowContext removed = workflowContextCache.remove(gameId);
+        if (removed != null) {
+            log.info("已清理工作流上下文缓存，游戏ID: {}", gameId);
+        } else {
+            log.debug("工作流上下文缓存不存在，游戏ID: {}", gameId);
+        }
+        return removed;
     }
 
     // ==================== 私有辅助方法 ====================
