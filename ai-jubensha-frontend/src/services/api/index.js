@@ -105,5 +105,37 @@ export {
     generateScript as generateScriptNew,
 } from './script'
 
+export {
+    createGameFromScript,
+    getGames,
+    getGameById,
+    updateGame,
+    deleteGame,
+    joinGame,
+    leaveGame,
+    getGamePlayers,
+    getWorkflowStatus,
+    startGame,
+    endGame,
+    updateGamePhase,
+} from './game'
+
+export {
+    getCharactersByScriptId,
+    getCharacterById,
+    createCharacter,
+    updateCharacter,
+    deleteCharacter,
+} from './character'
+
+export {
+    getScenesByScriptId,
+    getSceneById,
+    getSceneClues,
+    createScene,
+    updateScene,
+    deleteScene,
+} from './scene'
+
 export {default as apiClient} from './client'
 export {default} from './client'
