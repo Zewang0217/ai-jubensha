@@ -13,7 +13,8 @@ import React, {memo, Suspense, useCallback, useEffect, useMemo, useState} from '
 import {useNavigate, useParams} from 'react-router-dom'
 import {useQuery} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
-import {gameApi} from '../../services/api'
+import {getGameById, getGamePlayers} from '../../services/api'
+import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
 import Loading from '../../components/common/Loading'
 import {useWebSocket} from '../../hooks/useWebSocket'
 import {Bug, X} from 'lucide-react'
@@ -46,7 +47,7 @@ const PhaseComponents = {
 // =============================================================================
 
 const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8088'
-const DEFAULT_DEBUG_MODE = import.meta.env.DEV || import.meta.env.VITE_DEBUG_MODE === 'true'
+const DEFAULT_DEBUG_MODE = false // 默认关闭调试模式，使用真实数据
 
 const TRANSITION_CONFIG = {
   initial: {opacity: 0, y: 8},
@@ -294,32 +295,72 @@ function GameRoom() {
     error: apiError,
   } = useQuery({
     queryKey: ['game', id],
-    queryFn: () => gameApi.getGame(id),
+    queryFn: async () => {
+      const response = await getGameById(id)
+      return response?.data || response
+    },
     staleTime: 30000,
-    enabled: !isDebugMode,
+    enabled: !isDebugMode && !!id,
   })
 
   const {
     data: apiPlayerData,
   } = useQuery({
-    queryKey: ['player', id],
-    queryFn: () => gameApi.getPlayer(id),
+    queryKey: ['gamePlayers', id],
+    queryFn: async () => {
+      const response = await getGamePlayers(id)
+      return response?.data || response
+    },
     enabled: !isDebugMode && !!id,
     staleTime: 60000,
   })
 
+  // 适配后的游戏数据
+  const [adaptedGameData, setAdaptedGameData] = useState(null)
+  const [isAdapting, setIsAdapting] = useState(false)
+
+  // 数据适配 - 将后端数据转换为前端所需格式
+  useEffect(() => {
+    if (isDebugMode) {
+      setAdaptedGameData(debugGameData)
+      return
+    }
+
+    if (!apiGameData || !apiPlayerData) {
+      return
+    }
+
+    const adaptData = async () => {
+      setIsAdapting(true)
+      try {
+        const adapted = await adaptGameData(apiGameData, apiPlayerData)
+        setAdaptedGameData(adapted)
+      } catch (err) {
+        console.error('[GameRoom] Failed to adapt game data:', err)
+      } finally {
+        setIsAdapting(false)
+      }
+    }
+
+    adaptData()
+  }, [isDebugMode, apiGameData, apiPlayerData, debugGameData])
+
   // 合并数据
-  const gameData = useMemo(() =>
-          isDebugMode ? {data: debugGameData} : apiGameData,
-      [isDebugMode, debugGameData, apiGameData]
-  )
+  const gameData = useMemo(() => {
+    if (isDebugMode) {
+      return {data: debugGameData}
+    }
+    return {data: adaptedGameData}
+  }, [isDebugMode, debugGameData, adaptedGameData])
 
-  const playerData = useMemo(() =>
-          isDebugMode ? {data: debugPlayerData} : apiPlayerData,
-      [isDebugMode, debugPlayerData, apiPlayerData]
-  )
+  const playerData = useMemo(() => {
+    if (isDebugMode) {
+      return {data: debugPlayerData}
+    }
+    return {data: apiPlayerData}
+  }, [isDebugMode, debugPlayerData, apiPlayerData])
 
-  const isLoading = isDebugMode ? debugIsLoading : apiIsLoading
+  const isLoading = isDebugMode ? debugIsLoading : (apiIsLoading || isAdapting)
   const error = isDebugMode ? null : apiError
 
   // WebSocket
