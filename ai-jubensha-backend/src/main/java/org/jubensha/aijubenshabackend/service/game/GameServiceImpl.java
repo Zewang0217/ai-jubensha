@@ -1,9 +1,11 @@
 package org.jubensha.aijubenshabackend.service.game;
 
+import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
 import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 import org.jubensha.aijubenshabackend.repository.game.GameRepository;
+import org.jubensha.aijubenshabackend.service.investigation.InvestigationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +20,14 @@ public class GameServiceImpl implements GameService {
     private static final Logger logger = LoggerFactory.getLogger(GameServiceImpl.class);
 
     private final GameRepository gameRepository;
+    private final DiscussionService discussionService;
+    private final InvestigationService investigationService;
 
     @Autowired
-    public GameServiceImpl(GameRepository gameRepository) {
+    public GameServiceImpl(GameRepository gameRepository, DiscussionService discussionService, InvestigationService investigationService) {
         this.gameRepository = gameRepository;
+        this.discussionService = discussionService;
+        this.investigationService = investigationService;
     }
 
     @Override
@@ -177,5 +183,58 @@ public class GameServiceImpl implements GameService {
         } else {
             throw new IllegalArgumentException("Game not found with id: " + id);
         }
+    }
+
+    /**
+     * 优雅退出游戏
+     * <p>
+     * 停止游戏相关的所有后台任务，包括讨论服务、计时器等，
+     * 并更新游戏状态为已结束。
+     * </p>
+     *
+     * @param id 游戏ID
+     * @return 更新后的游戏实体
+     * @throws IllegalArgumentException 当游戏不存在时抛出
+     */
+    @Override
+    public Game exitGame(Long id) {
+        logger.info("优雅退出游戏，游戏ID: {}", id);
+
+        // 验证游戏是否存在
+        Optional<Game> existingGame = gameRepository.findById(id);
+        if (existingGame.isEmpty()) {
+            logger.error("游戏不存在，游戏ID: {}", id);
+            throw new IllegalArgumentException("Game not found with id: " + id);
+        }
+
+        Game game = existingGame.get();
+        logger.info("当前游戏状态: {}, 当前阶段: {}", game.getStatus(), game.getCurrentPhase());
+
+        try {
+            // 停止讨论服务，清理所有后台任务
+            logger.info("停止讨论服务，游戏ID: {}", id);
+            discussionService.stopDiscussion(id);
+            logger.info("讨论服务已停止，游戏ID: {}", id);
+        } catch (Exception e) {
+            // 记录错误但不中断退出流程
+            logger.warn("停止讨论服务时发生错误，游戏ID: {}, 错误: {}", id, e.getMessage(), e);
+        }
+
+        try {
+            // 清理工作流上下文缓存，防止旧玩家ID残留
+            logger.info("清理工作流上下文缓存，游戏ID: {}", id);
+            investigationService.removeWorkflowContext(id);
+            logger.info("工作流上下文缓存已清理，游戏ID: {}", id);
+        } catch (Exception e) {
+            // 记录错误但不中断退出流程
+            logger.warn("清理工作流上下文缓存时发生错误，游戏ID: {}, 错误: {}", id, e.getMessage(), e);
+        }
+
+        // 调用 endGame 更新游戏状态为 ENDED
+        logger.info("更新游戏状态为已结束，游戏ID: {}", id);
+        Game endedGame = endGame(id);
+        logger.info("游戏已优雅退出，游戏ID: {}, 结束时间: {}", id, endedGame.getEndTime());
+
+        return endedGame;
     }
 }

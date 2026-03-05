@@ -3,7 +3,7 @@
  * @description 讨论投票阶段，与 CharacterAssignment/ScriptReading/Investigation 风格保持一致
  */
 
-import {memo, useCallback, useEffect, useRef, useState} from 'react'
+import {memo, useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {AnimatePresence, motion} from 'framer-motion'
 import {Bot, ChevronRight, FileText, MessageCircle, Send, User, Vote} from 'lucide-react'
 import {PHASE_TYPE} from '../types'
@@ -178,7 +178,11 @@ MessageBubble.displayName = 'MessageBubble'
 // 投票候选人卡片
 // =============================================================================
 
-const CandidateCard = memo(({player, isSelected, hasVoted, onVote, onHover}) => (
+const CandidateCard = memo(({player, isSelected, hasVoted, onVote, onHover}) => {
+  // 获取玩家ID（兼容不同的数据格式）
+  const playerId = player.playerId || player.id
+  
+  return (
     <div
         onMouseEnter={() => onHover?.(player)}
         onMouseLeave={() => onHover?.(null)}
@@ -202,21 +206,21 @@ const CandidateCard = memo(({player, isSelected, hasVoted, onVote, onHover}) => 
           }
       `}
       >
-        {player.name.charAt(0)}
+        {(player.name || player.characterName || '?').charAt(0)}
       </div>
 
       {/* 信息 */}
       <div className="flex-1 min-w-0">
         <h4 className={`font-medium text-sm ${isSelected ? 'text-[#2D3748] dark:text-[#E8ECF2]' : 'text-[#5A6978] dark:text-[#9CA8B8]'}`}>
-          {player.name}
+          {player.name || player.characterName || '未知玩家'}
         </h4>
-        <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">{player.role}</p>
+        <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">{player.role || player.characterRole || '角色'}</p>
       </div>
 
       {/* 选择状态 */}
       {!hasVoted ? (
           <div
-              onClick={() => onVote(player.id)}
+              onClick={() => onVote(playerId)}
               className={`text-xs px-2 py-1 rounded ${isSelected ? 'text-[#F5A9C9] font-medium' : 'text-[#8C96A5]'}`}
           >
             {isSelected ? '已选择' : '选择'}
@@ -229,7 +233,8 @@ const CandidateCard = memo(({player, isSelected, hasVoted, onVote, onHover}) => 
           )
       )}
     </div>
-))
+  )
+})
 
 CandidateCard.displayName = 'CandidateCard'
 
@@ -276,7 +281,34 @@ TabSwitcher.displayName = 'TabSwitcher'
 // 主要组件
 // =============================================================================
 
-function Discussion({_config, gameData, playerData, onComplete, onAction}) {
+/**
+ * Discussion 组件
+ * @param {Object} props - 组件属性
+ * @param {Object} props.config - 阶段配置
+ * @param {Object} props.gameData - 游戏数据
+ * @param {Object} props.playerData - 玩家数据
+ * @param {Function} props.onComplete - 完成回调
+ * @param {Function} props.onAction - 动作回调
+ * @param {Function} props.subscribeToGameChat - 订阅游戏聊天消息
+ * @param {Function} props.sendChatMessage - 发送聊天消息
+ * @param {Function} props.sendVote - 发送投票
+ * @param {Function} props.unsubscribe - 取消订阅
+ * @param {boolean} props.isConnected - WebSocket连接状态
+ * @param {number} props.currentPlayerId - 当前真人玩家ID
+ */
+function Discussion({
+  config: _config,
+  gameData,
+  playerData,
+  onComplete,
+  onAction,
+  subscribeToGameChat,
+  sendChatMessage,
+  sendVote,
+  unsubscribe,
+  isConnected,
+  currentPlayerId,
+}) {
   const [messages, setMessages] = useState([])
   const [inputText, setInputText] = useState('')
   const [selectedTarget, setSelectedTarget] = useState(null)
@@ -286,85 +318,169 @@ function Discussion({_config, gameData, playerData, onComplete, onAction}) {
   const [hoveredPlayer, setHoveredPlayer] = useState(null)
   const [hoveredClue, setHoveredClue] = useState(null)
   const messagesEndRef = useRef(null)
+  const subscriptionIdRef = useRef(null)
 
   // 公开线索列表
-  const publicClues = gameData?.publicClues || [
-    {id: 'c1', name: '染血的拆信刀', type: '凶器'},
-    {id: 'c2', name: '打翻的茶杯', type: '物证'},
-    {id: 'c3', name: '遗嘱草稿', type: '文件'},
-    {id: 'c4', name: '断电记录', type: '时间线'},
-    {id: 'c5', name: '窗户插销', type: '矛盾点'},
-    {id: 'c6', name: '空药瓶', type: '毒药'},
-    {id: 'c7', name: '皱巴巴的纸条', type: '信息'},
-  ]
+  const publicClues = gameData?.publicClues || []
 
-  const players = gameData?.players || [
-    {id: 'p1', name: '林侦探', role: '调查员', isSelf: true},
-    {id: 'p2', name: '苏医生', role: '私人医生', isAI: true},
-    {id: 'p3', name: '陈管家', role: '管家', isAI: true},
-    {id: 'p4', name: '赵律师', role: '法律顾问', isAI: true},
-  ]
+  // 玩家列表 - 从 gameData.players 获取
+  const players = gameData?.players || []
 
-  const otherPlayers = players.filter(p => !p.isSelf)
+  // 获取真人玩家ID列表（用于判断消息来源）
+  const realPlayerIds = useMemo(() => {
+    const realPlayers = playerData?.filter(p => p.playerRole === 'REAL') || []
+    return realPlayers.map(p => p.playerId)
+  }, [playerData])
 
+  // 获取当前真人玩家信息
+  const currentPlayer = useMemo(() => {
+    return players.find(p => p.playerId === currentPlayerId) || players.find(p => p.isSelf)
+  }, [players, currentPlayerId])
+
+  // 其他玩家（排除自己）
+  const otherPlayers = useMemo(() => {
+    return players.filter(p => p.playerId !== currentPlayerId && !p.isSelf)
+  }, [players, currentPlayerId])
+
+  // 格式化时间
+  const formatTime = useCallback((date) => {
+    return date.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})
+  }, [])
+
+  // 根据玩家ID获取玩家名称
+  const getPlayerNameById = useCallback((playerId) => {
+    const player = players.find(p => p.playerId === playerId || p.id === playerId)
+    return player?.name || player?.characterName || `玩家${playerId}`
+  }, [players])
+
+  // 判断是否为真人玩家
+  const isRealPlayer = useCallback((playerId) => {
+    return realPlayerIds.includes(playerId)
+  }, [realPlayerIds])
+
+  // 订阅游戏聊天消息
+  useEffect(() => {
+    if (!subscribeToGameChat || !isConnected) {
+      console.log('[Discussion] WebSocket未连接或未提供订阅方法')
+      return
+    }
+
+    console.log('[Discussion] 开始订阅游戏聊天消息')
+    
+    subscriptionIdRef.current = subscribeToGameChat((message) => {
+      console.log('[Discussion] 收到WebSocket消息:', message)
+      
+      // 处理聊天消息
+      if (message.type === 'CHAT_MESSAGE' || message.type === 'chat_message') {
+        const senderId = message.sender
+        const content = message.payload
+        
+        // 忽略自己发送的消息（已经在本地添加了）
+        if (senderId === currentPlayerId) {
+          console.log('[Discussion] 忽略自己发送的消息')
+          return
+        }
+        
+        const newMessage = {
+          id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          sender: getPlayerNameById(senderId),
+          senderId: senderId,
+          content: content,
+          time: formatTime(new Date()),
+          isAI: !isRealPlayer(senderId),
+          isSystem: false,
+        }
+        
+        console.log('[Discussion] 添加AI玩家消息:', newMessage)
+        setMessages(prev => [...prev, newMessage])
+      }
+    })
+
+    return () => {
+      if (subscriptionIdRef.current && unsubscribe) {
+        console.log('[Discussion] 取消订阅游戏聊天消息')
+        unsubscribe(subscriptionIdRef.current)
+      }
+    }
+  }, [subscribeToGameChat, unsubscribe, isConnected, currentPlayerId, getPlayerNameById, isRealPlayer, formatTime])
+
+  // 滚动到最新消息
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({behavior: 'smooth'})
   }, [messages])
 
+  // 发送消息
   const handleSendMessage = useCallback(() => {
     if (!inputText.trim()) return
 
+    const content = inputText.trim()
+    
+    // 添加本地消息显示
     const newMessage = {
-      id: Date.now().toString(),
-      sender: '你',
-      content: inputText.trim(),
-      time: new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}),
+      id: `msg-${Date.now()}`,
+      sender: currentPlayer?.name || '你',
+      senderId: currentPlayerId,
+      content: content,
+      time: formatTime(new Date()),
       isAI: false,
+      isSystem: false,
     }
-
+    
+    console.log('[Discussion] 发送消息:', newMessage)
     setMessages(prev => [...prev, newMessage])
     setInputText('')
-    onAction?.('chat_message', {message: newMessage})
+    
+    // 发送到后端
+    if (sendChatMessage) {
+      console.log('[Discussion] 通过WebSocket发送消息到后端')
+      sendChatMessage(content)
+    } else {
+      console.warn('[Discussion] sendChatMessage方法未提供，无法发送消息到后端')
+    }
+    
+    // 调用onAction通知父组件
+    onAction?.('send_chat', {message: content})
+  }, [inputText, sendChatMessage, onAction, currentPlayer, currentPlayerId, formatTime])
 
-    // 模拟 AI 回复
-    setTimeout(() => {
-      const aiResponses = [
-        "有趣的推论。但你能证明吗？",
-        "案发时我在厨房。去问管家。",
-        "时间线对不上。有人在撒谎。",
-        "在指控任何人之前，我们需要更多证据。",
-      ]
-      const aiMsg = {
-        id: `ai-${Date.now()}`,
-        sender: otherPlayers[Math.floor(Math.random() * otherPlayers.length)].name,
-        content: aiResponses[Math.floor(Math.random() * aiResponses.length)],
-        time: new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}),
-        isAI: true,
-      }
-      setMessages(prev => [...prev, aiMsg])
-    }, 1500)
-  }, [inputText, onAction, otherPlayers])
-
+  // 提交投票
   const handleVote = useCallback(() => {
     if (!selectedTarget || !voteMessage.trim()) return
     
-    // 获取游戏ID和玩家ID
-    const gameId = gameData?.id || 'unknown'
-    const playerId = playerData?.id || 'unknown'
+    console.log('[Discussion] 提交投票:', {
+      targetId: selectedTarget,
+      voteMessage: voteMessage.trim(),
+      currentPlayerId,
+    })
+    
+    // 发送投票到后端
+    if (sendVote) {
+      console.log('[Discussion] 通过WebSocket发送投票到后端')
+      sendVote({
+        type: 'VOTE_SUBMIT',
+        targetId: selectedTarget,
+        playerId: currentPlayerId,
+        voteMessage: voteMessage.trim(),
+      })
+    } else {
+      console.warn('[Discussion] sendVote方法未提供，无法发送投票到后端')
+    }
     
     setHasVoted(true)
+    
+    // 调用onAction通知父组件
     onAction?.('vote_cast', {
       targetId: selectedTarget,
-      gameId: gameId,
-      playerId: playerId,
-      voteMessage: voteMessage.trim()
+      playerId: currentPlayerId,
+      voteMessage: voteMessage.trim(),
     })
-  }, [onAction, selectedTarget, voteMessage, gameData, playerData])
+  }, [sendVote, onAction, selectedTarget, voteMessage, currentPlayerId])
 
-  const handleComplete = () => {
+  // 完成讨论阶段
+  const handleComplete = useCallback(() => {
+    console.log('[Discussion] 完成讨论阶段')
     onAction?.('discussion_complete', {messageCount: messages.length, hasVoted})
     onComplete?.()
-  }
+  }, [onAction, onComplete, messages.length, hasVoted])
 
   return (
       <div className="h-full relative overflow-hidden">
@@ -569,9 +685,9 @@ function Discussion({_config, gameData, playerData, onComplete, onAction}) {
                             <div className="flex flex-col gap-3">
                               {otherPlayers.map((player) => (
                                   <CandidateCard
-                                      key={player.id}
+                                      key={player.playerId || player.id}
                                       player={player}
-                                      isSelected={selectedTarget === player.id}
+                                      isSelected={selectedTarget === (player.playerId || player.id)}
                                       hasVoted={hasVoted}
                                       onVote={(playerId) => setSelectedTarget(playerId)}
                                       onHover={setHoveredPlayer}

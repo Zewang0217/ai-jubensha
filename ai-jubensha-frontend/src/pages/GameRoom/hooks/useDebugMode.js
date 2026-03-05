@@ -266,6 +266,37 @@ export function useDebugMode(options = {}) {
     }, [isDebugMode, mockWs])
 
     /**
+     * 发送聊天消息（发送聊天消息到聊天室）
+     * @param {string|Object} content - 聊天内容或消息对象
+     * @returns {boolean}
+     */
+    const sendChatMessage = useCallback((content) => {
+        if (!isDebugMode) return false
+
+        // 如果传入的是字符串，包装成消息对象
+        const message = typeof content === 'string' ? {
+            type: 'CHAT_MESSAGE',
+            payload: content,
+        } : content
+
+        return mockWs.send(message)
+    }, [isDebugMode, mockWs])
+
+    /**
+     * 发送投票
+     * @param {number} characterId - 角色ID
+     * @returns {boolean}
+     */
+    const sendVote = useCallback((characterId) => {
+        if (!isDebugMode) return false
+
+        return mockWs.send({
+            type: 'VOTE_SUBMIT',
+            payload: {characterId},
+        })
+    }, [isDebugMode, mockWs])
+
+    /**
      * 监听 WebSocket 消息
      *
      * @param {string} type - 消息类型
@@ -335,6 +366,8 @@ export function useDebugMode(options = {}) {
         // WebSocket
         isConnected: wsState.isConnected,
         sendMessage,
+        sendChatMessage,
+        sendVote,
         onMessage,
         offMessage,
 

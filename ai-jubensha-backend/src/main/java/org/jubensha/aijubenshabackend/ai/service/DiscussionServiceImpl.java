@@ -24,10 +24,13 @@ import java.time.LocalDateTime;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -81,6 +84,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private org.jubensha.aijubenshabackend.repository.dialogue.DialogueRepository dialogueRepository;
 
     @Resource
+    @org.springframework.context.annotation.Lazy
     private org.jubensha.aijubenshabackend.service.game.GameService gameService;
 
     @Resource
@@ -117,6 +121,12 @@ public class DiscussionServiceImpl implements DiscussionService {
     private boolean discussionCompleted = false;
     @Autowired
     private CharacterService characterService;
+    
+    // 真人玩家ID集合
+    private Set<Long> realPlayerIds = new ConcurrentHashMap<Long, Boolean>().keySet(Boolean.TRUE);
+    
+    // 真人玩家投票等待锁
+    private final Map<Long, CountDownLatch> voteWaitLatches = new ConcurrentHashMap<>();
 
     // 讨论完成回调接口
     public interface DiscussionCompletionCallback {
@@ -146,7 +156,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public void startDiscussion(Long gameId, List<Long> playerIds, Long dmId, Long judgeId) {
-        log.info("开始讨论，游戏ID: {}, 玩家数量: {}, DM ID: {}, Judge ID: {}", gameId, playerIds.size(), dmId, judgeId);
+        log.info("[讨论开始] 开始讨论，游戏ID: {}, 玩家数量: {}, DM ID: {}, Judge ID: {}", gameId, playerIds.size(), dmId, judgeId);
 
         this.gameId = gameId;
         this.playerIds = playerIds;
@@ -169,6 +179,10 @@ public class DiscussionServiceImpl implements DiscussionService {
             privateChatInvitations.put(playerId, new ArrayList<>());
         }
 
+        // 获取真人玩家ID列表
+        realPlayerIds = getRealPlayerIds(gameId, playerIds);
+        log.info("[讨论开始] 真人玩家数量: {}, 真人玩家ID: {}", realPlayerIds.size(), realPlayerIds);
+
         // 获取角色ID列表和剧本ID
         List<Long> characterIds = new ArrayList<>();
         Long scriptId = null;
@@ -186,11 +200,11 @@ public class DiscussionServiceImpl implements DiscussionService {
                         scriptId = character.getScriptId();
                     }
                 } else {
-                    log.warn("玩家 {} 没有分配角色", playerId);
+                    log.warn("[讨论开始] 玩家 {} 没有分配角色", playerId);
                     characterIds.add(1L); // 备用方案
                 }
             } else {
-                log.warn("未找到玩家 {} 的游戏记录", playerId);
+                log.warn("[讨论开始] 未找到玩家 {} 的游戏记录", playerId);
                 characterIds.add(1L); // 备用方案
             }
         }
@@ -198,19 +212,56 @@ public class DiscussionServiceImpl implements DiscussionService {
         // 确保剧本ID有值
         if (scriptId == null) {
             scriptId = 1L; // 备用方案
-            log.warn("未找到剧本ID，使用默认值 1");
+            log.warn("[讨论开始] 未找到剧本ID，使用默认值 1");
         }
         
-        log.info("获取到角色ID列表: {}, 剧本ID: {}", characterIds, scriptId);
+        log.info("[讨论开始] 获取到角色ID列表: {}, 剧本ID: {}", characterIds, scriptId);
 
-        // 使用DMModerator启动讨论环节
-        dmModerator.startDiscussion(gameId, playerIds, dmId, characterIds, scriptId);
+        // 使用DMModerator启动讨论环节，传递真人玩家ID集合
+        dmModerator.startDiscussion(gameId, playerIds, dmId, characterIds, scriptId, realPlayerIds);
 
         // 启动讨论完成的监控
         startDiscussionCompletionMonitor();
         
         // 注意：DMModerator会在单独的线程中执行陈述阶段
         // 陈述阶段结束后，自由讨论阶段将由中央调度器控制
+    }
+    
+    /**
+     * 获取真人玩家ID集合
+     *
+     * @param gameId    游戏ID
+     * @param playerIds 玩家ID列表
+     * @return 真人玩家ID集合
+     */
+    private Set<Long> getRealPlayerIds(Long gameId, List<Long> playerIds) {
+        Set<Long> realPlayerIds = new HashSet<>();
+        for (Long playerId : playerIds) {
+            try {
+                Optional<GamePlayer> gamePlayerOpt = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
+                if (gamePlayerOpt.isPresent()) {
+                    GamePlayer gamePlayer = gamePlayerOpt.get();
+                    // 通过Player实体获取角色类型
+                    if (gamePlayer.getPlayer() != null && gamePlayer.getPlayer().getRole() == org.jubensha.aijubenshabackend.models.enums.PlayerRole.REAL) {
+                        realPlayerIds.add(playerId);
+                        log.info("[玩家识别] 玩家 {} 是真人玩家", playerId);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("[玩家识别] 获取玩家 {} 的角色类型失败: {}", playerId, e.getMessage());
+            }
+        }
+        return realPlayerIds;
+    }
+    
+    /**
+     * 判断玩家是否为真人玩家
+     *
+     * @param playerId 玩家ID
+     * @return 是否为真人玩家
+     */
+    public boolean isRealPlayer(Long playerId) {
+        return realPlayerIds.contains(playerId);
     }
 
     @Override
@@ -365,7 +416,7 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public void startAnswerPhase() {
-        log.info("开始答题阶段");
+        log.info("[答题阶段] 开始答题阶段，游戏ID: {}, 真人玩家数量: {}", gameId, realPlayerIds.size());
         currentPhase = "ANSWER";
         discussionState.put("currentPhase", currentPhase);
         discussionState.put("phaseStartTime", LocalDateTime.now());
@@ -380,31 +431,113 @@ public class DiscussionServiceImpl implements DiscussionService {
         DMAgent dmAgent = aiService.getDMAgent(dmId);
         if (dmAgent != null) {
             String response = dmAgent.moderateDiscussion("开始答题阶段，请每位玩家给出你的答案");
-            log.info("DM响应: {}", response);
+            log.info("[答题阶段] DM响应: {}", response);
         }
 
-        // 启动AI玩家的答题推理
+        // 初始化真人玩家投票等待锁
+        for (Long realPlayerId : realPlayerIds) {
+            voteWaitLatches.put(realPlayerId, new CountDownLatch(1));
+        }
+
+        // AI玩家自动提交答案
         for (Long playerId : playerIds) {
+            // 跳过真人玩家
+            if (realPlayerIds.contains(playerId)) {
+                log.info("[答题阶段] 跳过真人玩家 {}，等待WebSocket投票", playerId);
+                continue;
+            }
+            
+            // AI玩家：自动生成答案
+            final Long aiPlayerId = playerId;
             executorService.submit(() -> {
                 try {
                     // 执行思考并生成答案
                     String answer = executeThinkingAndGenerateResponse(
-                            playerId, "分析所有信息并确定凶手"
+                            aiPlayerId, "分析所有信息并确定凶手"
                     );
 
                     // 提交答案
                     if (answer != null && !answer.isEmpty()) {
-                        log.info("AI玩家答题，玩家ID: {}, 答案: {}", playerId, answer);
-                        submitAnswer(playerId, answer);
+                        log.info("[答题阶段] AI玩家 {} 答案: {}", aiPlayerId, answer);
+                        submitAnswer(aiPlayerId, answer);
                     }
                 } catch (Exception e) {
-                    log.error("处理AI玩家答题失败: {}", e.getMessage(), e);
+                    log.error("[答题阶段] 处理AI玩家答题失败: {}", e.getMessage(), e);
                 }
             });
         }
 
-        // 启动答题阶段计时器（默认10分钟）
-        timerService.startTimer("ANSWER", 600L, this::endDiscussionPhase);
+        // 等待真人玩家投票（在单独的线程中）
+        if (!realPlayerIds.isEmpty()) {
+            executorService.submit(() -> {
+                try {
+                    log.info("[答题阶段] 等待 {} 个真人玩家投票...", realPlayerIds.size());
+                    
+                    // 等待所有真人玩家投票（最多10分钟）
+                    boolean allVoted = true;
+                    for (Long realPlayerId : realPlayerIds) {
+                        CountDownLatch latch = voteWaitLatches.get(realPlayerId);
+                        if (latch != null) {
+                            boolean voted = latch.await(600, TimeUnit.SECONDS);
+                            if (!voted) {
+                                log.warn("[答题阶段] 真人玩家 {} 投票超时", realPlayerId);
+                                allVoted = false;
+                            }
+                        }
+                    }
+                    
+                    if (allVoted) {
+                        log.info("[答题阶段] 所有真人玩家已投票");
+                    }
+                    
+                    // 检查是否所有玩家都已提交答案
+                    checkAllAnswersSubmitted();
+                    
+                } catch (InterruptedException e) {
+                    log.error("[答题阶段] 等待真人玩家投票被中断: {}", e.getMessage(), e);
+                    Thread.currentThread().interrupt();
+                }
+            });
+        } else {
+            // 没有真人玩家，启动答题阶段计时器
+            timerService.startTimer("ANSWER", 600L, this::endDiscussionPhase);
+        }
+    }
+    
+    /**
+     * 处理真人玩家投票
+     * 当真人玩家通过WebSocket投票时调用
+     *
+     * @param playerId 玩家ID
+     * @param answer   答案
+     */
+    public void onRealPlayerVoteReceived(Long playerId, String answer) {
+        log.info("[真人投票] 收到真人玩家 {} 的投票，答案: {}", playerId, answer);
+        
+        // 存储答案
+        playerAnswers.put(playerId, answer);
+        
+        // 释放等待锁
+        CountDownLatch latch = voteWaitLatches.get(playerId);
+        if (latch != null) {
+            latch.countDown();
+            log.info("[真人投票] 释放玩家 {} 的投票等待锁", playerId);
+        }
+        
+        // 检查是否所有玩家都已提交答案
+        checkAllAnswersSubmitted();
+    }
+    
+    /**
+     * 检查是否所有玩家都已提交答案
+     */
+    private void checkAllAnswersSubmitted() {
+        if (playerAnswers.size() == playerIds.size()) {
+            log.info("[答题检查] 所有玩家都已提交答案，开始评分流程");
+            endDiscussionPhase();
+        } else {
+            log.info("[答题检查] 已提交答案: {}/{}", playerAnswers.size(), playerIds.size());
+        }
     }
 
     @Override
@@ -1333,5 +1466,45 @@ public class DiscussionServiceImpl implements DiscussionService {
             log.error("测试DM评分功能失败: {}", e.getMessage(), e);
             return "{\"error\": \"测试DM评分功能失败: " + e.getMessage() + "\"}";
         }
+    }
+
+    @Override
+    public void stopDiscussion(Long gameId) {
+        log.info("[停止讨论] 开始停止讨论，游戏ID: {}", gameId);
+
+        // 停止中央调度器
+        stopCentralDirector();
+        log.info("[停止讨论] 中央调度器已停止");
+
+        // 清理讨论状态映射
+        discussionState.clear();
+        log.info("[停止讨论] 讨论状态映射已清理");
+
+        // 重置讨论完成标记
+        discussionCompleted = false;
+        log.info("[停止讨论] 讨论完成标记已重置");
+
+        // 清理玩家相关状态
+        playerAnswers.clear();
+        privateChatInvitations.clear();
+        privateChatCounts.clear();
+        desireScores.clear();
+        lastSpeakTimes.clear();
+        log.info("[停止讨论] 玩家相关状态已清理");
+
+        // 取消所有计时器
+        timerService.cancelTimer("STATEMENT");
+        timerService.cancelTimer("FREE_DISCUSSION");
+        timerService.cancelTimer("PRIVATE_CHAT");
+        timerService.cancelTimer("ANSWER");
+        log.info("[停止讨论] 所有计时器已取消");
+
+        // 重置当前阶段
+        currentPhase = null;
+        
+        // 重置讨论轮次
+        discussionRound = 1;
+
+        log.info("[停止讨论] 讨论已完全停止，游戏ID: {}", gameId);
     }
 }
