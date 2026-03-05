@@ -147,7 +147,7 @@ class WebSocketService {
 
     /**
      * 发送聊天消息
-     * @param {string} content - 聊天内容
+     * @param {string|Object} content - 聊天内容或消息对象
      * @returns {boolean}
      */
     sendChatMessage(content) {
@@ -156,15 +156,18 @@ class WebSocketService {
             return false
         }
 
-        return this.send(`/app/game/${this.gameId}/chat`, {
+        // 如果传入的是字符串，包装成消息对象
+        const message = typeof content === 'string' ? {
             type: 'CHAT_MESSAGE',
             payload: content,
-        })
+        } : content
+
+        return this.send(`/app/game/${this.gameId}/chat`, message)
     }
 
     /**
      * 发送投票
-     * @param {number} characterId - 投票给的角色 ID
+     * @param {number|Object} characterId - 角色ID或投票消息对象
      * @returns {boolean}
      */
     sendVote(characterId) {
@@ -173,10 +176,13 @@ class WebSocketService {
             return false
         }
 
-        return this.send(`/app/game/${this.gameId}/vote`, {
+        // 如果传入的是数字，包装成投票对象
+        const message = typeof characterId === 'number' ? {
             type: 'VOTE_SUBMIT',
             payload: {characterId},
-        })
+        } : characterId
+
+        return this.send(`/app/game/${this.gameId}/vote`, message)
     }
 
     /**

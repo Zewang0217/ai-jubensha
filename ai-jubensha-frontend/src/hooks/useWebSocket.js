@@ -51,7 +51,7 @@ export const useWebSocket = (baseUrl, gameId) => {
 
     /**
      * 发送聊天消息
-     * @param {string} content - 聊天内容
+     * @param {string|Object} content - 聊天内容或消息对象
      * @returns {boolean}
      */
     const sendChatMessage = useCallback((content) => {
@@ -60,7 +60,7 @@ export const useWebSocket = (baseUrl, gameId) => {
 
     /**
      * 发送投票
-     * @param {number} characterId - 角色ID
+     * @param {number|Object} characterId - 角色ID或投票消息对象
      * @returns {boolean}
      */
     const sendVote = useCallback((characterId) => {
