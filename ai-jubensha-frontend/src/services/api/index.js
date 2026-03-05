@@ -95,6 +95,26 @@ export const sceneApi = {
     createScene: (data) => api.post('/scenes', data),
 }
 
+// 阶段状态相关 API
+/**
+ * 获取游戏阶段状态
+ * @param {string|number} gameId - 游戏ID
+ * @returns {Promise<Object>} 阶段状态信息
+ */
+export const getPhaseStatus = async (gameId) => {
+    return api.get(`/games/${gameId}/phase-status`)
+}
+
+/**
+ * 确认阶段完成
+ * @param {string|number} gameId - 游戏ID
+ * @param {Object} data - 确认数据 { playerId, phase }
+ * @returns {Promise<Object>} 确认结果
+ */
+export const confirmPhase = async (gameId, data) => {
+    return api.post(`/games/${gameId}/confirm-phase`, data)
+}
+
 // 导出新的模块化 API
 export {
     getScripts,

@@ -46,7 +46,7 @@ const PhaseComponents = {
 // 常量配置
 // =============================================================================
 
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8088'
+const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080'
 const DEFAULT_DEBUG_MODE = false // 默认关闭调试模式，使用真实数据
 
 const TRANSITION_CONFIG = {
@@ -278,6 +278,13 @@ function GameRoom() {
     updatePhaseData,
     getPhaseData,
     goToPhase,
+    // 阶段同步相关状态
+    isBackendReady,
+    waitingMessage,
+    isCheckingBackend,
+    confirmCurrentPhase,
+    setWaitingMessage,
+    setIsBackendReady,
   } = usePhaseManager({
     sequence: DEFAULT_PHASE_SEQUENCE,
     onPhaseChange: (newPhase, prevPhase) => {
@@ -363,66 +370,134 @@ function GameRoom() {
   const isLoading = isDebugMode ? debugIsLoading : (apiIsLoading || isAdapting)
   const error = isDebugMode ? null : apiError
 
-  // WebSocket
-  const wsUrl = useMemo(() => `${WS_BASE_URL}/ws/game/${id}`, [id])
+  // WebSocket - 使用新的 STOMP over SockJS 连接
+  // 后端要求连接格式: /ws?gameId={gameId}
+  const wsBaseUrl = WS_BASE_URL.replace('ws://', 'http://').replace('wss://', 'https://')
 
   const {
     isConnected: apiIsConnected,
-    sendMessage: apiSendMessage,
-    onMessage: apiOnMessage,
-  } = useWebSocket(isDebugMode ? null : wsUrl)
+    sendChatMessage,
+    sendVote,
+    subscribeToGameChat,
+    subscribeToPersonalMessages,
+    subscribe,
+  } = useWebSocket(isDebugMode ? null : wsBaseUrl, isDebugMode ? null : id)
 
   const isConnected = isDebugMode ? debugIsConnected : apiIsConnected
-  const sendMessage = isDebugMode ? debugSendMessage : apiSendMessage
-  const onMessage = isDebugMode ? debugOnMessage : apiOnMessage
 
-  // WebSocket 监听
+  // WebSocket 消息订阅
   useEffect(() => {
-    const handleServerPhaseChange = (data) => {
-      if (data?.phase && data.phase !== currentPhase) {
-        console.log('[GameRoom] 服务器阶段切换:', data)
-        goToPhase(data.phase)
+    if (isDebugMode || !isConnected) return
+
+    console.log('[GameRoom] 订阅 WebSocket 消息')
+
+    // 订阅游戏聊天消息
+    const chatSubscriptionId = subscribeToGameChat((message) => {
+      console.log('[GameRoom] 收到聊天消息:', message)
+      // 处理聊天消息
+    })
+
+    // 订阅个人消息
+    const personalSubscriptionId = subscribeToPersonalMessages((message) => {
+      console.log('[GameRoom] 收到个人消息:', message)
+      // 处理个人消息，如剧本就绪、开始搜证等
+      if (message?.type === 'SCRIPT_READY') {
+        console.log('[GameRoom] 剧本已就绪:', message.payload)
+      } else if (message?.type === 'START_INVESTIGATION') {
+        console.log('[GameRoom] 开始搜证:', message.payload)
+      }
+    })
+
+    return () => {
+      // 清理订阅
+      if (chatSubscriptionId) {
+        console.log('[GameRoom] 取消聊天订阅')
+      }
+      if (personalSubscriptionId) {
+        console.log('[GameRoom] 取消个人消息订阅')
+      }
+    }
+  }, [isDebugMode, isConnected, subscribeToGameChat, subscribeToPersonalMessages])
+
+  // WebSocket 监听阶段就绪消息
+  useEffect(() => {
+    if (isDebugMode || !isConnected || !id) return
+
+    /**
+     * 处理阶段就绪消息
+     * @param {Object} data - 消息数据
+     * @param {boolean} data.isReady - 是否就绪
+     * @param {string} [data.message] - 等待消息
+     */
+    const handlePhaseReady = (data) => {
+      console.log('[GameRoom] 收到阶段就绪消息:', data)
+      if (data?.isReady) {
+        setIsBackendReady(true)
+        setWaitingMessage(null)
+      } else {
+        setIsBackendReady(false)
+        setWaitingMessage(data?.message || '等待其他玩家...')
       }
     }
 
-    const handleGameUpdate = (data) => {
-      console.log('[GameRoom] 游戏更新:', data)
-    }
-
-    const unsubPhase = onMessage('PHASE_CHANGE', handleServerPhaseChange)
-    const unsubGame = onMessage('GAME_UPDATE', handleGameUpdate)
+    // 订阅阶段就绪消息主题
+    const phaseReadySubscriptionId = subscribe(`/topic/game/${id}/phase-ready`, handlePhaseReady)
 
     return () => {
-      unsubPhase?.()
-      unsubGame?.()
+      // 清理订阅
+      if (phaseReadySubscriptionId) {
+        console.log('[GameRoom] 取消阶段就绪订阅')
+      }
     }
-  }, [onMessage, currentPhase, goToPhase])
+  }, [isDebugMode, isConnected, id, subscribe, setIsBackendReady, setWaitingMessage])
 
   // 事件处理
-  const handlePhaseComplete = useCallback(() => goToNext(), [goToNext])
+  /**
+   * 处理阶段完成
+   * @description 通知后端阶段确认后进入下一阶段
+   */
+  const handlePhaseComplete = useCallback(async () => {
+    // 获取当前玩家ID（从 playerData 中获取）
+    const currentPlayerId = playerData?.data?.find(p => p.isCurrentPlayer)?.id
+
+    if (id) {
+      // 如果有真人玩家ID，发送玩家确认；否则发送观察者确认（playerId = null）
+      await confirmCurrentPhase(id, currentPlayerId || null)
+    }
+
+    goToNext()
+  }, [goToNext, confirmCurrentPhase, id, playerData])
+
   const handlePhaseSkip = useCallback(() => goToNext(), [goToNext])
   const handlePhaseBack = useCallback(() => goToPrevious(), [goToPrevious])
 
+  /**
+   * 处理玩家动作
+   * @param {string} action - 动作类型
+   * @param {*} payload - 动作数据
+   */
   const handleAction = useCallback((action, payload) => {
-    sendMessage({
-      type: 'PLAYER_ACTION',
-      action,
-      payload,
-      timestamp: Date.now(),
-    })
+    console.log('[GameRoom] 玩家动作:', action, payload)
+
+    // 根据动作类型处理
+    if (action === 'send_chat' && payload?.message) {
+      sendChatMessage(payload.message)
+    } else if (action === 'vote' && payload?.characterId) {
+      sendVote(payload.characterId)
+    }
 
     updatePhaseData(currentPhase, {[action]: payload})
 
     if (action === 'return_home') navigate('/')
     if (action === 'play_again') navigate('/games')
-  }, [currentPhase, navigate, sendMessage, updatePhaseData])
+  }, [currentPhase, navigate, sendChatMessage, sendVote, updatePhaseData])
 
   const handleExit = useCallback(() => {
     if (window.confirm('确定要退出游戏吗？未保存的进度将会丢失。')) {
-      sendMessage({type: 'GAME_LEAVE', gameId: id})
+      // 断开 WebSocket 连接
       navigate('/games')
     }
-  }, [id, navigate, sendMessage])
+  }, [navigate])
 
   const handleDebugPhaseChange = useCallback((phase) => {
     if (isDebugMode) {
@@ -531,6 +606,29 @@ function GameRoom() {
             onExit={handleExit}
             onPhaseClick={handlePhaseSelect}
         />
+
+        {/* 阶段同步等待提示 */}
+        <AnimatePresence>
+          {waitingMessage && (
+              <motion.div
+                  initial={{opacity: 0, y: -20}}
+                  animate={{opacity: 1, y: 0}}
+                  exit={{opacity: 0, y: -20}}
+                  className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50"
+              >
+                <div className="bg-amber-50 dark:bg-amber-900/80 border border-amber-200 dark:border-amber-700 rounded-xl px-6 py-4 shadow-lg flex items-center gap-3">
+                  <motion.div
+                      animate={{rotate: 360}}
+                      transition={{duration: 1.5, repeat: Infinity, ease: 'linear'}}
+                      className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full"
+                  />
+                  <span className="text-amber-800 dark:text-amber-200 font-medium">
+                    {waitingMessage}
+                  </span>
+                </div>
+              </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 主内容区 */}
         <main className="relative z-10 flex-1 min-h-0">
