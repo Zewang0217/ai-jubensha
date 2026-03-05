@@ -263,10 +263,10 @@ function GameRoom() {
     gameData: debugGameData,
     playerData: debugPlayerData,
     isConnected: debugIsConnected,
-    sendMessage: debugSendMessage,
+    sendMessage: _debugSendMessage,
     sendChatMessage: debugSendChatMessage,
     sendVote: debugSendVote,
-    onMessage: debugOnMessage,
+    onMessage: _debugOnMessage,
     toggleDebugMode,
     forcePhaseChange,
   } = useDebugMode({enabled: DEFAULT_DEBUG_MODE})
@@ -284,9 +284,9 @@ function GameRoom() {
     getPhaseData,
     goToPhase,
     // 阶段同步相关状态
-    isBackendReady,
+    isBackendReady: _isBackendReady,
     waitingMessage,
-    isCheckingBackend,
+    isCheckingBackend: _isCheckingBackend,
     confirmCurrentPhase,
     setWaitingMessage,
     setIsBackendReady,
@@ -429,6 +429,7 @@ function GameRoom() {
     subscribeToGameChat,
     subscribeToPersonalMessages,
     subscribe,
+    unsubscribe,
   } = useWebSocket(isDebugMode ? null : wsBaseUrl, isDebugMode ? null : id)
 
   // 获取真人玩家ID
@@ -699,18 +700,34 @@ function GameRoom() {
       )
     }
 
-    return (
-        <PhaseComponent
-            config={currentConfig}
-            gameData={gameData?.data}
-            playerData={playerData?.data}
-            phaseData={getPhaseData(currentPhase)}
-            onComplete={handlePhaseComplete}
-            onSkip={handlePhaseSkip}
-            onBack={handlePhaseBack}
-            onAction={handleAction}
-        />
-    )
+    // 基础props
+    const baseProps = {
+      config: currentConfig,
+      gameData: gameData?.data,
+      playerData: playerData?.data,
+      phaseData: getPhaseData(currentPhase),
+      onComplete: handlePhaseComplete,
+      onSkip: handlePhaseSkip,
+      onBack: handlePhaseBack,
+      onAction: handleAction,
+    }
+
+    // 为Discussion阶段添加WebSocket相关props
+    if (currentPhase === PHASE_TYPE.DISCUSSION) {
+      return (
+          <PhaseComponent
+              {...baseProps}
+              isConnected={isConnected}
+              subscribeToGameChat={subscribeToGameChat}
+              sendChatMessage={sendChatMessage}
+              sendVote={sendVote}
+              unsubscribe={unsubscribe}
+              currentPlayerId={currentPlayerId}
+          />
+      )
+    }
+
+    return <PhaseComponent {...baseProps} />
   }, [
     currentPhase,
     currentConfig,
@@ -721,6 +738,12 @@ function GameRoom() {
     handlePhaseSkip,
     handlePhaseBack,
     handleAction,
+    isConnected,
+    subscribeToGameChat,
+    sendChatMessage,
+    sendVote,
+    unsubscribe,
+    currentPlayerId,
   ])
 
   // 渲染状态
