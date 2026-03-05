@@ -241,6 +241,10 @@ public class WorkflowContext implements Serializable {
      * 用于全AI玩家模式下，观察者确认阶段完成
      */
     private boolean observerConfirmed;
+    /**
+     * 所有玩家搜证是否完成
+     */
+    private boolean allInvestigationComplete;
 
     // ====== 上下文操作方法 ======
 
