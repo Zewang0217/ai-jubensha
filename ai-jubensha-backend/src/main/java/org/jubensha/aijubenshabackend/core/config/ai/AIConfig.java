@@ -45,7 +45,7 @@ public class AIConfig {
                     .baseUrl(baseUrl)
                     .modelName(modelName)  // 使用配置的模型名称，而不是硬编码
                     .temperature(0.7)
-                    .timeout(java.time.Duration.ofSeconds(300))  // 设置超时时间为300秒
+                    .timeout(java.time.Duration.ofSeconds(600))  // 设置超时时间为600秒
                     .maxTokens(4096)  // 设置最大token数，确保生成完整的剧本JSON
                     .build();
             
@@ -70,7 +70,7 @@ public class AIConfig {
                     .baseUrl(baseUrl)
                     .modelName(modelName)  // 使用配置的模型名称，而不是硬编码
                     .temperature(0.7)
-                    .timeout(java.time.Duration.ofSeconds(300))  // 设置超时时间为300秒
+                    .timeout(java.time.Duration.ofSeconds(600))  // 设置超时时间为600秒
                     .maxTokens(4096)  // 设置最大token数，确保生成完整的剧本JSON
                     .build();
             

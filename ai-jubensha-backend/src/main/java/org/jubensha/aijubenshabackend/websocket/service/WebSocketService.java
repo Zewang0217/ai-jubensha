@@ -55,4 +55,12 @@ public interface WebSocketService {
      * @param message 提示信息
      */
     void broadcastPhaseReady(Long gameId, String nodeName, Boolean isReady, String message);
+
+    /**
+     * 广播搜证完成通知
+     *
+     * @param gameId 游戏ID
+     * @param message 提示信息
+     */
+    void broadcastInvestigationComplete(Long gameId, String message);
 }
