@@ -8,6 +8,52 @@ import {getCharactersByScriptId} from './character'
 import {getScenesByScriptId, getSceneClues} from './scene'
 
 /**
+ * 根据场景名称智能分配线索到场景
+ * @param {Array} clues - 线索列表
+ * @param {Array} scenes - 场景列表
+ * @returns {Object} 场景名称到线索列表的映射
+ */
+const distributeCluesBySceneName = (clues, scenes) => {
+    const sceneNameToIdMap = new Map()
+    scenes.forEach(scene => {
+        sceneNameToIdMap.set(scene.name.toLowerCase(), scene.id)
+        sceneNameToIdMap.set(scene.name, scene.id)
+    })
+
+    const clueDistribution = {}
+    clues.forEach(clue => {
+        let assignedSceneId = clue.sceneId
+
+        // 如果线索没有 sceneId，尝试根据 scene 字段匹配
+        if (!assignedSceneId && clue.scene) {
+            const matchedId = sceneNameToIdMap.get(clue.scene.toLowerCase()) 
+                || sceneNameToIdMap.get(clue.scene)
+            if (matchedId) {
+                assignedSceneId = matchedId
+            }
+        }
+
+        // 如果仍然没有匹配的，默认分配到第一个场景
+        if (!assignedSceneId && scenes.length > 0) {
+            assignedSceneId = scenes[0].id
+        }
+
+        if (assignedSceneId) {
+            const sceneIdStr = String(assignedSceneId)
+            if (!clueDistribution[sceneIdStr]) {
+                clueDistribution[sceneIdStr] = []
+            }
+            clueDistribution[sceneIdStr].push({
+                ...clue,
+                sceneId: assignedSceneId
+            })
+        }
+    })
+
+    return clueDistribution
+}
+
+/**
  * 将后端游戏数据转换为前端所需格式
  * @param {Object} gameData - 后端返回的游戏数据
  * @param {Array} players - 后端返回的游戏玩家数据
@@ -60,8 +106,23 @@ export const adaptGameData = async (gameData, players) => {
                         try {
                             console.log(`[adaptGameData] Fetching clues for scene ${scene.id} (${scene.name})`)
                             const cluesResponse = await getSceneClues(scene.id)
-                            const clues = cluesResponse?.data || cluesResponse || []
-                            console.log(`[adaptGameData] Got ${clues.length} clues for scene ${scene.id}:`, clues.map(c => ({ id: c.id, name: c.name })))
+                            let clues = cluesResponse?.data || cluesResponse || []
+                            
+                            // 过滤掉没有 sceneId 或者 sceneId 匹配的线索
+                            clues = clues.filter(clue => {
+                                // 如果线索有 sceneId，必须匹配当前场景
+                                if (clue.sceneId) {
+                                    return Number(clue.sceneId) === Number(scene.id)
+                                }
+                                // 如果线索没有 sceneId，检查 scene 字段是否匹配场景名称
+                                if (clue.scene) {
+                                    return clue.scene.toLowerCase() === scene.name.toLowerCase()
+                                }
+                                // 如果都没有，暂不显示（会被分配到其他场景）
+                                return false
+                            })
+                            
+                            console.log(`[adaptGameData] Got ${clues.length} clues for scene ${scene.id}:`, clues.map(c => ({ id: c.id, name: c.name, sceneId: c.sceneId })))
                             return {
                                 ...scene,
                                 clues: Array.isArray(clues) ? clues : [],
@@ -77,6 +138,49 @@ export const adaptGameData = async (gameData, players) => {
                         }
                     })
                 )
+                
+                // 检查是否有未分配到场景的线索
+                const allClues = scenesWithClues.flatMap(s => s.clues)
+                const unassignedClues = []
+                
+                if (allClues.length === 0 && scenes.length > 0) {
+                    // 尝试获取所有线索（备用方案）
+                    try {
+                        const allCluesResponse = await getScenesByScriptId(scriptId)
+                        const allScenes = allCluesResponse?.data || allCluesResponse || []
+                        
+                        // 收集所有线索
+                        const allCluesCollected = []
+                        for (const s of allScenes) {
+                            try {
+                                const cluesResp = await getSceneClues(s.id)
+                                const c = cluesResp?.data || cluesResp || []
+                                allCluesCollected.push(...c.map(cl => ({...cl, _sourceSceneId: s.id})))
+                            } catch (e) {
+                                // 忽略错误
+                            }
+                        }
+                        
+                        if (allCluesCollected.length > 0) {
+                            console.log('[adaptGameData] Total clues collected from all scenes:', allCluesCollected.length)
+                            
+                            // 使用智能分配
+                            const clueDistribution = distributeCluesBySceneName(allCluesCollected, scenes)
+                            
+                            // 更新场景的线索
+                            scenesWithClues.forEach(scene => {
+                                const sceneIdStr = String(scene.id)
+                                if (clueDistribution[sceneIdStr]) {
+                                    scene.clues = clueDistribution[sceneIdStr]
+                                    scene.clueCount = clueDistribution[sceneIdStr].length
+                                }
+                            })
+                        }
+                    } catch (e) {
+                        console.error('[adaptGameData] Fallback to collect all clues failed:', e)
+                    }
+                }
+                
                 scenes = scenesWithClues
                 console.log('[adaptGameData] All scenes with clues:', scenes.map(s => ({ id: s.id, name: s.name, clueCount: s.clueCount })))
             }
@@ -97,6 +201,10 @@ export const adaptGameData = async (gameData, players) => {
         endTime: gameData.endTime,
         createTime: gameData.createTime,
         updateTime: gameData.updateTime,
+
+        // 游戏配置信息（用于刷新后恢复）
+        realPlayerCount: gameData.realPlayerCount ?? 1,
+        workflowNode: gameData.workflowNode,
 
         // 剧本信息
         scriptId: scriptId,
