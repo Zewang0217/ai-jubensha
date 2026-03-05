@@ -83,4 +83,16 @@ public interface GameService {
      * 取消游戏
      */
     Game cancelGame(Long id);
+
+    /**
+     * 优雅退出游戏
+     * <p>
+     * 停止游戏相关的所有后台任务，包括讨论服务、计时器等，
+     * 并更新游戏状态为已结束。
+     * </p>
+     *
+     * @param id 游戏ID
+     * @return 更新后的游戏实体
+     */
+    Game exitGame(Long id);
 }

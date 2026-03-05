@@ -138,6 +138,7 @@ export {
     startGame,
     endGame,
     updateGamePhase,
+    exitGame,
 } from './game'
 
 export {

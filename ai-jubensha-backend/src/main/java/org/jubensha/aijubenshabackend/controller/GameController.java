@@ -266,6 +266,33 @@ public class GameController {
     }
 
     /**
+     * 优雅退出游戏
+     * <p>
+     * 停止游戏相关的所有后台任务（讨论服务、计时器等），
+     * 更新游戏状态为已结束。
+     * </p>
+     *
+     * @param id 游戏ID
+     * @return 更新后的游戏响应DTO
+     */
+    @PostMapping("/{id}/exit")
+    public ResponseEntity<GameResponseDTO> exitGame(@PathVariable Long id) {
+        try {
+            log.info("收到优雅退出游戏请求，游戏ID: {}", id);
+            Game game = gameService.exitGame(id);
+            GameResponseDTO responseDTO = GameResponseDTO.fromEntity(game);
+            log.info("游戏优雅退出成功，游戏ID: {}", id);
+            return new ResponseEntity<>(responseDTO, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            log.error("游戏不存在，游戏ID: {}", id, e);
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            log.error("优雅退出游戏失败，游戏ID: {}, 错误: {}", id, e.getMessage(), e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * 更新游戏阶段
      *
      * @param id    游戏ID
@@ -763,41 +790,32 @@ public class GameController {
             }
             Game game = gameOptional.get();
 
-            // 2. 获取工作流状态
-            WorkflowStatusService.WorkflowStatus status = workflowStatusService.getWorkflowStatus(gameId);
-            if (status == null) {
-                log.warn("工作流状态不存在，游戏ID: {}", gameId);
+            // 2. 直接从 InvestigationService 获取工作流上下文（这是工作流节点使用的缓存）
+            WorkflowContext context = investigationService.getWorkflowContext(gameId);
+            if (context == null) {
+                log.warn("工作流上下文不存在，游戏ID: {}", gameId);
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("error", "工作流尚未启动"));
+                        .body(Map.of("error", "工作流尚未启动或上下文未初始化"));
             }
-
-            // 3. 获取工作流上下文
-            WorkflowContext context = status.getWorkflowContext();
             
-            // 4. 处理确认逻辑
+            // 3. 处理确认逻辑
             boolean isObserver = confirmDTO.getPlayerId() == null || confirmDTO.getPlayerId() <= 0;
             
             if (isObserver) {
                 // 观察者确认
-                if (context != null) {
-                    context.setObserverConfirmed(true);
-                    log.info("观察者确认阶段完成，游戏ID: {}, 阶段: {}", gameId, confirmDTO.getPhase());
-                }
+                context.setObserverConfirmed(true);
+                log.info("观察者确认阶段完成，游戏ID: {}, 阶段: {}", gameId, confirmDTO.getPhase());
             } else {
                 // 真人玩家确认
-                if (context != null) {
-                    context.confirmPhase(confirmDTO.getPlayerId());
-                    log.info("玩家确认阶段完成，游戏ID: {}, 玩家ID: {}, 阶段: {}", gameId, confirmDTO.getPlayerId(), confirmDTO.getPhase());
-                }
+                context.confirmPhase(confirmDTO.getPlayerId());
+                log.info("玩家确认阶段完成，游戏ID: {}, 玩家ID: {}, 阶段: {}", gameId, confirmDTO.getPlayerId(), confirmDTO.getPhase());
             }
             
-            // 同步更新 InvestigationService 缓存中的上下文
-            if (context != null) {
-                investigationService.saveWorkflowContext(gameId, context);
-                log.info("已同步更新 InvestigationService 缓存，游戏ID: {}", gameId);
-            }
+            // 4. 同步更新 InvestigationService 缓存中的上下文
+            investigationService.saveWorkflowContext(gameId, context);
+            log.info("已同步更新 InvestigationService 缓存，游戏ID: {}, observerConfirmed: {}", gameId, context.isObserverConfirmed());
 
-            // 6. 构建确认成功响应
+            // 5. 构建确认成功响应
             Map<String, Object> response = new java.util.HashMap<>();
             response.put("success", true);
             response.put("gameId", gameId);
@@ -805,7 +823,7 @@ public class GameController {
             response.put("phase", confirmDTO.getPhase());
             response.put("isObserver", isObserver);
             response.put("message", "阶段确认成功");
-            response.put("workflowState", status.getState().name());
+            response.put("observerConfirmed", context.isObserverConfirmed());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

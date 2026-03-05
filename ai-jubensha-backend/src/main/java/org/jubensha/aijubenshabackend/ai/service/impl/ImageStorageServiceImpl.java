@@ -36,6 +36,15 @@ public class ImageStorageServiceImpl implements ImageStorageService {
     @Value("${image.storage.default-cover:/api/images/covers/default-cover.jpg}")
     private String defaultCoverPath;
 
+    @Value("${server.address:localhost}")
+    private String serverHost;
+
+    @Value("${server.port:8080}")
+    private int serverPort;
+
+    @Value("${server.servlet.context-path:}")
+    private String contextPath;
+
     public ImageStorageServiceImpl() {
         this.restTemplate = new RestTemplate();
     }
@@ -45,11 +54,11 @@ public class ImageStorageServiceImpl implements ImageStorageService {
         // 参数校验
         if (imageUrl == null || imageUrl.trim().isEmpty()) {
             log.warn("图片URL为空，返回默认封面");
-            return defaultCoverPath;
+            return getAbsoluteUrl(defaultCoverPath);
         }
         if (scriptName == null || scriptName.trim().isEmpty()) {
             log.warn("剧本名称为空，返回默认封面");
-            return defaultCoverPath;
+            return getAbsoluteUrl(defaultCoverPath);
         }
 
         try {
@@ -57,8 +66,26 @@ public class ImageStorageServiceImpl implements ImageStorageService {
             return downloadAndSaveImage(imageUrl, scriptName);
         } catch (Exception e) {
             log.error("下载图片失败: {}, 错误: {}", imageUrl, e.getMessage(), e);
-            return defaultCoverPath;
+            return getAbsoluteUrl(defaultCoverPath);
         }
+    }
+
+    /**
+     * 获取绝对URL
+     *
+     * @param relativePath 相对路径
+     * @return 绝对URL
+     */
+    private String getAbsoluteUrl(String relativePath) {
+        if (relativePath == null || relativePath.isEmpty()) {
+            return "";
+        }
+        // 如果已经是绝对路径，直接返回
+        if (relativePath.startsWith("http://") || relativePath.startsWith("https://")) {
+            return relativePath;
+        }
+        String baseUrl = "http://" + serverHost + ":" + serverPort + contextPath;
+        return baseUrl + relativePath;
     }
 
     /**
@@ -89,7 +116,7 @@ public class ImageStorageServiceImpl implements ImageStorageService {
         Files.write(filePath, imageBytes);
 
         log.info("图片保存成功: {}, 大小: {} bytes", filePath, imageBytes.length);
-        return urlPrefix + "/" + filename;
+        return getAbsoluteUrl(urlPrefix + "/" + filename);
     }
 
     /**

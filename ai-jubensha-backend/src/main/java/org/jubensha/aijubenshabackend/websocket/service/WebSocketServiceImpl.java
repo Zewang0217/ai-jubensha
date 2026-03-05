@@ -4,7 +4,9 @@ import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
+import org.jubensha.aijubenshabackend.ai.service.util.DMModerator;
 import org.jubensha.aijubenshabackend.ai.service.util.MessageAccumulator;
+import org.jubensha.aijubenshabackend.ai.service.util.TurnManager;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
@@ -25,6 +27,11 @@ import java.util.Optional;
 
 /**
  * WebSocket 服务实现
+ * 处理WebSocket消息的发送和接收，包括真人玩家的发言和投票
+ *
+ * @author Zewang
+ * @version 1.1
+ * @since 2026
  */
 @Slf4j
 @Service
@@ -40,6 +47,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     private GamePlayerService gamePlayerService;
     
     @Resource
+    @org.springframework.context.annotation.Lazy
     private GameService gameService;
     
     @Resource
@@ -57,6 +65,14 @@ public class WebSocketServiceImpl implements WebSocketService {
     @Resource
     @Lazy
     private DiscussionService discussionService;
+    
+    @Resource
+    @Lazy
+    private DMModerator dmModerator;
+    
+    @Resource
+    @Lazy
+    private TurnManager turnManager;
 
     @Override
     public void broadcastChatMessage(Long gameId, WebSocketMessage message) {
@@ -70,6 +86,10 @@ public class WebSocketServiceImpl implements WebSocketService {
     
     /**
      * 处理真人玩家的发言
+     * 根据当前讨论阶段执行不同的处理逻辑：
+     * - 陈述阶段：通知DMModerator真人玩家已发言
+     * - 自由讨论阶段：广播消息并添加到讨论历史
+     *
      * @param gameId 游戏ID
      * @param message WebSocket消息
      */
@@ -80,11 +100,15 @@ public class WebSocketServiceImpl implements WebSocketService {
             String content = payload != null ? payload.toString() : "";
             
             if (senderId == null || content.isEmpty()) {
-                log.warn("无效的聊天消息: senderId={}, content={}", senderId, content);
+                log.warn("[WebSocket] 无效的聊天消息: senderId={}, content={}", senderId, content);
                 return;
             }
             
-            log.info("处理真人玩家发言，游戏ID: {}, 发送者ID: {}, 内容: {}", gameId, senderId, content);
+            log.info("[WebSocket] 处理真人玩家发言，游戏ID: {}, 发送者ID: {}, 内容: {}", gameId, senderId, content);
+            
+            // 获取当前讨论阶段
+            String currentPhase = turnManager.getCurrentPhase(gameId);
+            log.info("[WebSocket] 当前讨论阶段: {}", currentPhase);
             
             // 获取角色ID
             Long characterId = null;
@@ -99,19 +123,17 @@ public class WebSocketServiceImpl implements WebSocketService {
             // 存储讨论消息到数据库
             storeDiscussionMessageToDatabase(gameId, senderId, characterId, content);
             
+            // 获取玩家名称
+            String playerName = "真人玩家" + senderId;
+            if (gamePlayerOpt.isPresent()) {
+                GamePlayer gamePlayer = gamePlayerOpt.get();
+                if (gamePlayer.getCharacter() != null) {
+                    playerName = gamePlayer.getCharacter().getName();
+                }
+            }
+            
             // 将消息添加到讨论历史
             if (messageAccumulator != null) {
-                // 获取玩家名称
-                String playerName = "真人玩家" + senderId;
-                Optional<GamePlayer> gamePlayerOpt2 = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, senderId);
-                if (gamePlayerOpt2.isPresent()) {
-                    GamePlayer gamePlayer = gamePlayerOpt2.get();
-                    if (gamePlayer.getCharacter() != null) {
-                        playerName = gamePlayer.getCharacter().getName();
-                    }
-                }
-                
-                // 调用正确的方法签名
                 messageAccumulator.addDiscussionMessage(
                         gameId,
                         senderId,
@@ -119,13 +141,23 @@ public class WebSocketServiceImpl implements WebSocketService {
                         content,
                         System.currentTimeMillis()
                 );
-                log.info("真人玩家发言已添加到讨论历史，游戏ID: {}, 发送者ID: {}", gameId, senderId);
+                log.info("[WebSocket] 真人玩家发言已添加到讨论历史，游戏ID: {}, 发送者ID: {}", gameId, senderId);
             } else {
-                log.warn("MessageAccumulator为null，无法添加消息到讨论历史");
+                log.warn("[WebSocket] MessageAccumulator为null，无法添加消息到讨论历史");
+            }
+            
+            // 根据讨论阶段执行不同的处理
+            if (TurnManager.PHASE_STATEMENT.equals(currentPhase)) {
+                // 陈述阶段：通知DMModerator真人玩家已发言
+                log.info("[WebSocket] 陈述阶段，通知DMModerator真人玩家 {} 已发言", senderId);
+                dmModerator.onRealPlayerStatementReceived(gameId, senderId);
+            } else if (TurnManager.PHASE_FREE_DISCUSSION.equals(currentPhase)) {
+                // 自由讨论阶段：消息已广播，无需额外处理
+                log.info("[WebSocket] 自由讨论阶段，消息已广播");
             }
             
         } catch (Exception e) {
-            log.error("处理真人玩家发言失败", e);
+            log.error("[WebSocket] 处理真人玩家发言失败", e);
         }
     }
     
@@ -254,9 +286,24 @@ public class WebSocketServiceImpl implements WebSocketService {
     }
 
     @Override
+    public void broadcastInvestigationComplete(Long gameId, String message) {
+        WebSocketMessage wsMessage = new WebSocketMessage();
+        wsMessage.setType(WebSocketMessage.MessageType.INVESTIGATION_COMPLETE);
+        
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("message", message);
+        payload.put("timestamp", System.currentTimeMillis());
+        wsMessage.setPayload(payload);
+        
+        String destination = "/topic/game/" + gameId + "/investigation";
+        messagingTemplate.convertAndSend(destination, wsMessage);
+        log.info("广播搜证完成通知到游戏 {}: {}", gameId, message);
+    }
+
+    @Override
     public void handleVote(Long gameId, WebSocketMessage message) {
         try {
-            log.info("处理投票消息: gameId={}, message={}", gameId, message);
+            log.info("[投票处理] 处理投票消息: gameId={}, message={}", gameId, message);
             
             // 解析消息payload
             Map<String, Object> payload = (Map<String, Object>) message.getPayload();
@@ -266,11 +313,20 @@ public class WebSocketServiceImpl implements WebSocketService {
             Long playerId = Long.valueOf(payload.get("playerId").toString());
             String voteMessage = (String) payload.get("voteMessage");
             
-            log.info("解析投票数据: targetId={}, playerId={}, voteMessage={}", targetId, playerId, voteMessage);
+            log.info("[投票处理] 解析投票数据: targetId={}, playerId={}, voteMessage={}", targetId, playerId, voteMessage);
             
-            // 调用DiscussionService的submitAnswer方法存储答案
-            discussionService.submitAnswer(playerId, voteMessage);
-            log.info("真人玩家答题已提交，玩家ID: {}, 答案: {}", playerId, voteMessage);
+            // 获取DiscussionServiceImpl实例并调用onRealPlayerVoteReceived方法
+            try {
+                // 通过反射调用onRealPlayerVoteReceived方法
+                java.lang.reflect.Method method = discussionService.getClass().getMethod("onRealPlayerVoteReceived", Long.class, String.class);
+                method.invoke(discussionService, playerId, voteMessage);
+                log.info("[投票处理] 已通知DiscussionService真人玩家 {} 投票完成", playerId);
+            } catch (Exception e) {
+                log.error("[投票处理] 调用DiscussionService.onRealPlayerVoteReceived失败: {}", e.getMessage(), e);
+                // 备用方案：直接调用submitAnswer
+                discussionService.submitAnswer(playerId, voteMessage);
+                log.info("[投票处理] 真人玩家答题已提交（备用方案），玩家ID: {}, 答案: {}", playerId, voteMessage);
+            }
             
             // 发送投票成功的反馈消息
             Map<String, Object> responsePayload = new HashMap<>();
@@ -283,10 +339,10 @@ public class WebSocketServiceImpl implements WebSocketService {
             
             // 发送反馈消息给投票的玩家
             sendToGamePlayer(playerId, response);
-            log.info("已发送投票成功反馈给玩家: {}", playerId);
+            log.info("[投票处理] 已发送投票成功反馈给玩家: {}", playerId);
             
         } catch (Exception e) {
-            log.error("处理投票消息失败", e);
+            log.error("[投票处理] 处理投票消息失败", e);
             
             // 发送投票失败的反馈消息
             try {
@@ -299,10 +355,10 @@ public class WebSocketServiceImpl implements WebSocketService {
                     WebSocketMessage errorResponse = new WebSocketMessage("VOTE_ERROR", playerId, errorPayload);
                     
                     sendToGamePlayer(playerId, errorResponse);
-                    log.info("已发送投票失败反馈给玩家: {}", playerId);
+                    log.info("[投票处理] 已发送投票失败反馈给玩家: {}", playerId);
                 }
             } catch (Exception ex) {
-                log.error("发送错误反馈失败", ex);
+                log.error("[投票处理] 发送错误反馈失败", ex);
             }
         }
     }

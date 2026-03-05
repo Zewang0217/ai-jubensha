@@ -5,10 +5,11 @@
 
 import {memo, useCallback, useState} from 'react'
 import {AnimatePresence, motion} from 'framer-motion'
-import {ChevronRight, Lock, Search} from 'lucide-react'
+import {ChevronRight, Eye, Globe, Lock, Search, Unlock, X} from 'lucide-react'
 import {PHASE_TYPE} from '../types'
 import GhostButton from '../../../components/ui/GhostButton'
 import ClueCard from '../../../components/ui/ClueCard'
+import {publicClue} from '../../../services/api/clue'
 
 // =============================================================================
 // 动画配置
@@ -185,6 +186,24 @@ ProgressBar.displayName = 'ProgressBar'
 function Investigation({_config, gameData, onComplete, onAction}) {
   const [selectedScene, setSelectedScene] = useState(null)
   const [revealedClues, setRevealedClues] = useState(new Set())
+  const [publicClues, setPublicClues] = useState(new Set())
+  const [limitReached, setLimitReached] = useState(false)
+  
+  // 公开确认弹窗状态
+  const [showPublicModal, setShowPublicModal] = useState(false)
+  const [selectedClueForPublic, setSelectedClueForPublic] = useState(null)
+
+  // 判断是否为观察者模式（全AI玩家模式）
+  const realPlayerCount = gameData?.realPlayerCount ?? 1
+  const isObserverMode = realPlayerCount === 0
+
+  // 搜证次数限制（非观察者模式下有效）
+  const totalChances = gameData?.totalChances ?? 3
+  const [remainingChances, setRemainingChances] = useState(gameData?.remainingChances ?? 3)
+
+  // 调试日志
+  console.log('[Investigation] realPlayerCount:', realPlayerCount, 'isObserverMode:', isObserverMode)
+  console.log('[Investigation] remainingChances:', remainingChances, 'totalChances:', totalChances)
 
   const scenes = gameData?.scenes || [
     {
@@ -257,9 +276,62 @@ function Investigation({_config, gameData, onComplete, onAction}) {
   const progress = Math.round((revealedClues.size / totalClues) * 100)
 
   const handleRevealClue = useCallback((clueId) => {
+    // 观察者模式下不能搜证
+    if (isObserverMode) return
+    
+    // 检查搜证次数是否已达上限
+    if (remainingChances <= 0) {
+      setLimitReached(true)
+      setTimeout(() => setLimitReached(false), 2000)
+      return
+    }
+    
+    // 如果已经揭示过，不扣减次数，也不弹窗
+    if (revealedClues.has(clueId)) {
+      return
+    }
+    
+    // 扣减搜证次数
+    setRemainingChances(prev => prev - 1)
+    
+    // 揭示线索
     setRevealedClues(prev => new Set([...prev, clueId]))
     onAction?.('clue_revealed', {clueId, sceneId: selectedScene})
-  }, [selectedScene, onAction])
+    
+    // 找到线索信息，立即弹出公开确认弹窗
+    const clue = scenes.flatMap(s => s.clues).find(c => c.id === clueId)
+    if (clue) {
+      setSelectedClueForPublic(clue)
+      setShowPublicModal(true)
+    }
+  }, [selectedScene, onAction, isObserverMode, remainingChances, revealedClues, scenes])
+
+  // 确认公开线索
+  const confirmPublicClue = useCallback(async () => {
+    if (!selectedClueForPublic) return
+    
+    try {
+      // 调用后端 API 公开线索
+      await publicClue(selectedClueForPublic.id)
+      
+      // 更新本地状态
+      setPublicClues(prev => new Set([...prev, selectedClueForPublic.id]))
+      onAction?.('clue_public', {clueId: selectedClueForPublic.id, sceneId: selectedScene})
+      
+      console.log('[Investigation] 线索已公开:', selectedClueForPublic.id)
+    } catch (error) {
+      console.error('[Investigation] 公开线索失败:', error)
+    } finally {
+      setShowPublicModal(false)
+      setSelectedClueForPublic(null)
+    }
+  }, [selectedClueForPublic, selectedScene, onAction])
+
+  // 取消公开
+  const cancelPublic = useCallback(() => {
+    setShowPublicModal(false)
+    setSelectedClueForPublic(null)
+  }, [])
 
   const handleComplete = () => {
     onAction?.('investigation_complete', {
@@ -286,21 +358,44 @@ function Investigation({_config, gameData, onComplete, onAction}) {
           {/* 标题区 - 左对齐 */}
           <motion.div variants={itemVariants} className="mb-6">
             <h2 className="text-2xl font-bold text-[#2D3748] dark:text-[#E8ECF2] tracking-tight">
-              现场搜证
+              {isObserverMode ? '线索查看' : '现场搜证'}
             </h2>
             <p className="text-[#8C96A5] dark:text-[#6B7788] mt-1 text-sm">
-              搜集线索，揭开真相
+              {isObserverMode ? '观察者模式：可查看所有线索' : '搜集线索，揭开真相'}
             </p>
           </motion.div>
 
-          {/* 进度条 */}
-          <motion.div variants={itemVariants} className="mb-6 max-w-md">
-            <ProgressBar
-                progress={progress}
-                current={revealedClues.size}
-                total={totalClues}
-            />
-          </motion.div>
+          {/* 进度条 - 仅在非观察者模式下显示 */}
+          {!isObserverMode && (
+            <motion.div variants={itemVariants} className="mb-6 max-w-md">
+              {/* 搜证次数提示 */}
+              <div className="flex items-center justify-between mb-2">
+                <ProgressBar
+                    progress={progress}
+                    current={revealedClues.size}
+                    total={totalClues}
+                />
+                <div className="flex items-center gap-2 ml-4">
+                  <span className={`text-xs font-medium ${remainingChances <= 0 ? 'text-red-500' : 'text-[#7C8CD6]'}`}>
+                    剩余搜证次数: {remainingChances}/{totalChances}
+                  </span>
+                </div>
+              </div>
+              {/* 上限提示 */}
+              <AnimatePresence>
+                {limitReached && (
+                  <motion.div
+                    initial={{opacity: 0, y: -10}}
+                    animate={{opacity: 1, y: 0}}
+                    exit={{opacity: 0, y: -10}}
+                    className="text-center text-red-500 text-sm font-medium py-2 bg-red-50 dark:bg-red-900/20 rounded-lg"
+                  >
+                    已达到搜证上限，无法继续搜证
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
 
           {/* 主内容区 */}
           <div className="flex-1 min-h-0 flex gap-6">            {/* 场景列表 - 玻璃态侧边栏 */}
@@ -374,7 +469,9 @@ function Investigation({_config, gameData, onComplete, onAction}) {
                                 <ClueCard
                                     key={clue.id}
                                     clue={clue}
-                                    isRevealed={revealedClues.has(clue.id)}
+                                    isRevealed={isObserverMode || revealedClues.has(clue.id)}
+                                    isPublic={publicClues.has(clue.id)}
+                                    isObserverMode={isObserverMode}
                                     onReveal={() => handleRevealClue(clue.id)}
                                     index={index}
                                 />
@@ -408,14 +505,30 @@ function Investigation({_config, gameData, onComplete, onAction}) {
                   {currentScene && (
                       <div className="text-sm">
                     <span className="text-[#8C96A5] dark:text-[#6B7788]">
-                      已发现 {currentScene.clues.filter(c => revealedClues.has(c.id)).length}/{currentScene.clues.length} 条线索
+                      {isObserverMode 
+                        ? `共 ${currentScene.clues.length} 条线索` 
+                        : `已发现 ${currentScene.clues.filter(c => revealedClues.has(c.id)).length}/${currentScene.clues.length} 条线索`
+                      }
                     </span>
                       </div>
                   )}
 
                   {/* 右侧：操作按钮 */}
                   <div className="flex items-center gap-3">
-                    {currentScene && currentScene.clues.every(c => revealedClues.has(c.id)) && (
+                    {/* 观察者模式提示 */}
+                    {isObserverMode && (
+                        <motion.span
+                            initial={{opacity: 0, scale: 0.9}}
+                            animate={{opacity: 1, scale: 1}}
+                            className="text-xs text-[#7C8CD6] font-medium flex items-center gap-1"
+                        >
+                          <Eye className="w-3 h-3"/>
+                          观察者模式
+                        </motion.span>
+                    )}
+                    
+                    {/* 非观察者模式：显示调查完成状态 */}
+                    {!isObserverMode && currentScene && currentScene.clues.every(c => revealedClues.has(c.id)) && (
                         <motion.span
                             initial={{opacity: 0, scale: 0.9}}
                             animate={{opacity: 1, scale: 1}}
@@ -426,10 +539,11 @@ function Investigation({_config, gameData, onComplete, onAction}) {
                         </motion.span>
                     )}
 
-                    {revealedClues.size === totalClues ? (
+                    {/* 完成按钮 */}
+                    {(isObserverMode || revealedClues.size === totalClues) ? (
                         <GhostButton onClick={handleComplete}>
                       <span className="flex items-center gap-1 text-[#5DD9A8]">
-                        完成调查
+                        {isObserverMode ? '完成查看' : '完成调查'}
                         <motion.span
                             animate={{x: [0, 4, 0]}}
                             transition={{duration: 1.5, repeat: Infinity}}
@@ -456,6 +570,91 @@ function Investigation({_config, gameData, onComplete, onAction}) {
             </div>
             </motion.div>
           </div>
+
+          {/* 公开线索确认弹窗 */}
+          <AnimatePresence>
+            {showPublicModal && selectedClueForPublic && (
+                <motion.div
+                    initial={{opacity: 0}}
+                    animate={{opacity: 1}}
+                    exit={{opacity: 0}}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                    onClick={cancelPublic}
+                >
+                  <motion.div
+                      initial={{scale: 0.9, opacity: 0}}
+                      animate={{scale: 1, opacity: 1}}
+                      exit={{scale: 0.9, opacity: 0}}
+                      transition={{type: 'spring', damping: 25, stiffness: 300}}
+                      className="relative w-full max-w-md mx-4 bg-white dark:bg-[#1A1D26] rounded-2xl shadow-2xl overflow-hidden"
+                      onClick={e => e.stopPropagation()}
+                  >
+                    {/* 顶部渐变条 */}
+                    <div className="h-1 bg-gradient-to-r from-[#5DD9A8] via-[#4ECDC4] to-[#45B7AA]"/>
+
+                    {/* 关闭按钮 */}
+                    <button
+                        onClick={cancelPublic}
+                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#EEF1F6] dark:bg-[#2A2F3C] flex items-center justify-center hover:bg-[#E0E5EE] dark:hover:bg-[#363D4D] transition-colors"
+                    >
+                      <X className="w-4 h-4 text-[#5A6978] dark:text-[#9CA8B8]"/>
+                    </button>
+
+                    {/* 内容 */}
+                    <div className="p-6">
+                      {/* 图标 */}
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#5DD9A8]/20 to-[#4ECDC4]/20 flex items-center justify-center">
+                        <Globe className="w-8 h-8 text-[#5DD9A8]"/>
+                      </div>
+
+                      {/* 标题 */}
+                      <h3 className="text-xl font-bold text-center text-[#2D3748] dark:text-[#E8ECF2] mb-2">
+                        是否公开该线索？
+                      </h3>
+                      <p className="text-sm text-center text-[#8C96A5] dark:text-[#6B7788] mb-6">
+                        公开后，所有玩家都能看到这条线索
+                      </p>
+
+                      {/* 线索信息卡片 */}
+                      <div className="bg-[#EEF1F6] dark:bg-[#2A2F3C] rounded-xl p-4 mb-6">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#7C8CD6]/20 to-[#A78BFA]/20 flex items-center justify-center flex-shrink-0">
+                            <Eye className="w-5 h-5 text-[#7C8CD6]"/>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-[#2D3748] dark:text-[#E8ECF2] mb-1">
+                              {selectedClueForPublic.name}
+                            </h4>
+                            <p className="text-sm text-[#5A6978] dark:text-[#9CA8B8] line-clamp-3">
+                              {selectedClueForPublic.description}
+                            </p>
+                            <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full bg-[#7C8CD6]/10 text-[#7C8CD6] font-medium">
+                              {selectedClueForPublic.type}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 按钮组 */}
+                      <div className="flex gap-3">
+                        <button
+                            onClick={cancelPublic}
+                            className="flex-1 h-12 rounded-xl bg-[#EEF1F6] dark:bg-[#2A2F3C] text-[#5A6978] dark:text-[#9CA8B8] font-medium hover:bg-[#E0E5EE] dark:hover:bg-[#363D4D] transition-colors"
+                        >
+                          取消
+                        </button>
+                        <button
+                            onClick={confirmPublicClue}
+                            className="flex-1 h-12 rounded-xl bg-gradient-to-r from-[#5DD9A8] to-[#4ECDC4] text-white font-medium hover:from-[#4ECDC4] hover:to-[#45B7AA] transition-all shadow-lg shadow-[#5DD9A8]/20"
+                        >
+                          公开线索
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
   )

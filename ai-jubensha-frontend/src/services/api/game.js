@@ -133,6 +133,14 @@ export const endGame = (gameId) => apiClient.post(`/games/${gameId}/end`)
  */
 export const updateGamePhase = (gameId, phase) => apiClient.put(`/games/${gameId}/phase/${phase}`)
 
+/**
+ * 优雅退出游戏
+ * @description 停止游戏相关的所有后台任务（讨论服务、计时器等），更新游戏状态为已结束
+ * @param {number} gameId - 游戏ID
+ * @returns {Promise<Object>}
+ */
+export const exitGame = (gameId) => apiClient.post(`/games/${gameId}/exit`)
+
 export default {
     createGameFromScript,
     getGames,
@@ -145,5 +153,6 @@ export default {
     getWorkflowStatus,
     startGame,
     endGame,
-    updateGamePhase
+    updateGamePhase,
+    exitGame
 }
