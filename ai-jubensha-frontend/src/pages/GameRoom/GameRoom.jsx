@@ -18,6 +18,7 @@ import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
 import Loading from '../../components/common/Loading'
 import {useWebSocket} from '../../hooks/useWebSocket'
 import {Bug, X} from 'lucide-react'
+import {saveGameState, loadGameState, clearGameState} from '../../utils/gameStateStorage'
 
 // 阶段系统导入
 import {DEFAULT_PHASE_SEQUENCE, PHASE_CONFIG, PHASE_TYPE, usePhaseManager,} from './phases'
@@ -289,11 +290,26 @@ function GameRoom() {
     sequence: DEFAULT_PHASE_SEQUENCE,
     onPhaseChange: (newPhase, prevPhase) => {
       console.log(`[GameRoom] 阶段切换: ${prevPhase} -> ${newPhase}`)
+      // 阶段变化时保存到 localStorage
+      if (id) {
+        saveGameState({
+          gameId: id,
+          currentPhase: newPhase,
+          realPlayerCount: adaptedGameData?.realPlayerCount,
+          totalPlayerCount: adaptedGameData?.players?.length,
+          scriptId: adaptedGameData?.scriptId,
+        })
+      }
     },
     onComplete: () => {
       console.log('[GameRoom] 游戏完成')
+      clearGameState()
     },
   })
+
+  // 从 localStorage 恢复游戏状态
+  const [restoredPhase, setRestoredPhase] = useState(null)
+  const [isStateRestored, setIsStateRestored] = useState(false)
 
   // 数据获取
   const {
@@ -321,6 +337,31 @@ function GameRoom() {
     enabled: !isDebugMode && !!id,
     staleTime: 60000,
   })
+
+  useEffect(() => {
+    if (isDebugMode || !id || apiGameData) return
+
+    const savedState = loadGameState()
+    if (savedState && savedState.gameId === id) {
+      console.log('[GameRoom] 发现保存的游戏状态:', savedState)
+      setRestoredPhase(savedState.currentPhase)
+    }
+    setIsStateRestored(true)
+  }, [isDebugMode, id, apiGameData])
+
+  // 应用恢复的阶段
+  useEffect(() => {
+    if (!restoredPhase || !isStateRestored || !apiGameData) return
+
+    const targetPhase = adaptPhase(apiGameData.currentPhase) || restoredPhase
+    if (DEFAULT_PHASE_SEQUENCE.includes(targetPhase)) {
+      console.log('[GameRoom] 恢复到保存的阶段:', targetPhase)
+      goToPhase(targetPhase, false)
+    }
+
+    // 清除恢复状态
+    setRestoredPhase(null)
+  }, [restoredPhase, isStateRestored, apiGameData, goToPhase])
 
   // 适配后的游戏数据
   const [adaptedGameData, setAdaptedGameData] = useState(null)
@@ -457,11 +498,15 @@ function GameRoom() {
    * @description 通知后端阶段确认后进入下一阶段
    */
   const handlePhaseComplete = useCallback(async () => {
-    // 获取当前玩家ID（从 playerData 中获取）
-    const currentPlayerId = playerData?.data?.find(p => p.isCurrentPlayer)?.id
+    // 获取真人玩家ID（从 playerData 中查找 role 为 REAL 的玩家）
+    // 注意：playerData 结构可能是 { data: [GamePlayer] } 或直接是 [GamePlayer]
+    const players = playerData?.data || playerData || []
+    const realPlayer = players.find(p => p.player?.role === 'REAL' || p.role === 'REAL')
+    const currentPlayerId = realPlayer?.id || realPlayer?.player?.id
 
     if (id) {
       // 如果有真人玩家ID，发送玩家确认；否则发送观察者确认（playerId = null）
+      console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId)
       await confirmCurrentPhase(id, currentPlayerId || null)
     }
 
