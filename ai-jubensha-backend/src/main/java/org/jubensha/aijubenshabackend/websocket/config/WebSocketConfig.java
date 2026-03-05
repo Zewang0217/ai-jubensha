@@ -41,6 +41,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // 注册WebSocket端点，允许客户端连接
         registry.addEndpoint("/ws")
                 .addInterceptors(handshakeInterceptor)
+                .setAllowedOriginPatterns("*")
                 .withSockJS()
                 .setHeartbeatTime(25000);
     }

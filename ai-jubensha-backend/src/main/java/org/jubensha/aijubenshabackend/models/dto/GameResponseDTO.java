@@ -24,6 +24,16 @@ public class GameResponseDTO {
     private LocalDateTime updateTime;
 
     /**
+     * 真人玩家数量，用于前端恢复玩家模式配置
+     */
+    private Integer realPlayerCount;
+
+    /**
+     * 当前工作流节点名称，用于精确阶段恢复
+     */
+    private String workflowNode;
+
+    /**
      * 从实体对象创建响应DTO
      *
      * @param game 游戏实体
@@ -40,6 +50,8 @@ public class GameResponseDTO {
         dto.setEndTime(game.getEndTime());
         dto.setCreateTime(game.getCreateTime());
         dto.setUpdateTime(game.getUpdateTime());
+        dto.setWorkflowNode(game.getWorkflowNode());
+        dto.setRealPlayerCount(game.getRealPlayerCount());
         return dto;
     }
 }
