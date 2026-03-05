@@ -206,6 +206,10 @@ export const adaptGameData = async (gameData, players) => {
         realPlayerCount: gameData.realPlayerCount ?? 1,
         workflowNode: gameData.workflowNode,
 
+        // 搜证次数限制
+        remainingChances: gameData.remainingChances ?? 3,
+        totalChances: gameData.totalChances ?? 3,
+
         // 剧本信息
         scriptId: scriptId,
         script: script ? {

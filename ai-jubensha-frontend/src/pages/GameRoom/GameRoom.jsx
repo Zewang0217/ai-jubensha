@@ -13,7 +13,7 @@ import React, {memo, Suspense, useCallback, useEffect, useMemo, useState} from '
 import {useNavigate, useParams} from 'react-router-dom'
 import {useQuery} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
-import {getGameById, getGamePlayers} from '../../services/api'
+import {getGameById, getGamePlayers, exitGame} from '../../services/api'
 import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
 import Loading from '../../components/common/Loading'
 import {useWebSocket} from '../../hooks/useWebSocket'
@@ -29,6 +29,7 @@ import {useDebugMode} from './hooks/useDebugMode'
 // 布局组件导入
 import GameRoomHeader from './components/GameRoomHeader'
 import GameRoomFooter from './components/GameRoomFooter'
+import ExitConfirmModal from './components/ExitConfirmModal'
 
 // =============================================================================
 // 延迟加载阶段组件
@@ -254,6 +255,7 @@ function GameRoom() {
 
   // 调试模式
   const [showDebugPanel, setShowDebugPanel] = useState(false)
+  const [showExitModal, setShowExitModal] = useState(false)
 
   const {
     isDebugMode,
@@ -261,8 +263,10 @@ function GameRoom() {
     gameData: debugGameData,
     playerData: debugPlayerData,
     isConnected: debugIsConnected,
-    sendMessage: debugSendMessage,
-    onMessage: debugOnMessage,
+    sendMessage: _debugSendMessage,
+    sendChatMessage: debugSendChatMessage,
+    sendVote: debugSendVote,
+    onMessage: _debugOnMessage,
     toggleDebugMode,
     forcePhaseChange,
   } = useDebugMode({enabled: DEFAULT_DEBUG_MODE})
@@ -280,9 +284,9 @@ function GameRoom() {
     getPhaseData,
     goToPhase,
     // 阶段同步相关状态
-    isBackendReady,
+    isBackendReady: _isBackendReady,
     waitingMessage,
-    isCheckingBackend,
+    isCheckingBackend: _isCheckingBackend,
     confirmCurrentPhase,
     setWaitingMessage,
     setIsBackendReady,
@@ -367,6 +371,9 @@ function GameRoom() {
   const [adaptedGameData, setAdaptedGameData] = useState(null)
   const [isAdapting, setIsAdapting] = useState(false)
 
+  // 搜证完成状态
+  const [isAllInvestigationComplete, setIsAllInvestigationComplete] = useState(false)
+
   // 数据适配 - 将后端数据转换为前端所需格式
   useEffect(() => {
     if (isDebugMode) {
@@ -417,12 +424,59 @@ function GameRoom() {
 
   const {
     isConnected: apiIsConnected,
-    sendChatMessage,
-    sendVote,
+    sendChatMessage: apiSendChatMessage,
+    sendVote: apiSendVote,
     subscribeToGameChat,
     subscribeToPersonalMessages,
     subscribe,
+    unsubscribe,
   } = useWebSocket(isDebugMode ? null : wsBaseUrl, isDebugMode ? null : id)
+
+  // 获取真人玩家ID
+  const currentPlayerId = useMemo(() => {
+    try {
+      const players = playerData?.data || playerData
+      if (!Array.isArray(players) || players.length === 0) {
+        return null
+      }
+      const realPlayer = players.find(p => p.playerRole === 'REAL')
+      return realPlayer?.playerId || null
+    } catch (e) {
+      console.warn('[GameRoom] 获取真人玩家ID失败:', e)
+      return null
+    }
+  }, [playerData])
+
+  // 根据模式选择使用调试模式或真实 WebSocket
+  const sendChatMessage = useCallback((content) => {
+    if (isDebugMode) {
+      return debugSendChatMessage?.(content)
+    }
+    // 真实模式下发送消息到后端，包含 sender（真人玩家ID）
+    if (apiSendChatMessage && currentPlayerId) {
+      return apiSendChatMessage({
+        type: 'CHAT_MESSAGE',
+        sender: currentPlayerId,
+        payload: content,
+      })
+    }
+    return false
+  }, [isDebugMode, debugSendChatMessage, apiSendChatMessage, currentPlayerId])
+
+  const sendVote = useCallback((characterId) => {
+    if (isDebugMode) {
+      return debugSendVote?.(characterId)
+    }
+    // 真实模式下发送投票消息
+    if (apiSendVote && currentPlayerId) {
+      return apiSendVote({
+        type: 'VOTE_SUBMIT',
+        sender: currentPlayerId,
+        payload: {characterId},
+      })
+    }
+    return false
+  }, [isDebugMode, debugSendVote, apiSendVote, currentPlayerId])
 
   const isConnected = isDebugMode ? debugIsConnected : apiIsConnected
 
@@ -446,6 +500,15 @@ function GameRoom() {
         console.log('[GameRoom] 剧本已就绪:', message.payload)
       } else if (message?.type === 'START_INVESTIGATION') {
         console.log('[GameRoom] 开始搜证:', message.payload)
+        // 更新 adaptedGameData 中的搜证次数信息
+        if (message.payload) {
+          setAdaptedGameData(prev => ({
+            ...prev,
+            remainingChances: message.payload.remainingChances ?? 3,
+            totalChances: message.payload.totalChances ?? 3,
+            scenes: message.payload.scenes || prev.scenes,
+          }))
+        }
       }
     })
 
@@ -492,26 +555,64 @@ function GameRoom() {
     }
   }, [isDebugMode, isConnected, id, subscribe, setIsBackendReady, setWaitingMessage])
 
+  // WebSocket 监听搜证完成消息
+  useEffect(() => {
+    if (isDebugMode || !isConnected || !id) return
+
+    /**
+     * 处理搜证完成消息
+     * @param {Object} data - 消息数据
+     * @param {string} [data.message] - 提示消息
+     */
+    const handleInvestigationComplete = (data) => {
+      console.log('[GameRoom] 收到搜证完成通知:', data)
+      setIsAllInvestigationComplete(true)
+      // 显示提示
+      setWaitingMessage(data?.message || '所有玩家搜证完毕，可以进入讨论阶段')
+    }
+
+    const investigationSubscriptionId = subscribe(`/topic/game/${id}/investigation`, handleInvestigationComplete)
+
+    return () => {
+      if (investigationSubscriptionId) {
+        console.log('[GameRoom] 取消搜证完成订阅')
+      }
+    }
+  }, [isDebugMode, isConnected, id, subscribe, setWaitingMessage])
+
   // 事件处理
   /**
    * 处理阶段完成
    * @description 通知后端阶段确认后进入下一阶段
    */
   const handlePhaseComplete = useCallback(async () => {
-    // 获取真人玩家ID（从 playerData 中查找 role 为 REAL 的玩家）
-    // 注意：playerData 结构可能是 { data: [GamePlayer] } 或直接是 [GamePlayer]
+    // 搜证阶段需要检查后端是否所有玩家完成搜证
+    if (currentPhase === 'investigation' && !isAllInvestigationComplete) {
+      // 显示提示：有玩家未完成搜证
+      setWaitingMessage('有玩家未完成搜证，请等待')
+      setTimeout(() => setWaitingMessage(null), 3000)
+      return
+    }
+
+    
+    // 获取真人玩家ID（从 playerData 中查找 playerRole 为 REAL 的玩家）
+    // playerData 结构：GamePlayerResponseDTO 列表
+    // - p.id: GamePlayer ID
+    // - p.playerId: Player ID（后端期望的）
+    // - p.playerRole: Player 角色类型（REAL/AI）
     const players = playerData?.data || playerData || []
-    const realPlayer = players.find(p => p.player?.role === 'REAL' || p.role === 'REAL')
-    const currentPlayerId = realPlayer?.id || realPlayer?.player?.id
+    console.log('[GameRoom] 所有玩家数据:', JSON.stringify(players))
+    const realPlayer = players.find(p => p.playerRole === 'REAL')
+    const currentPlayerId = realPlayer?.playerId
+    console.log('[GameRoom] 找到的真人玩家:', realPlayer, 'playerId:', currentPlayerId)
 
     if (id) {
       // 如果有真人玩家ID，发送玩家确认；否则发送观察者确认（playerId = null）
       console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId)
       await confirmCurrentPhase(id, currentPlayerId || null)
     }
-
     goToNext()
-  }, [goToNext, confirmCurrentPhase, id, playerData])
+  }, [goToNext, confirmCurrentPhase, id, playerData, currentPhase, isAllInvestigationComplete])
 
   const handlePhaseSkip = useCallback(() => goToNext(), [goToNext])
   const handlePhaseBack = useCallback(() => goToPrevious(), [goToPrevious])
@@ -537,12 +638,42 @@ function GameRoom() {
     if (action === 'play_again') navigate('/games')
   }, [currentPhase, navigate, sendChatMessage, sendVote, updatePhaseData])
 
+  /**
+   * 处理退出游戏
+   * @description 显示退出确认弹窗
+   */
   const handleExit = useCallback(() => {
-    if (window.confirm('确定要退出游戏吗？未保存的进度将会丢失。')) {
-      // 断开 WebSocket 连接
+    setShowExitModal(true)
+  }, [])
+
+  /**
+   * 处理确认退出
+   * @description 确认退出游戏，调用后端API停止后台任务，清理本地状态并跳转到游戏列表页
+   */
+  const handleConfirmExit = useCallback(async () => {
+    console.log('[GameRoom] 开始退出游戏流程, gameId:', id)
+    
+    // 关闭弹窗
+    setShowExitModal(false)
+    
+    try {
+      // 调用后端API优雅退出游戏
+      console.log('[GameRoom] 调用 exitGame API...')
+      await exitGame(id)
+      console.log('[GameRoom] exitGame API 调用成功')
+    } catch (error) {
+      console.error('[GameRoom] exitGame API 调用失败:', error)
+      // 即使API调用失败，也继续清理本地状态
+    } finally {
+      // 清理 localStorage 中的游戏状态
+      console.log('[GameRoom] 清理本地游戏状态')
+      clearGameState()
+      
+      // 跳转到游戏列表页
+      console.log('[GameRoom] 跳转到游戏列表页')
       navigate('/games')
     }
-  }, [navigate])
+  }, [id, navigate])
 
   const handleDebugPhaseChange = useCallback((phase) => {
     if (isDebugMode) {
@@ -569,18 +700,34 @@ function GameRoom() {
       )
     }
 
-    return (
-        <PhaseComponent
-            config={currentConfig}
-            gameData={gameData?.data}
-            playerData={playerData?.data}
-            phaseData={getPhaseData(currentPhase)}
-            onComplete={handlePhaseComplete}
-            onSkip={handlePhaseSkip}
-            onBack={handlePhaseBack}
-            onAction={handleAction}
-        />
-    )
+    // 基础props
+    const baseProps = {
+      config: currentConfig,
+      gameData: gameData?.data,
+      playerData: playerData?.data,
+      phaseData: getPhaseData(currentPhase),
+      onComplete: handlePhaseComplete,
+      onSkip: handlePhaseSkip,
+      onBack: handlePhaseBack,
+      onAction: handleAction,
+    }
+
+    // 为Discussion阶段添加WebSocket相关props
+    if (currentPhase === PHASE_TYPE.DISCUSSION) {
+      return (
+          <PhaseComponent
+              {...baseProps}
+              isConnected={isConnected}
+              subscribeToGameChat={subscribeToGameChat}
+              sendChatMessage={sendChatMessage}
+              sendVote={sendVote}
+              unsubscribe={unsubscribe}
+              currentPlayerId={currentPlayerId}
+          />
+      )
+    }
+
+    return <PhaseComponent {...baseProps} />
   }, [
     currentPhase,
     currentConfig,
@@ -591,6 +738,12 @@ function GameRoom() {
     handlePhaseSkip,
     handlePhaseBack,
     handleAction,
+    isConnected,
+    subscribeToGameChat,
+    sendChatMessage,
+    sendVote,
+    unsubscribe,
+    currentPlayerId,
   ])
 
   // 渲染状态
@@ -670,6 +823,16 @@ function GameRoom() {
                   <span className="text-amber-800 dark:text-amber-200 font-medium">
                     {waitingMessage}
                   </span>
+                  <button
+                      onClick={() => setWaitingMessage(null)}
+                      className="ml-2 text-amber-600 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-100 transition-colors"
+                      title="关闭提示"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
                 </div>
               </motion.div>
           )}
@@ -711,6 +874,17 @@ function GameRoom() {
                   onPhaseChange={handleDebugPhaseChange}
                   isDebugMode={isDebugMode}
                   onToggleDebug={toggleDebugMode}
+              />
+          )}
+        </AnimatePresence>
+
+        {/* 退出确认弹窗 */}
+        <AnimatePresence>
+          {showExitModal && (
+              <ExitConfirmModal
+                  isOpen={showExitModal}
+                  onClose={() => setShowExitModal(false)}
+                  onConfirm={handleConfirmExit}
               />
           )}
         </AnimatePresence>
