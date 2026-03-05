@@ -138,8 +138,61 @@ export const generateScript = (params) => apiClient.post('/scripts/generate', pa
  * @returns {Promise<Object>} 工作流执行结果
  */
 export const startScriptCreationWorkflow = (originalPrompt, useStreaming = false) => {
+    console.log('[scriptApi] 启动剧本生成工作流:', {originalPrompt, useStreaming})
     return apiClient.post('/script-creation/start-workflow', {
         originalPrompt,
         useStreaming
     })
+}
+
+// =============================================================================
+// 游戏流程中使用的扩展 API 方法
+// =============================================================================
+
+/**
+ * 根据名称搜索剧本
+ * @param {string} name - 剧本名称关键词
+ * @returns {Promise<ListScriptResponseDTO[]>} 剧本列表
+ */
+export const searchScriptsByName = async (name) => {
+    console.log('[scriptApi] 搜索剧本:', name)
+    if (USE_MOCK) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const scripts = mockScripts.filter((s) =>
+                    s.name.toLowerCase().includes(name.toLowerCase())
+                )
+                console.log('[scriptApi] Mock 返回列表:', scripts)
+                resolve(scripts)
+            }, 500)
+        })
+    }
+    const response = await apiClient.get('/scripts/search', {
+        params: {name}
+    })
+    return response?.data || response
+}
+
+/**
+ * 根据描述关键词搜索剧本
+ * @param {string} keyword - 关键词
+ * @returns {Promise<ListScriptResponseDTO[]>} 剧本列表
+ */
+export const searchScriptsByDescription = async (keyword) => {
+    console.log('[scriptApi] 根据描述搜索:', keyword)
+    if (USE_MOCK) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const scripts = mockScripts.filter((s) =>
+                    s.description.toLowerCase().includes(keyword.toLowerCase())
+                )
+                console.log('[scriptApi] Mock 返回列表:', scripts)
+                resolve(scripts)
+            }, 500)
+        })
+    }
+    const response = await apiClient.get('/scripts/search/description', {
+        params: {keyword}
+    })
+    return response?.data || response
 }

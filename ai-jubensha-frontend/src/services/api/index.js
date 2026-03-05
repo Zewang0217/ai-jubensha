@@ -157,5 +157,25 @@ export {
     deleteScene,
 } from './scene'
 
+// 游戏玩家关系 API
+export {
+    getGamePlayerById,
+    getGamePlayerByGameAndPlayer,
+    getGamePlayersByGameId,
+} from './gamePlayer'
+
+// 搜证 API
+export {
+    investigate,
+    getInvestigationStatus,
+    canInvestigate,
+} from './investigation'
+
+// 扩展的剧本 API（搜索功能）
+export {
+    searchScriptsByName,
+    searchScriptsByDescription,
+} from './script'
+
 export {default as apiClient} from './client'
 export {default} from './client'
