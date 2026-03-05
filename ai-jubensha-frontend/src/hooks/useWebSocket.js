@@ -96,6 +96,24 @@ export const useWebSocket = (baseUrl, gameId) => {
     }, [])
 
     /**
+     * 订阅公开线索广播
+     * @param {Function} handler - 消息处理器
+     * @returns {string|null} 订阅 ID
+     */
+    const subscribeToPublicClue = useCallback((handler) => {
+        return wsRef.current.subscribeToPublicClue(handler)
+    }, [])
+
+    /**
+     * 订阅投票结果广播
+     * @param {Function} handler - 消息处理器
+     * @returns {string|null} 订阅 ID
+     */
+    const subscribeToVoteResult = useCallback((handler) => {
+        return wsRef.current.subscribeToVoteResult(handler)
+    }, [])
+
+    /**
      * 订阅自定义主题
      * @param {string} destination - 订阅目标
      * @param {Function} handler - 消息处理器
@@ -184,6 +202,8 @@ export const useWebSocket = (baseUrl, gameId) => {
         sendMessage,
         subscribeToGameChat,
         subscribeToPersonalMessages,
+        subscribeToPublicClue,
+        subscribeToVoteResult,
         subscribe,
         unsubscribe,
         on,
