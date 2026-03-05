@@ -53,11 +53,18 @@ public class GameHandshakeInterceptor implements HandshakeInterceptor {
                 return false;
             }
 
+            // 存储 gameId 到 attributes
+            attributes.put("gameId", gameId);
+
             // 获取游戏的真人玩家列表
             List<GamePlayer> realPlayers = gamePlayerService.getRealPlayersByGameId(gameId);
+            
+            // 如果没有真人玩家，允许以观察者模式连接
             if (realPlayers.isEmpty()) {
-                log.error("连接被拒绝：游戏 {} 没有真人玩家", gameId);
-                return false;
+                log.info("游戏 {} 没有真人玩家，以观察者模式连接", gameId);
+                // 不存储 null 值，只设置 isObserver 标志
+                attributes.put("isObserver", true);
+                return true;
             }
 
             // 获取下一个可分配的索引
@@ -66,8 +73,11 @@ public class GameHandshakeInterceptor implements HandshakeInterceptor {
 
             // 检查是否还有剩余的 Real GamePlayer
             if (index >= realPlayers.size()) {
-                log.error("连接被拒绝：游戏 {} 的真人玩家已满 ({}个)", gameId, realPlayers.size());
-                return false;
+                // 超出玩家数量，以观察者模式连接
+                log.info("游戏 {} 的真人玩家已满 ({}个)，以观察者模式连接", gameId, realPlayers.size());
+                // 不存储 null 值，只设置 isObserver 标志
+                attributes.put("isObserver", true);
+                return true;
             }
 
             // 分配 gamePlayerId
@@ -75,8 +85,8 @@ public class GameHandshakeInterceptor implements HandshakeInterceptor {
             Long gamePlayerId = assignedPlayer.getId();
 
             // 存储到 attributes，供后续使用
-            attributes.put("gameId", gameId);
             attributes.put("gamePlayerId", gamePlayerId);
+            attributes.put("isObserver", false);
 
             log.info("连接分配成功: gameId={}, gamePlayerId={}, index={}/{}",
                     gameId, gamePlayerId, index + 1, realPlayers.size());

@@ -16,6 +16,7 @@ import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.jubensha.aijubenshabackend.websocket.service.WebSocketServiceImpl;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -158,6 +159,105 @@ public class ScriptReaderNode {
                 // 更新WorkflowContext
                 context.setCurrentStep("剧本读取");
                 context.setCharacterCount(characters.size());
+
+                // ====== 阶段同步等待机制 ======
+                // 区分真人玩家和AI玩家
+                List<Long> realPlayerIds = new ArrayList<>();
+                List<Long> aiPlayerIds = new ArrayList<>();
+                for (Map<String, Object> assignment : playerAssignments) {
+                    String playerType = (String) assignment.get("playerType");
+                    Long playerId = (Long) assignment.get("playerId");
+                    if ("REAL".equals(playerType)) {
+                        realPlayerIds.add(playerId);
+                    } else {
+                        aiPlayerIds.add(playerId);
+                    }
+                }
+                
+                log.info("[阶段同步] 玩家分布 - 真人玩家: {}, AI玩家: {}", realPlayerIds.size(), aiPlayerIds.size());
+                
+                // 初始化阶段确认状态（只针对真人玩家）
+                context.initPhaseConfirmations(realPlayerIds);
+                
+                // 设置节点状态为未就绪，等待前端确认
+                context.setCurrentNodeReady(false);
+                context.setWaitingMessage("等待玩家阅读剧本");
+                
+                // 更新游戏的工作流节点状态
+                if (context.getGameId() != null) {
+                    Game game = gameOpt.get();
+                    game.setWorkflowNode("script_reader");
+                    game.setNodeReady(false);
+                    gameService.updateGame(context.getGameId(), game);
+                }
+                
+                // 通过 WebSocket 推送阶段就绪通知
+                webSocketService.broadcastPhaseReady(context.getGameId(), "script_reader", false, "等待玩家阅读剧本");
+                
+                // 根据玩家类型决定等待策略
+                if (realPlayerIds.isEmpty()) {
+                    // 全AI玩家模式：等待观察者确认即可
+                    log.info("[阶段同步] 全AI玩家模式，等待观察者确认");
+                    
+                    int waitCount = 0;
+                    int maxWaitTime = 1800; // 最大等待时间30分钟
+                    int checkInterval = 3; // 检查间隔3秒
+                    
+                    // 等待观察者确认（通过 observerConfirmed 标志）
+                    while (!context.isObserverConfirmed() && waitCount < maxWaitTime) {
+                        Thread.sleep(checkInterval * 1000);
+                        waitCount += checkInterval;
+                        
+                        // 每30秒输出一次等待日志
+                        if (waitCount % 30 == 0) {
+                            log.info("[阶段同步] 等待观察者确认剧本阅读，已等待: {}秒", waitCount);
+                        }
+                    }
+                    
+                    if (context.isObserverConfirmed()) {
+                        log.info("[阶段同步] 观察者已确认剧本阅读，继续工作流");
+                    } else {
+                        log.warn("[阶段同步] 等待观察者确认超时，强制继续工作流");
+                    }
+                } else {
+                    // 有真人玩家模式：等待真人玩家确认
+                    log.info("[阶段同步] 有真人玩家模式，等待真人玩家确认，玩家数量: {}", realPlayerIds.size());
+                    
+                    int waitCount = 0;
+                    int maxWaitTime = 1800; // 最大等待时间30分钟
+                    int checkInterval = 3; // 检查间隔3秒
+                    
+                    while (!context.isAllPlayersConfirmed() && waitCount < maxWaitTime) {
+                        Thread.sleep(checkInterval * 1000);
+                        waitCount += checkInterval;
+                        
+                        // 每30秒输出一次等待日志
+                        if (waitCount % 30 == 0) {
+                            log.info("[阶段同步] 等待真人玩家确认剧本阅读，已等待: {}秒，未确认玩家: {}",
+                                    waitCount, context.getUnconfirmedPlayers());
+                        }
+                    }
+                    
+                    if (context.isAllPlayersConfirmed()) {
+                        log.info("[阶段同步] 所有真人玩家已确认剧本阅读，继续工作流");
+                    } else {
+                        log.warn("[阶段同步] 等待超时，强制继续工作流");
+                    }
+                }
+                
+                context.setCurrentNodeReady(true);
+                context.setWaitingMessage(null);
+                
+                // 更新游戏状态
+                if (context.getGameId() != null) {
+                    Game game = gameOpt.get();
+                    game.setNodeReady(true);
+                    gameService.updateGame(context.getGameId(), game);
+                }
+                
+                // 通知前端节点已完成
+                webSocketService.broadcastPhaseReady(context.getGameId(), "script_reader", true, "剧本阅读完成");
+
                 context.setSuccess(true);
 
                 log.info("剧本读取完成，共 {} 个角色", characters.size());

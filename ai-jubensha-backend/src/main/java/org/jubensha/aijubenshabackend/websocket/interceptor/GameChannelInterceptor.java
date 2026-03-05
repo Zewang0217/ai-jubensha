@@ -33,12 +33,16 @@ public class GameChannelInterceptor implements ChannelInterceptor {
             Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
             if (sessionAttributes != null) {
                 Long gamePlayerId = (Long) sessionAttributes.get("gamePlayerId");
+                Boolean isObserver = (Boolean) sessionAttributes.get("isObserver");
                 String sessionId = accessor.getSessionId();
 
                 if (gamePlayerId != null && sessionId != null) {
                     // 注册 session 与 gamePlayerId 的关联
                     sessionManager.register(sessionId, gamePlayerId);
                     log.info("STOMP CONNECT: sessionId={} 关联 gamePlayerId={}", sessionId, gamePlayerId);
+                } else if (Boolean.TRUE.equals(isObserver)) {
+                    // 观察者模式连接
+                    log.info("STOMP CONNECT: sessionId={} 以观察者模式连接", sessionId);
                 }
             }
         }

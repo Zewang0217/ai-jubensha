@@ -45,4 +45,14 @@ public interface WebSocketService {
      * 7. 处理投票逻辑
      */
     void handleVote(Long gameId, WebSocketMessage message);
+
+    /**
+     * 广播阶段就绪状态
+     *
+     * @param gameId 游戏ID
+     * @param nodeName 节点名称
+     * @param isReady 是否就绪
+     * @param message 提示信息
+     */
+    void broadcastPhaseReady(Long gameId, String nodeName, Boolean isReady, String message);
 }

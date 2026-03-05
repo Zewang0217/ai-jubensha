@@ -236,6 +236,24 @@ public class WebSocketServiceImpl implements WebSocketService {
     }
 
     @Override
+    public void broadcastPhaseReady(Long gameId, String nodeName, Boolean isReady, String message) {
+        WebSocketMessage wsMessage = new WebSocketMessage();
+        wsMessage.setType(WebSocketMessage.MessageType.PHASE_READY);
+        
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("nodeName", nodeName);
+        payload.put("isReady", isReady);
+        payload.put("message", message);
+        payload.put("timestamp", System.currentTimeMillis());
+        wsMessage.setPayload(payload);
+        
+        // 广播到游戏的阶段主题
+        String destination = "/topic/game/" + gameId + "/phase";
+        messagingTemplate.convertAndSend(destination, wsMessage);
+        log.info("广播阶段就绪状态到游戏 {}: nodeName={}, isReady={}, message={}", gameId, nodeName, isReady, message);
+    }
+
+    @Override
     public void handleVote(Long gameId, WebSocketMessage message) {
         try {
             log.info("处理投票消息: gameId={}, message={}", gameId, message);

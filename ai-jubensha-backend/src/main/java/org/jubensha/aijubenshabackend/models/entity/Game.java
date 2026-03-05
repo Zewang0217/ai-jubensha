@@ -38,6 +38,18 @@ public class Game {
     @Enumerated(EnumType.STRING)
     private GamePhase currentPhase;
 
+    /**
+     * 当前工作流节点名称
+     */
+    @Column(name = "workflow_node", length = 100)
+    private String workflowNode;
+
+    /**
+     * 节点是否就绪
+     */
+    @Column(name = "node_ready")
+    private Boolean nodeReady;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
