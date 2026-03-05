@@ -9,10 +9,13 @@ import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
 import org.jubensha.aijubenshabackend.models.dto.GameCreateDTO;
 import org.jubensha.aijubenshabackend.models.dto.GameResponseDTO;
 import org.jubensha.aijubenshabackend.models.dto.GameUpdateDTO;
+import org.jubensha.aijubenshabackend.models.dto.PhaseConfirmDTO;
+import org.jubensha.aijubenshabackend.models.dto.PhaseStatusDTO;
 import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.models.enums.GameStatus;
 import org.jubensha.aijubenshabackend.service.game.GameService;
+import org.jubensha.aijubenshabackend.service.investigation.InvestigationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,12 +38,14 @@ public class GameController {
     private final jubenshaWorkflow workflow;
     private final DiscussionService discussionService;
     private final WorkflowStatusService workflowStatusService;
+    private final InvestigationService investigationService;
 
-    public GameController(GameService gameService, jubenshaWorkflow workflow, DiscussionService discussionService, WorkflowStatusService workflowStatusService) {
+    public GameController(GameService gameService, jubenshaWorkflow workflow, DiscussionService discussionService, WorkflowStatusService workflowStatusService, InvestigationService investigationService) {
         this.gameService = gameService;
         this.workflow = workflow;
         this.discussionService = discussionService;
         this.workflowStatusService = workflowStatusService;
+        this.investigationService = investigationService;
     }
 
     /**
@@ -668,6 +673,145 @@ public class GameController {
             log.error("查询工作流状态失败: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to get workflow status", "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 查询游戏阶段状态
+     *
+     * @param gameId 游戏ID
+     * @return 阶段状态信息
+     */
+    @GetMapping("/{gameId}/phase-status")
+    public ResponseEntity<PhaseStatusDTO> getPhaseStatus(@PathVariable Long gameId) {
+        try {
+            // 1. 获取游戏信息
+            Optional<Game> gameOptional = gameService.getGameById(gameId);
+            if (gameOptional.isEmpty()) {
+                log.warn("游戏不存在，游戏ID: {}", gameId);
+                return ResponseEntity.notFound().build();
+            }
+            Game game = gameOptional.get();
+
+            // 2. 获取工作流状态
+            WorkflowStatusService.WorkflowStatus status = workflowStatusService.getWorkflowStatus(gameId);
+
+            // 3. 构建 PhaseStatusDTO 响应
+            PhaseStatusDTO.PhaseStatusDTOBuilder builder = PhaseStatusDTO.builder()
+                    .currentPhase(game.getCurrentPhase() != null ? game.getCurrentPhase().name() : "UNKNOWN");
+
+            if (status != null) {
+                // 设置工作流节点信息
+                builder.workflowNode(status.getCurrentStep());
+
+                // 根据工作流状态判断是否就绪
+                boolean isReadyForNext = status.getState() == WorkflowStatusService.WorkflowState.COMPLETED;
+                builder.isReadyForNext(isReadyForNext);
+
+                // 设置提示信息
+                String message;
+                switch (status.getState()) {
+                    case PENDING:
+                        message = "工作流等待执行中";
+                        break;
+                    case RUNNING:
+                        message = "工作流正在执行: " + status.getCurrentStep();
+                        break;
+                    case COMPLETED:
+                        message = "工作流执行完成，可以进入下一阶段";
+                        break;
+                    case FAILED:
+                        message = "工作流执行失败: " + status.getErrorMessage();
+                        break;
+                    default:
+                        message = "未知状态";
+                }
+                builder.message(message);
+            } else {
+                // 没有工作流状态时，返回默认值
+                builder.workflowNode("未启动")
+                        .isReadyForNext(false)
+                        .message("游戏尚未启动工作流")
+                        .waitingForPlayers(List.of());
+            }
+
+            PhaseStatusDTO responseDTO = builder.build();
+            log.info("查询阶段状态成功，游戏ID: {}, 当前阶段: {}", gameId, responseDTO.getCurrentPhase());
+            return ResponseEntity.ok(responseDTO);
+        } catch (Exception e) {
+            log.error("查询阶段状态失败，游戏ID: {}, 错误: {}", gameId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * 确认阶段完成
+     *
+     * @param gameId     游戏ID
+     * @param confirmDTO 确认请求
+     * @return 确认结果
+     */
+    @PostMapping("/{gameId}/confirm-phase")
+    public ResponseEntity<?> confirmPhase(@PathVariable Long gameId, @Valid @RequestBody PhaseConfirmDTO confirmDTO) {
+        try {
+            // 1. 验证游戏存在
+            Optional<Game> gameOptional = gameService.getGameById(gameId);
+            if (gameOptional.isEmpty()) {
+                log.warn("游戏不存在，游戏ID: {}", gameId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "游戏不存在", "gameId", gameId));
+            }
+            Game game = gameOptional.get();
+
+            // 2. 获取工作流状态
+            WorkflowStatusService.WorkflowStatus status = workflowStatusService.getWorkflowStatus(gameId);
+            if (status == null) {
+                log.warn("工作流状态不存在，游戏ID: {}", gameId);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "工作流尚未启动"));
+            }
+
+            // 3. 获取工作流上下文
+            WorkflowContext context = status.getWorkflowContext();
+            
+            // 4. 处理确认逻辑
+            boolean isObserver = confirmDTO.getPlayerId() == null || confirmDTO.getPlayerId() <= 0;
+            
+            if (isObserver) {
+                // 观察者确认
+                if (context != null) {
+                    context.setObserverConfirmed(true);
+                    log.info("观察者确认阶段完成，游戏ID: {}, 阶段: {}", gameId, confirmDTO.getPhase());
+                }
+            } else {
+                // 真人玩家确认
+                if (context != null) {
+                    context.confirmPhase(confirmDTO.getPlayerId());
+                    log.info("玩家确认阶段完成，游戏ID: {}, 玩家ID: {}, 阶段: {}", gameId, confirmDTO.getPlayerId(), confirmDTO.getPhase());
+                }
+            }
+            
+            // 同步更新 InvestigationService 缓存中的上下文
+            if (context != null) {
+                investigationService.saveWorkflowContext(gameId, context);
+                log.info("已同步更新 InvestigationService 缓存，游戏ID: {}", gameId);
+            }
+
+            // 6. 构建确认成功响应
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("success", true);
+            response.put("gameId", gameId);
+            response.put("playerId", confirmDTO.getPlayerId());
+            response.put("phase", confirmDTO.getPhase());
+            response.put("isObserver", isObserver);
+            response.put("message", "阶段确认成功");
+            response.put("workflowState", status.getState().name());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("确认阶段失败，游戏ID: {}, 错误: {}", gameId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "确认阶段失败", "message", e.getMessage()));
         }
     }
 }

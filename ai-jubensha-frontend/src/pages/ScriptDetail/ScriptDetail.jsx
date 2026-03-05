@@ -14,6 +14,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import {getScriptById} from '../../services/api/script'
+import GameStartModal from '../../components/ui/GameStartModal'
 
 /**
  * ScriptDetail 页面 - 剧本详情
@@ -26,6 +27,7 @@ const ScriptDetail = () => {
   const [script, setScript] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showGameModal, setShowGameModal] = useState(false)
 
   // 获取剧本详情
   useEffect(() => {
@@ -36,7 +38,11 @@ const ScriptDetail = () => {
         setLoading(true)
         setError(null)
         const data = await getScriptById(id)
-        setScript(data)
+        // 处理可能的嵌套数据结构
+        const scriptData = data?.data || data
+        console.log('[ScriptDetail] API response:', data)
+        console.log('[ScriptDetail] Extracted script data:', scriptData)
+        setScript(scriptData)
       } catch (err) {
         console.error('获取剧本详情失败:', err)
         setError(err.message || '获取剧本详情失败')
@@ -53,11 +59,20 @@ const ScriptDetail = () => {
     navigate('/scripts')
   }
 
-  // 开始游戏
+  // 开始游戏 - 打开模式选择弹窗
   const handleStartGame = () => {
-    // TODO: 调用创建游戏 API，传入剧本 ID
-    console.log('从此剧本开始游戏:', script?.id)
-    // navigate(`/games/create?scriptId=${script?.id}`)
+    setShowGameModal(true)
+  }
+
+  // 游戏创建成功回调 - 跳转到游戏房间
+  const handleGameCreated = (gameId) => {
+    setShowGameModal(false)
+    navigate(`/game/${gameId}`)
+  }
+
+  // 关闭弹窗
+  const handleCloseModal = () => {
+    setShowGameModal(false)
   }
 
   // 查看角色详情
@@ -347,6 +362,14 @@ const ScriptDetail = () => {
             </motion.div>
           </div>
         </div>
+
+        {/* 游戏启动弹窗 */}
+        <GameStartModal
+            script={script}
+            isOpen={showGameModal}
+            onClose={handleCloseModal}
+            onGameCreated={handleGameCreated}
+        />
       </div>
   )
 }

@@ -13,10 +13,12 @@ import React, {memo, Suspense, useCallback, useEffect, useMemo, useState} from '
 import {useNavigate, useParams} from 'react-router-dom'
 import {useQuery} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
-import {gameApi} from '../../services/api'
+import {getGameById, getGamePlayers} from '../../services/api'
+import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
 import Loading from '../../components/common/Loading'
 import {useWebSocket} from '../../hooks/useWebSocket'
 import {Bug, X} from 'lucide-react'
+import {saveGameState, loadGameState, clearGameState} from '../../utils/gameStateStorage'
 
 // 阶段系统导入
 import {DEFAULT_PHASE_SEQUENCE, PHASE_CONFIG, PHASE_TYPE, usePhaseManager,} from './phases'
@@ -45,8 +47,8 @@ const PhaseComponents = {
 // 常量配置
 // =============================================================================
 
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8088'
-const DEFAULT_DEBUG_MODE = import.meta.env.DEV || import.meta.env.VITE_DEBUG_MODE === 'true'
+const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080'
+const DEFAULT_DEBUG_MODE = false // 默认关闭调试模式，使用真实数据
 
 const TRANSITION_CONFIG = {
   initial: {opacity: 0, y: 8},
@@ -277,15 +279,37 @@ function GameRoom() {
     updatePhaseData,
     getPhaseData,
     goToPhase,
+    // 阶段同步相关状态
+    isBackendReady,
+    waitingMessage,
+    isCheckingBackend,
+    confirmCurrentPhase,
+    setWaitingMessage,
+    setIsBackendReady,
   } = usePhaseManager({
     sequence: DEFAULT_PHASE_SEQUENCE,
     onPhaseChange: (newPhase, prevPhase) => {
       console.log(`[GameRoom] 阶段切换: ${prevPhase} -> ${newPhase}`)
+      // 阶段变化时保存到 localStorage
+      if (id) {
+        saveGameState({
+          gameId: id,
+          currentPhase: newPhase,
+          realPlayerCount: adaptedGameData?.realPlayerCount,
+          totalPlayerCount: adaptedGameData?.players?.length,
+          scriptId: adaptedGameData?.scriptId,
+        })
+      }
     },
     onComplete: () => {
       console.log('[GameRoom] 游戏完成')
+      clearGameState()
     },
   })
+
+  // 从 localStorage 恢复游戏状态
+  const [restoredPhase, setRestoredPhase] = useState(null)
+  const [isStateRestored, setIsStateRestored] = useState(false)
 
   // 数据获取
   const {
@@ -294,94 +318,231 @@ function GameRoom() {
     error: apiError,
   } = useQuery({
     queryKey: ['game', id],
-    queryFn: () => gameApi.getGame(id),
+    queryFn: async () => {
+      const response = await getGameById(id)
+      return response?.data || response
+    },
     staleTime: 30000,
-    enabled: !isDebugMode,
+    enabled: !isDebugMode && !!id,
   })
 
   const {
     data: apiPlayerData,
   } = useQuery({
-    queryKey: ['player', id],
-    queryFn: () => gameApi.getPlayer(id),
+    queryKey: ['gamePlayers', id],
+    queryFn: async () => {
+      const response = await getGamePlayers(id)
+      return response?.data || response
+    },
     enabled: !isDebugMode && !!id,
     staleTime: 60000,
   })
 
-  // 合并数据
-  const gameData = useMemo(() =>
-          isDebugMode ? {data: debugGameData} : apiGameData,
-      [isDebugMode, debugGameData, apiGameData]
-  )
-
-  const playerData = useMemo(() =>
-          isDebugMode ? {data: debugPlayerData} : apiPlayerData,
-      [isDebugMode, debugPlayerData, apiPlayerData]
-  )
-
-  const isLoading = isDebugMode ? debugIsLoading : apiIsLoading
-  const error = isDebugMode ? null : apiError
-
-  // WebSocket
-  const wsUrl = useMemo(() => `${WS_BASE_URL}/ws/game/${id}`, [id])
-
-  const {
-    isConnected: apiIsConnected,
-    sendMessage: apiSendMessage,
-    onMessage: apiOnMessage,
-  } = useWebSocket(isDebugMode ? null : wsUrl)
-
-  const isConnected = isDebugMode ? debugIsConnected : apiIsConnected
-  const sendMessage = isDebugMode ? debugSendMessage : apiSendMessage
-  const onMessage = isDebugMode ? debugOnMessage : apiOnMessage
-
-  // WebSocket 监听
   useEffect(() => {
-    const handleServerPhaseChange = (data) => {
-      if (data?.phase && data.phase !== currentPhase) {
-        console.log('[GameRoom] 服务器阶段切换:', data)
-        goToPhase(data.phase)
+    if (isDebugMode || !id || apiGameData) return
+
+    const savedState = loadGameState()
+    if (savedState && savedState.gameId === id) {
+      console.log('[GameRoom] 发现保存的游戏状态:', savedState)
+      setRestoredPhase(savedState.currentPhase)
+    }
+    setIsStateRestored(true)
+  }, [isDebugMode, id, apiGameData])
+
+  // 应用恢复的阶段
+  useEffect(() => {
+    if (!restoredPhase || !isStateRestored || !apiGameData) return
+
+    const targetPhase = adaptPhase(apiGameData.currentPhase) || restoredPhase
+    if (DEFAULT_PHASE_SEQUENCE.includes(targetPhase)) {
+      console.log('[GameRoom] 恢复到保存的阶段:', targetPhase)
+      goToPhase(targetPhase, false)
+    }
+
+    // 清除恢复状态
+    setRestoredPhase(null)
+  }, [restoredPhase, isStateRestored, apiGameData, goToPhase])
+
+  // 适配后的游戏数据
+  const [adaptedGameData, setAdaptedGameData] = useState(null)
+  const [isAdapting, setIsAdapting] = useState(false)
+
+  // 数据适配 - 将后端数据转换为前端所需格式
+  useEffect(() => {
+    if (isDebugMode) {
+      setAdaptedGameData(debugGameData)
+      return
+    }
+
+    if (!apiGameData || !apiPlayerData) {
+      return
+    }
+
+    const adaptData = async () => {
+      setIsAdapting(true)
+      try {
+        const adapted = await adaptGameData(apiGameData, apiPlayerData)
+        setAdaptedGameData(adapted)
+      } catch (err) {
+        console.error('[GameRoom] Failed to adapt game data:', err)
+      } finally {
+        setIsAdapting(false)
       }
     }
 
-    const handleGameUpdate = (data) => {
-      console.log('[GameRoom] 游戏更新:', data)
-    }
+    adaptData()
+  }, [isDebugMode, apiGameData, apiPlayerData, debugGameData])
 
-    const unsubPhase = onMessage('PHASE_CHANGE', handleServerPhaseChange)
-    const unsubGame = onMessage('GAME_UPDATE', handleGameUpdate)
+  // 合并数据
+  const gameData = useMemo(() => {
+    if (isDebugMode) {
+      return {data: debugGameData}
+    }
+    return {data: adaptedGameData}
+  }, [isDebugMode, debugGameData, adaptedGameData])
+
+  const playerData = useMemo(() => {
+    if (isDebugMode) {
+      return {data: debugPlayerData}
+    }
+    return {data: apiPlayerData}
+  }, [isDebugMode, debugPlayerData, apiPlayerData])
+
+  const isLoading = isDebugMode ? debugIsLoading : (apiIsLoading || isAdapting)
+  const error = isDebugMode ? null : apiError
+
+  // WebSocket - 使用新的 STOMP over SockJS 连接
+  // 后端要求连接格式: /ws?gameId={gameId}
+  const wsBaseUrl = WS_BASE_URL.replace('ws://', 'http://').replace('wss://', 'https://')
+
+  const {
+    isConnected: apiIsConnected,
+    sendChatMessage,
+    sendVote,
+    subscribeToGameChat,
+    subscribeToPersonalMessages,
+    subscribe,
+  } = useWebSocket(isDebugMode ? null : wsBaseUrl, isDebugMode ? null : id)
+
+  const isConnected = isDebugMode ? debugIsConnected : apiIsConnected
+
+  // WebSocket 消息订阅
+  useEffect(() => {
+    if (isDebugMode || !isConnected) return
+
+    console.log('[GameRoom] 订阅 WebSocket 消息')
+
+    // 订阅游戏聊天消息
+    const chatSubscriptionId = subscribeToGameChat((message) => {
+      console.log('[GameRoom] 收到聊天消息:', message)
+      // 处理聊天消息
+    })
+
+    // 订阅个人消息
+    const personalSubscriptionId = subscribeToPersonalMessages((message) => {
+      console.log('[GameRoom] 收到个人消息:', message)
+      // 处理个人消息，如剧本就绪、开始搜证等
+      if (message?.type === 'SCRIPT_READY') {
+        console.log('[GameRoom] 剧本已就绪:', message.payload)
+      } else if (message?.type === 'START_INVESTIGATION') {
+        console.log('[GameRoom] 开始搜证:', message.payload)
+      }
+    })
 
     return () => {
-      unsubPhase?.()
-      unsubGame?.()
+      // 清理订阅
+      if (chatSubscriptionId) {
+        console.log('[GameRoom] 取消聊天订阅')
+      }
+      if (personalSubscriptionId) {
+        console.log('[GameRoom] 取消个人消息订阅')
+      }
     }
-  }, [onMessage, currentPhase, goToPhase])
+  }, [isDebugMode, isConnected, subscribeToGameChat, subscribeToPersonalMessages])
+
+  // WebSocket 监听阶段就绪消息
+  useEffect(() => {
+    if (isDebugMode || !isConnected || !id) return
+
+    /**
+     * 处理阶段就绪消息
+     * @param {Object} data - 消息数据
+     * @param {boolean} data.isReady - 是否就绪
+     * @param {string} [data.message] - 等待消息
+     */
+    const handlePhaseReady = (data) => {
+      console.log('[GameRoom] 收到阶段就绪消息:', data)
+      if (data?.isReady) {
+        setIsBackendReady(true)
+        setWaitingMessage(null)
+      } else {
+        setIsBackendReady(false)
+        setWaitingMessage(data?.message || '等待其他玩家...')
+      }
+    }
+
+    // 订阅阶段就绪消息主题
+    const phaseReadySubscriptionId = subscribe(`/topic/game/${id}/phase-ready`, handlePhaseReady)
+
+    return () => {
+      // 清理订阅
+      if (phaseReadySubscriptionId) {
+        console.log('[GameRoom] 取消阶段就绪订阅')
+      }
+    }
+  }, [isDebugMode, isConnected, id, subscribe, setIsBackendReady, setWaitingMessage])
 
   // 事件处理
-  const handlePhaseComplete = useCallback(() => goToNext(), [goToNext])
+  /**
+   * 处理阶段完成
+   * @description 通知后端阶段确认后进入下一阶段
+   */
+  const handlePhaseComplete = useCallback(async () => {
+    // 获取真人玩家ID（从 playerData 中查找 role 为 REAL 的玩家）
+    // 注意：playerData 结构可能是 { data: [GamePlayer] } 或直接是 [GamePlayer]
+    const players = playerData?.data || playerData || []
+    const realPlayer = players.find(p => p.player?.role === 'REAL' || p.role === 'REAL')
+    const currentPlayerId = realPlayer?.id || realPlayer?.player?.id
+
+    if (id) {
+      // 如果有真人玩家ID，发送玩家确认；否则发送观察者确认（playerId = null）
+      console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId)
+      await confirmCurrentPhase(id, currentPlayerId || null)
+    }
+
+    goToNext()
+  }, [goToNext, confirmCurrentPhase, id, playerData])
+
   const handlePhaseSkip = useCallback(() => goToNext(), [goToNext])
   const handlePhaseBack = useCallback(() => goToPrevious(), [goToPrevious])
 
+  /**
+   * 处理玩家动作
+   * @param {string} action - 动作类型
+   * @param {*} payload - 动作数据
+   */
   const handleAction = useCallback((action, payload) => {
-    sendMessage({
-      type: 'PLAYER_ACTION',
-      action,
-      payload,
-      timestamp: Date.now(),
-    })
+    console.log('[GameRoom] 玩家动作:', action, payload)
+
+    // 根据动作类型处理
+    if (action === 'send_chat' && payload?.message) {
+      sendChatMessage(payload.message)
+    } else if (action === 'vote' && payload?.characterId) {
+      sendVote(payload.characterId)
+    }
 
     updatePhaseData(currentPhase, {[action]: payload})
 
     if (action === 'return_home') navigate('/')
     if (action === 'play_again') navigate('/games')
-  }, [currentPhase, navigate, sendMessage, updatePhaseData])
+  }, [currentPhase, navigate, sendChatMessage, sendVote, updatePhaseData])
 
   const handleExit = useCallback(() => {
     if (window.confirm('确定要退出游戏吗？未保存的进度将会丢失。')) {
-      sendMessage({type: 'GAME_LEAVE', gameId: id})
+      // 断开 WebSocket 连接
       navigate('/games')
     }
-  }, [id, navigate, sendMessage])
+  }, [navigate])
 
   const handleDebugPhaseChange = useCallback((phase) => {
     if (isDebugMode) {
@@ -490,6 +651,29 @@ function GameRoom() {
             onExit={handleExit}
             onPhaseClick={handlePhaseSelect}
         />
+
+        {/* 阶段同步等待提示 */}
+        <AnimatePresence>
+          {waitingMessage && (
+              <motion.div
+                  initial={{opacity: 0, y: -20}}
+                  animate={{opacity: 1, y: 0}}
+                  exit={{opacity: 0, y: -20}}
+                  className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50"
+              >
+                <div className="bg-amber-50 dark:bg-amber-900/80 border border-amber-200 dark:border-amber-700 rounded-xl px-6 py-4 shadow-lg flex items-center gap-3">
+                  <motion.div
+                      animate={{rotate: 360}}
+                      transition={{duration: 1.5, repeat: Infinity, ease: 'linear'}}
+                      className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full"
+                  />
+                  <span className="text-amber-800 dark:text-amber-200 font-medium">
+                    {waitingMessage}
+                  </span>
+                </div>
+              </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 主内容区 */}
         <main className="relative z-10 flex-1 min-h-0">

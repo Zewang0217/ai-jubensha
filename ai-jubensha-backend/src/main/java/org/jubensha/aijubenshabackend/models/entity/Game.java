@@ -38,6 +38,24 @@ public class Game {
     @Enumerated(EnumType.STRING)
     private GamePhase currentPhase;
 
+    /**
+     * 当前工作流节点名称
+     */
+    @Column(name = "workflow_node", length = 100)
+    private String workflowNode;
+
+    /**
+     * 节点是否就绪
+     */
+    @Column(name = "node_ready")
+    private Boolean nodeReady;
+
+    /**
+     * 真人玩家数量，用于前端恢复玩家模式配置
+     */
+    @Column(name = "real_player_count")
+    private Integer realPlayerCount;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

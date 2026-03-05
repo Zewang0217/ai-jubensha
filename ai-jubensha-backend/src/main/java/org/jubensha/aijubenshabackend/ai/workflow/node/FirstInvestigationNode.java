@@ -122,13 +122,19 @@ public class FirstInvestigationNode {
 
                 // 初始化玩家搜证次数
                 List<Long> playerIds = new ArrayList<>();
+                List<Long> realPlayerIds = new ArrayList<>();
                 for (Map<String, Object> assignment : playerAssignments) {
                     Long playerId = (Long) assignment.get("playerId");
+                    String playerType = (String) assignment.get("playerType");
                     playerIds.add(playerId);
+                    if ("REAL".equals(playerType)) {
+                        realPlayerIds.add(playerId);
+                    }
                 }
                 context.initInvestigationCounts(playerIds);
                 context.setCurrentInvestigationPhase("FIRST_INVESTIGATION");
                 log.info("已初始化 {} 个玩家的搜证次数，每轮 {} 次", playerIds.size(), WorkflowContext.DEFAULT_INVESTIGATION_LIMIT);
+                log.info("[阶段同步] 玩家分布 - 真人玩家: {}, AI玩家: {}", realPlayerIds.size(), playerIds.size() - realPlayerIds.size());
                 log.info("[状态转换] 进入第一轮搜证阶段，当前阶段: {}", context.getCurrentInvestigationPhase());
 
                 // 保存工作流上下文到InvestigationService缓存
@@ -247,6 +253,95 @@ public class FirstInvestigationNode {
                     log.info("[状态转换] 所有玩家已完成搜证，准备进入讨论阶段");
                     log.info("[状态监控] 最终搜证状态: {}", context.getPlayerInvestigationCompleted());
                     log.info("[状态监控] 总等待时间: {}秒", waitCount);
+                    
+                    // ====== 阶段同步：等待前端确认 ======
+                    // 初始化阶段确认状态（只针对真人玩家）
+                    context.initPhaseConfirmations(realPlayerIds);
+                    
+                    // 设置节点状态为未就绪，等待前端确认
+                    context.setCurrentNodeReady(false);
+                    context.setWaitingMessage("等待玩家完成搜证确认");
+                    
+                    // 更新游戏的工作流节点状态
+                    if (context.getGameId() != null) {
+                        var gameOpt = gameService.getGameById(context.getGameId());
+                        if (gameOpt.isPresent()) {
+                            Game game = gameOpt.get();
+                            game.setWorkflowNode("first_investigation");
+                            game.setNodeReady(false);
+                            gameService.updateGame(context.getGameId(), game);
+                        }
+                    }
+                    
+                    // 通过 WebSocket 推送阶段就绪通知
+                    webSocketService.broadcastPhaseReady(context.getGameId(), "first_investigation", false, "等待玩家完成搜证确认");
+                    
+                    // 根据玩家类型决定等待策略
+                    if (realPlayerIds.isEmpty()) {
+                        // 全AI玩家模式：等待观察者确认即可
+                        log.info("[阶段同步] 全AI玩家模式，等待观察者确认");
+                        
+                        int confirmWaitCount = 0;
+                        int maxConfirmWaitTime = 600; // 最大等待时间10分钟
+                        int confirmCheckInterval = 3; // 检查间隔3秒
+                        
+                        // 等待观察者确认
+                        while (!context.isObserverConfirmed() && confirmWaitCount < maxConfirmWaitTime) {
+                            Thread.sleep(confirmCheckInterval * 1000);
+                            confirmWaitCount += confirmCheckInterval;
+                            
+                            // 每30秒输出一次等待日志
+                            if (confirmWaitCount % 30 == 0) {
+                                log.info("[阶段同步] 等待观察者确认搜证完成，已等待: {}秒", confirmWaitCount);
+                            }
+                        }
+                        
+                        if (context.isObserverConfirmed()) {
+                            log.info("[阶段同步] 观察者已确认搜证完成，继续工作流");
+                        } else {
+                            log.warn("[阶段同步] 等待观察者确认超时，强制继续工作流");
+                        }
+                    } else {
+                        // 有真人玩家模式：等待真人玩家确认
+                        log.info("[阶段同步] 有真人玩家模式，等待真人玩家确认，玩家数量: {}", realPlayerIds.size());
+                        
+                        int confirmWaitCount = 0;
+                        int maxConfirmWaitTime = 600; // 最大等待时间10分钟
+                        int confirmCheckInterval = 3; // 检查间隔3秒
+                        
+                        while (!context.isAllPlayersConfirmed() && confirmWaitCount < maxConfirmWaitTime) {
+                            Thread.sleep(confirmCheckInterval * 1000);
+                            confirmWaitCount += confirmCheckInterval;
+                            
+                            // 每30秒输出一次等待日志
+                            if (confirmWaitCount % 30 == 0) {
+                                log.info("[阶段同步] 等待真人玩家确认搜证完成，已等待: {}秒，未确认玩家: {}", 
+                                        confirmWaitCount, context.getUnconfirmedPlayers());
+                            }
+                        }
+                        
+                        if (context.isAllPlayersConfirmed()) {
+                            log.info("[阶段同步] 所有真人玩家已确认搜证完成，继续工作流");
+                        } else {
+                            log.warn("[阶段同步] 等待超时，强制继续工作流");
+                        }
+                    }
+                    
+                    context.setCurrentNodeReady(true);
+                    context.setWaitingMessage(null);
+                    
+                    // 更新游戏状态
+                    if (context.getGameId() != null) {
+                        var gameOpt = gameService.getGameById(context.getGameId());
+                        if (gameOpt.isPresent()) {
+                            Game game = gameOpt.get();
+                            game.setNodeReady(true);
+                            gameService.updateGame(context.getGameId(), game);
+                        }
+                    }
+                    
+                    // 通知前端节点已完成
+                    webSocketService.broadcastPhaseReady(context.getGameId(), "first_investigation", true, "搜证完成");
                     
                     // 更新游戏状态为讨论阶段
                     if (context.getGameId() != null) {

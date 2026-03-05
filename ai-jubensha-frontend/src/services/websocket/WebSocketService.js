@@ -1,147 +1,215 @@
 /**
  * WebSocket 服务类
- * 封装 WebSocket 连接管理、消息处理和自动重连功能
+ * 使用 STOMP over SockJS 协议连接后端
+ * @author zewang
  */
+import {Client} from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
+
 class WebSocketService {
     constructor() {
-        this.socket = null
+        this.client = null
         this.messageHandlers = new Map()
+        this.subscriptions = new Map()
         this.reconnectAttempts = 0
         this.maxReconnectAttempts = 5
         this.reconnectDelay = 1000
-        this.url = null
+        this.baseUrl = null
+        this.gameId = null
         this.isManualClose = false
+        this.connectionPromise = null
     }
 
     /**
      * 连接到 WebSocket 服务器
-     * @param {string} url - WebSocket 服务器 URL
+     * @param {string} baseUrl - WebSocket 服务器基础 URL
+     * @param {number} gameId - 游戏 ID
      * @returns {Promise}
      */
-    connect(url) {
+    connect(baseUrl, gameId) {
         return new Promise((resolve, reject) => {
-            if (this.socket?.readyState === WebSocket.OPEN) {
-                console.log('WebSocket 已经连接')
+            if (this.client?.connected) {
+                console.log('[WebSocketService] 已经连接')
                 resolve()
                 return
             }
 
-            this.url = url
+            this.baseUrl = baseUrl
+            this.gameId = gameId
             this.isManualClose = false
 
+            const wsUrl = `${baseUrl}/ws?gameId=${gameId}`
+            console.log('[WebSocketService] 正在连接:', wsUrl)
+
             try {
-                this.socket = new WebSocket(url)
+                this.client = new Client({
+                    webSocketFactory: () => new SockJS(wsUrl),
+                    reconnectDelay: this.reconnectDelay,
+                    heartbeatIncoming: 25000,
+                    heartbeatOutgoing: 25000,
+                    onConnect: (frame) => {
+                        console.log('[WebSocketService] STOMP 连接已建立:', frame)
+                        this.reconnectAttempts = 0
+                        this.emit('__connected__')
+                        resolve()
+                    },
+                    onDisconnect: (frame) => {
+                        console.log('[WebSocketService] STOMP 连接已断开:', frame)
+                        this.emit('__disconnected__')
+                    },
+                    onStompError: (frame) => {
+                        console.error('[WebSocketService] STOMP 错误:', frame)
+                        this.emit('__error__', frame)
+                        reject(new Error(frame.headers?.message || 'STOMP error'))
+                    },
+                    onWebSocketError: (event) => {
+                        console.error('[WebSocketService] WebSocket 错误:', event)
+                        this.emit('__error__', event)
+                    },
+                    onWebSocketClose: (event) => {
+                        console.log('[WebSocketService] WebSocket 连接已关闭:', event.code, event.reason)
+                        if (!this.isManualClose && this.reconnectAttempts < this.maxReconnectAttempts) {
+                            this.reconnectAttempts++
+                            console.log(`[WebSocketService] 尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+                        }
+                    },
+                })
 
-                this.socket.onopen = () => {
-                    console.log('WebSocket 连接已建立')
-                    this.reconnectAttempts = 0
-                    this.emit('__connected__')
-                    resolve()
-                }
-
-                this.socket.onmessage = (event) => {
-                    this.handleMessage(event)
-                }
-
-                this.socket.onclose = (event) => {
-                    console.log('WebSocket 连接已关闭:', event.code, event.reason)
-                    this.emit('__disconnected__')
-
-                    if (!this.isManualClose) {
-                        this.attemptReconnect()
-                    }
-                }
-
-                this.socket.onerror = (error) => {
-                    console.error('WebSocket 错误:', error)
-                    this.emit('__error__', error)
-                    reject(error)
-                }
+                this.client.activate()
             } catch (error) {
-                console.error('WebSocket 连接失败:', error)
+                console.error('[WebSocketService] 连接失败:', error)
                 reject(error)
             }
         })
     }
 
     /**
-     * 尝试重新连接
+     * 订阅主题
+     * @param {string} destination - 订阅目标
+     * @param {Function} handler - 消息处理器
+     * @returns {string} 订阅 ID
      */
-    attemptReconnect() {
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnectAttempts++
-            const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
+    subscribe(destination, handler) {
+        if (!this.client?.connected) {
+            console.error('[WebSocketService] 未连接，无法订阅:', destination)
+            return null
+        }
 
-            console.log(`尝试重新连接... (${this.reconnectAttempts}/${this.maxReconnectAttempts})，${delay}ms 后重试`)
+        console.log('[WebSocketService] 订阅主题:', destination)
 
-            setTimeout(() => {
-                if (this.url) {
-                    this.connect(this.url).catch(error => {
-                        console.error('重新连接失败:', error)
-                    })
-                }
-            }, delay)
-        } else {
-            console.error('达到最大重连尝试次数，停止重连')
+        const subscription = this.client.subscribe(destination, (message) => {
+            try {
+                const body = JSON.parse(message.body)
+                console.log('[WebSocketService] 收到消息:', destination, body)
+                handler(body)
+            } catch (error) {
+                console.error('[WebSocketService] 解析消息失败:', error)
+                handler(message.body)
+            }
+        })
+
+        this.subscriptions.set(subscription.id, subscription)
+        return subscription.id
+    }
+
+    /**
+     * 取消订阅
+     * @param {string} subscriptionId - 订阅 ID
+     */
+    unsubscribe(subscriptionId) {
+        const subscription = this.subscriptions.get(subscriptionId)
+        if (subscription) {
+            subscription.unsubscribe()
+            this.subscriptions.delete(subscriptionId)
+            console.log('[WebSocketService] 取消订阅:', subscriptionId)
         }
     }
 
     /**
      * 发送消息
+     * @param {string} destination - 发送目标
      * @param {Object} message - 消息对象
      * @returns {boolean}
      */
-    send(message) {
-        if (this.socket?.readyState === WebSocket.OPEN) {
-            const messageStr = typeof message === 'string' ? message : JSON.stringify(message)
-            this.socket.send(messageStr)
-            return true
-        } else {
-            console.error('WebSocket 未连接，无法发送消息')
+    send(destination, message) {
+        if (!this.client?.connected) {
+            console.error('[WebSocketService] 未连接，无法发送消息')
             return false
         }
+
+        console.log('[WebSocketService] 发送消息:', destination, message)
+        this.client.publish({
+            destination: destination,
+            body: JSON.stringify(message),
+        })
+        return true
     }
 
     /**
-     * 处理收到的消息
-     * @param {MessageEvent} event - 消息事件
+     * 发送聊天消息
+     * @param {string} content - 聊天内容
+     * @returns {boolean}
      */
-    handleMessage(event) {
-        try {
-            const message = JSON.parse(event.data)
-            const {type, data} = message
-
-            console.log('收到 WebSocket 消息:', type, data)
-
-            // 触发全局消息事件
-            this.emit('__message__', message)
-
-            // 触发特定类型的消息处理器
-            if (type && this.messageHandlers.has(type)) {
-                const handlers = this.messageHandlers.get(type)
-                handlers.forEach(handler => {
-                    try {
-                        handler(data)
-                    } catch (error) {
-                        console.error(`处理消息类型 ${type} 时出错:`, error)
-                    }
-                })
-            }
-        } catch (error) {
-            console.error('解析 WebSocket 消息时出错:', error)
-            // 尝试作为纯文本处理
-            this.emit('__message__', {type: 'raw', data: event.data})
+    sendChatMessage(content) {
+        if (!this.gameId) {
+            console.error('[WebSocketService] gameId 未设置')
+            return false
         }
+
+        return this.send(`/app/game/${this.gameId}/chat`, {
+            type: 'CHAT_MESSAGE',
+            payload: content,
+        })
     }
 
     /**
-     * 注册消息处理器
-     * @param {string} type - 消息类型
+     * 发送投票
+     * @param {number} characterId - 投票给的角色 ID
+     * @returns {boolean}
+     */
+    sendVote(characterId) {
+        if (!this.gameId) {
+            console.error('[WebSocketService] gameId 未设置')
+            return false
+        }
+
+        return this.send(`/app/game/${this.gameId}/vote`, {
+            type: 'VOTE_SUBMIT',
+            payload: {characterId},
+        })
+    }
+
+    /**
+     * 订阅游戏聊天
      * @param {Function} handler - 消息处理器
+     * @returns {string} 订阅 ID
+     */
+    subscribeToGameChat(handler) {
+        if (!this.gameId) {
+            console.error('[WebSocketService] gameId 未设置')
+            return null
+        }
+
+        return this.subscribe(`/topic/game/${this.gameId}/chat`, handler)
+    }
+
+    /**
+     * 订阅个人消息
+     * @param {Function} handler - 消息处理器
+     * @returns {string} 订阅 ID
+     */
+    subscribeToPersonalMessages(handler) {
+        return this.subscribe('/user/queue/messages', handler)
+    }
+
+    /**
+     * 注册事件处理器
+     * @param {string} type - 事件类型
+     * @param {Function} handler - 处理器
      */
     on(type, handler) {
         if (typeof handler !== 'function') {
-            console.warn('消息处理器必须是函数')
+            console.warn('[WebSocketService] 处理器必须是函数')
             return
         }
 
@@ -152,9 +220,9 @@ class WebSocketService {
     }
 
     /**
-     * 移除消息处理器
-     * @param {string} type - 消息类型
-     * @param {Function} handler - 消息处理器
+     * 移除事件处理器
+     * @param {string} type - 事件类型
+     * @param {Function} handler - 处理器
      */
     off(type, handler) {
         if (!this.messageHandlers.has(type)) return
@@ -174,43 +242,53 @@ class WebSocketService {
     emit(type, data) {
         if (this.messageHandlers.has(type)) {
             const handlers = this.messageHandlers.get(type)
-            handlers.forEach(handler => {
+            handlers.forEach((handler) => {
                 try {
                     handler(data)
                 } catch (error) {
-                    console.error(`触发事件 ${type} 时出错:`, error)
+                    console.error(`[WebSocketService] 触发事件 ${type} 时出错:`, error)
                 }
             })
         }
     }
 
     /**
-     * 关闭 WebSocket 连接
+     * 断开连接
      */
     disconnect() {
         this.isManualClose = true
-        if (this.socket) {
-            this.socket.close()
-            this.socket = null
+
+        // 取消所有订阅
+        this.subscriptions.forEach((subscription) => {
+            subscription.unsubscribe()
+        })
+        this.subscriptions.clear()
+
+        // 断开连接
+        if (this.client) {
+            this.client.deactivate()
+            this.client = null
         }
+
         this.messageHandlers.clear()
         this.reconnectAttempts = 0
+        console.log('[WebSocketService] 已断开连接')
     }
 
     /**
-     * 检查 WebSocket 连接状态
+     * 检查连接状态
      * @returns {boolean}
      */
     isConnected() {
-        return this.socket?.readyState === WebSocket.OPEN
+        return this.client?.connected || false
     }
 
     /**
-     * 获取当前连接状态
+     * 获取当前游戏 ID
      * @returns {number|null}
      */
-    getReadyState() {
-        return this.socket?.readyState ?? null
+    getGameId() {
+        return this.gameId
     }
 }
 
