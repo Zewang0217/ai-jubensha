@@ -13,7 +13,7 @@ import React, {memo, Suspense, useCallback, useEffect, useMemo, useState} from '
 import {useNavigate, useParams} from 'react-router-dom'
 import {useQuery} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
-import {getGameById, getGamePlayers} from '../../services/api'
+import {getGameById, getGamePlayers, exitGame} from '../../services/api'
 import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
 import Loading from '../../components/common/Loading'
 import {useWebSocket} from '../../hooks/useWebSocket'
@@ -438,8 +438,8 @@ function GameRoom() {
       if (!Array.isArray(players) || players.length === 0) {
         return null
       }
-      const realPlayer = players.find(p => p.player?.role === 'REAL' || p.role === 'REAL')
-      return realPlayer?.id || realPlayer?.player?.id
+      const realPlayer = players.find(p => p.playerRole === 'REAL')
+      return realPlayer?.playerId || null
     } catch (e) {
       console.warn('[GameRoom] 获取真人玩家ID失败:', e)
       return null
@@ -499,6 +499,15 @@ function GameRoom() {
         console.log('[GameRoom] 剧本已就绪:', message.payload)
       } else if (message?.type === 'START_INVESTIGATION') {
         console.log('[GameRoom] 开始搜证:', message.payload)
+        // 更新 adaptedGameData 中的搜证次数信息
+        if (message.payload) {
+          setAdaptedGameData(prev => ({
+            ...prev,
+            remainingChances: message.payload.remainingChances ?? 3,
+            totalChances: message.payload.totalChances ?? 3,
+            scenes: message.payload.scenes || prev.scenes,
+          }))
+        }
       }
     })
 
@@ -585,10 +594,16 @@ function GameRoom() {
     }
 
     
-    // 获取真人玩家ID（从 playerData 中查找 role 为 REAL 的玩家）
+    // 获取真人玩家ID（从 playerData 中查找 playerRole 为 REAL 的玩家）
+    // playerData 结构：GamePlayerResponseDTO 列表
+    // - p.id: GamePlayer ID
+    // - p.playerId: Player ID（后端期望的）
+    // - p.playerRole: Player 角色类型（REAL/AI）
     const players = playerData?.data || playerData || []
-    const realPlayer = players.find(p => p.player?.role === 'REAL' || p.role === 'REAL')
-    const currentPlayerId = realPlayer?.id || realPlayer?.player?.id
+    console.log('[GameRoom] 所有玩家数据:', JSON.stringify(players))
+    const realPlayer = players.find(p => p.playerRole === 'REAL')
+    const currentPlayerId = realPlayer?.playerId
+    console.log('[GameRoom] 找到的真人玩家:', realPlayer, 'playerId:', currentPlayerId)
 
     if (id) {
       // 如果有真人玩家ID，发送玩家确认；否则发送观察者确认（playerId = null）
@@ -632,15 +647,32 @@ function GameRoom() {
 
   /**
    * 处理确认退出
-   * @description 确认退出游戏，关闭弹窗并跳转到游戏列表页
+   * @description 确认退出游戏，调用后端API停止后台任务，清理本地状态并跳转到游戏列表页
    */
-  const handleConfirmExit = useCallback(() => {
+  const handleConfirmExit = useCallback(async () => {
+    console.log('[GameRoom] 开始退出游戏流程, gameId:', id)
+    
     // 关闭弹窗
     setShowExitModal(false)
-    // TODO: Task 4 将在此处添加 API 调用，通知后端玩家退出游戏
-    // 断开 WebSocket 连接并跳转
-    navigate('/games')
-  }, [navigate])
+    
+    try {
+      // 调用后端API优雅退出游戏
+      console.log('[GameRoom] 调用 exitGame API...')
+      await exitGame(id)
+      console.log('[GameRoom] exitGame API 调用成功')
+    } catch (error) {
+      console.error('[GameRoom] exitGame API 调用失败:', error)
+      // 即使API调用失败，也继续清理本地状态
+    } finally {
+      // 清理 localStorage 中的游戏状态
+      console.log('[GameRoom] 清理本地游戏状态')
+      clearGameState()
+      
+      // 跳转到游戏列表页
+      console.log('[GameRoom] 跳转到游戏列表页')
+      navigate('/games')
+    }
+  }, [id, navigate])
 
   const handleDebugPhaseChange = useCallback((phase) => {
     if (isDebugMode) {
@@ -768,6 +800,16 @@ function GameRoom() {
                   <span className="text-amber-800 dark:text-amber-200 font-medium">
                     {waitingMessage}
                   </span>
+                  <button
+                      onClick={() => setWaitingMessage(null)}
+                      className="ml-2 text-amber-600 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-100 transition-colors"
+                      title="关闭提示"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
                 </div>
               </motion.div>
           )}

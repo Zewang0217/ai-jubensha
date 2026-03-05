@@ -47,7 +47,7 @@ CardCorner.displayName = 'CardCorner'
 // 线索卡牌组件 - 竖版扑克牌样式
 // =============================================================================
 
-const ClueCard = memo(({clue, isRevealed, isPublic, isObserverMode, onReveal, onPublic, index}) => {
+const ClueCard = memo(({clue, isRevealed, isPublic, isObserverMode, onReveal, index}) => {
     // 卡牌尺寸：宽度固定，高度约为宽度的 1.45 倍（扑克牌比例）
     const cardHeight = 'h-[250px]'
 
@@ -178,28 +178,10 @@ const ClueCard = memo(({clue, isRevealed, isPublic, isObserverMode, onReveal, on
                             </p>
                         </div>
 
-                        {/* 底部操作区 - 仅在非观察者模式且已揭示时显示 */}
-                        {!isObserverMode && isRevealed && !isPublic && onPublic && (
-                            <motion.button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    onPublic()
-                                }}
-                                whileHover={{scale: 1.02}}
-                                whileTap={{scale: 0.98}}
-                                className="h-8 bg-gradient-to-t from-[#5DD9A8]/20 to-transparent flex items-center justify-center gap-1 text-[#5DD9A8] text-[10px] font-medium hover:from-[#5DD9A8]/30 transition-colors"
-                            >
-                                <Globe className="w-3 h-3"/>
-                                公开线索
-                            </motion.button>
-                        )}
-
-                        {/* 底部装饰 - 观察者模式或已公开时显示 */}
-                        {(isObserverMode || isPublic) && (
-                            <div className="h-6 bg-gradient-to-t from-[#EEF1F6]/80 to-transparent dark:from-[#2A2F3C]/80 flex items-center justify-center">
-                                <div className="w-8 h-1 rounded-full bg-[#E0E5EE] dark:bg-[#363D4D]"/>
-                            </div>
-                        )}
+                        {/* 底部装饰 */}
+                        <div className="h-6 bg-gradient-to-t from-[#EEF1F6]/80 to-transparent dark:from-[#2A2F3C]/80 flex items-center justify-center">
+                            <div className="w-8 h-1 rounded-full bg-[#E0E5EE] dark:bg-[#363D4D]"/>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
