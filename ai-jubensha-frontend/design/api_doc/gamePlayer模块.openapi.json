@@ -1,0 +1,847 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "默认模块",
+    "description": "",
+    "version": "1.0.0"
+  },
+  "tags": [],
+  "paths": {
+    "/api/game-players": {
+      "post": {
+        "summary": "创建游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GamePlayerCreateDTO",
+                "description": "游戏玩家创建DTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "创建的游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      },
+      "get": {
+        "summary": "查询所有游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListGamePlayerResponseDTO"
+                  },
+                  "description": "游戏玩家响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/{id}": {
+      "put": {
+        "summary": "更新游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "游戏玩家关系ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GamePlayerUpdateDTO",
+                "description": "游戏玩家更新DTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "更新后的游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      },
+      "delete": {
+        "summary": "删除游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "游戏玩家关系ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      },
+      "get": {
+        "summary": "根据ID查询游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "游戏玩家关系ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/game/{gameId}/player/{playerId}": {
+      "get": {
+        "summary": "根据游戏ID和玩家ID查询游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "description": "游戏ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "path",
+            "description": "玩家ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/game/{gameId}": {
+      "get": {
+        "summary": "根据游戏ID查询游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "description": "游戏ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListGamePlayerResponseDTO"
+                  },
+                  "description": "游戏玩家响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      },
+      "delete": {
+        "summary": "根据游戏ID删除所有游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "description": "游戏ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/player/{playerId}": {
+      "get": {
+        "summary": "根据玩家ID查询游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "description": "玩家ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListGamePlayerResponseDTO"
+                  },
+                  "description": "游戏玩家响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/character/{characterId}": {
+      "get": {
+        "summary": "根据角色ID查询游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "characterId",
+            "in": "path",
+            "description": "角色ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListGamePlayerResponseDTO"
+                  },
+                  "description": "游戏玩家响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/game/{gameId}/character/{characterId}": {
+      "get": {
+        "summary": "根据游戏ID和角色ID查询游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "description": "游戏ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "characterId",
+            "in": "path",
+            "description": "角色ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/game/{gameId}/dm/{isDm}": {
+      "get": {
+        "summary": "根据游戏ID和是否为DM查询游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "description": "游戏ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "isDm",
+            "in": "path",
+            "description": "是否为DM",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListGamePlayerResponseDTO"
+                  },
+                  "description": "游戏玩家响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/status/{status}": {
+      "get": {
+        "summary": "根据状态查询游戏玩家关系",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "path",
+            "description": "状态",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ListGamePlayerResponseDTO"
+                  },
+                  "description": "游戏玩家响应DTO列表"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/{id}/status/{status}": {
+      "put": {
+        "summary": "更新游戏玩家状态",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "游戏玩家关系ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "path",
+            "description": "状态",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "更新后的游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/{id}/set-dm": {
+      "put": {
+        "summary": "设置玩家为DM",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "游戏玩家关系ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "更新后的游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/{id}/remove-dm": {
+      "put": {
+        "summary": "取消玩家DM身份",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "游戏玩家关系ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "更新后的游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/{id}/ready": {
+      "put": {
+        "summary": "玩家准备就绪",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "游戏玩家关系ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "更新后的游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/{id}/start-playing": {
+      "put": {
+        "summary": "玩家开始游戏",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "游戏玩家关系ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "更新后的游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/game-players/{id}/leave": {
+      "put": {
+        "summary": "玩家离开游戏",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "游戏玩家关系ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntityGamePlayerResponseDTO",
+                  "description": "更新后的游戏玩家响应DTO"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ResponseEntityGamePlayerResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "gameId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "playerId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "characterId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "isDm": {
+            "type": "boolean",
+            "description": ""
+          },
+          "status": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "READY",
+              "PLAYING",
+              "LEFT"
+            ]
+          },
+          "joinTime": {
+            "type": "string",
+            "description": ""
+          }
+        }
+      },
+      "GamePlayerCreateDTO": {
+        "type": "object",
+        "properties": {
+          "gameId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "playerId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "characterId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "isDm": {
+            "type": "boolean",
+            "description": ""
+          },
+          "status": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "READY",
+              "PLAYING",
+              "LEFT"
+            ]
+          }
+        },
+        "required": [
+          "gameId",
+          "playerId",
+          "characterId"
+        ]
+      },
+      "GamePlayerUpdateDTO": {
+        "type": "object",
+        "properties": {
+          "gameId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "playerId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "characterId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "isDm": {
+            "type": "boolean",
+            "description": ""
+          },
+          "status": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "READY",
+              "PLAYING",
+              "LEFT"
+            ]
+          }
+        }
+      },
+      "ListGamePlayerResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "gameId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "playerId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "characterId": {
+            "type": "integer",
+            "description": "",
+            "format": "int64"
+          },
+          "isDm": {
+            "type": "boolean",
+            "description": ""
+          },
+          "status": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "READY",
+              "PLAYING",
+              "LEFT"
+            ]
+          },
+          "joinTime": {
+            "type": "string",
+            "description": ""
+          }
+        }
+      }
+    },
+    "responses": {},
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": []
+}

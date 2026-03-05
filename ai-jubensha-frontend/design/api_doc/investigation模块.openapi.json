@@ -1,0 +1,215 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "默认模块",
+    "description": "",
+    "version": "1.0.0"
+  },
+  "tags": [],
+  "paths": {
+    "/api/games/{gameId}/investigation": {
+      "post": {
+        "summary": "执行搜证操作",
+        "deprecated": false,
+        "description": "玩家消耗一次搜证机会，获得指定场景中的一个线索",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "description": "游戏ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestigationRequestDTO",
+                "description": "搜证请求（包含玩家ID和场景ID）"
+              },
+              "example": {
+                "playerId": 13,
+                "sceneId": 77
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntity%3F",
+                  "description": "搜证响应，包含获得的线索和剩余次数"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/games/{gameId}/investigation/status": {
+      "get": {
+        "summary": "获取玩家的搜证状态",
+        "deprecated": false,
+        "description": "包括剩余次数、搜证历史等信息",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "description": "游戏ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "query",
+            "description": "玩家ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntity%3F",
+                  "description": "搜证状态"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/games/{gameId}/investigation/can-investigate": {
+      "get": {
+        "summary": "检查玩家是否可以搜证",
+        "deprecated": false,
+        "description": "",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "description": "游戏ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "query",
+            "description": "玩家ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntity%3F",
+                  "description": "是否可以搜证"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/games/{gameId}/investigation/all-status": {
+      "get": {
+        "summary": "获取游戏中所有玩家的搜证状态",
+        "deprecated": false,
+        "description": "主要用于游戏主持人和管理功能",
+        "tags": [],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "description": "游戏ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEntity%3F",
+                  "description": "所有玩家的搜证状态"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ResponseEntity?": {
+        "type": "object",
+        "properties": {}
+      },
+      "InvestigationRequestDTO": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "integer",
+            "description": "玩家ID",
+            "format": "int64"
+          },
+          "sceneId": {
+            "type": "integer",
+            "description": "场景ID",
+            "format": "int64"
+          },
+          "clueId": {
+            "type": "integer",
+            "description": "可选：指定线索ID（如果不指定则随机返回场景中的一个线索）",
+            "format": "int64"
+          },
+          "remark": {
+            "type": "string",
+            "description": "可选：搜证备注或玩家留言"
+          }
+        },
+        "required": [
+          "playerId",
+          "sceneId"
+        ]
+      }
+    },
+    "responses": {},
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": []
+}
