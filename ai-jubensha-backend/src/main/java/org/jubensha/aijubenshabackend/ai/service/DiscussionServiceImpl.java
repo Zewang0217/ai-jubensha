@@ -148,6 +148,24 @@ public class DiscussionServiceImpl implements DiscussionService {
     
     // 发言阈值
     private static final int SPEAK_THRESHOLD = 120;
+    
+    // 最低发言阈值（动态阈值的下限）
+    private static final int MIN_THRESHOLD = 60;
+    
+    // 阈值衰减间隔（秒）- 每隔这么多秒无人发言，阈值降低
+    private static final int THRESHOLD_DECAY_INTERVAL = 5;
+    
+    // 每次阈值衰减的数值
+    private static final int THRESHOLD_DECAY_AMOUNT = 10;
+    
+    // 发言冷却时间（秒）- 刚发言过的玩家欲望值增长减半
+    private static final int COOLDOWN_SECONDS = 5;
+    
+    // 当前动态阈值
+    private int currentThreshold = SPEAK_THRESHOLD;
+    
+    // 上次任何玩家发言的时间（用于动态阈值）
+    private LocalDateTime lastAnySpeakTime;
 
     /**
      * 线程池，用于并行处理AI推理任务
@@ -724,6 +742,11 @@ public class DiscussionServiceImpl implements DiscussionService {
         // 重置该玩家的发言欲望值
         desireScores.put(playerId, 0);
         log.debug("[消息发送] 重置玩家 {} 的发言欲望值为: 0", playerName);
+        
+        // 重置动态阈值和全局最后发言时间
+        currentThreshold = SPEAK_THRESHOLD;
+        lastAnySpeakTime = now;
+        log.debug("[消息发送] 重置动态阈值为: {}, 更新全局最后发言时间", currentThreshold);
     }
     
     /**
@@ -1077,12 +1100,15 @@ public class DiscussionServiceImpl implements DiscussionService {
         LocalDateTime now = LocalDateTime.now();
         for (Long playerId : playerIds) {
             lastSpeakTimes.put(playerId, now);
-//            log.debug("[中央调度器] 初始化玩家 {} 的最后发言时间为: {}", getCharacterName(playerId), now);
         }
-        log.info("[中央调度器] 已初始化 {} 个玩家的欲望值和最后发言时间", playerIds.size());
+        
+        // 初始化动态阈值和全局最后发言时间
+        currentThreshold = SPEAK_THRESHOLD;
+        lastAnySpeakTime = now;
+        
+        log.info("[中央调度器] 已初始化 {} 个玩家的欲望值和最后发言时间，初始阈值: {}", playerIds.size(), currentThreshold);
         
         // 创建并启动中央调度器
-//        log.debug("[中央调度器] 创建并启动中央调度器线程");
         centralDirector = Executors.newSingleThreadScheduledExecutor();
         directorFuture = centralDirector.scheduleAtFixedRate(
             this::tick,
@@ -1147,25 +1173,24 @@ public class DiscussionServiceImpl implements DiscussionService {
         // 被提及 (+50)
         if (checkMentioned(playerId)) {
             score += 50;
-//            log.debug("[欲望值计算] 玩家 {} 被提及，+50", getCharacterName(playerId));
         }
         
         // 话题相关 (+30)
         int topicScore = calculateTopicRelevance(playerId);
         score += topicScore;
-//        log.debug("[欲望值计算] 玩家 {} 话题相关度，+{}", getCharacterName(playerId), topicScore);
         
-        // 沉默时间补偿 (+2/sec，最高120)
+        // 沉默时间补偿 (+2/sec，最高120) - 带发言冷却机制
         int silenceScore = calculateSilenceCompensation(playerId);
         score += silenceScore;
-//        log.debug("[欲望值计算] 玩家 {} 沉默时间补偿，+{}", getCharacterName(playerId), silenceScore);
         
         // 性格因子
         int personalityScore = getPersonalityFactor(playerId);
         score += personalityScore;
-//        log.debug("[欲望值计算] 玩家 {} 性格因子，+{}", getCharacterName(playerId), personalityScore);
         
-//        log.info("[欲望值计算] 玩家 {} 最终欲望值: {}", getCharacterName(playerId), score);
+        // 随机波动因子 (-10 到 +20)，倾向于正数鼓励发言
+        int randomFluctuation = (int) (Math.random() * 31) - 10; // -10 到 +20
+        score += randomFluctuation;
+        
         return score;
     }
     
@@ -1230,12 +1255,17 @@ public class DiscussionServiceImpl implements DiscussionService {
             // 每秒钟增加2分，最多增加120分
             int compensation = Math.min((int) seconds * 2, 120);
             
+            // 发言冷却机制：刚发言过的玩家（COOLDOWN_SECONDS秒内）欲望值增长速度减半
+            if (seconds < COOLDOWN_SECONDS) {
+                compensation = compensation / 2;
+                log.debug("[沉默时间补偿] 玩家 {} 在冷却期内，补偿减半: {}分", getCharacterName(playerId), compensation);
+            }
+            
             // 初始状态下，给予基础补偿，确保玩家能够更容易地开始发言
             if (seconds < 5) { // 前5秒
                 compensation = Math.max(compensation, 15); // 给予至少15分的基础补偿
             }
             
-            log.debug("[沉默时间补偿] 玩家 {} 沉默时间: {}秒，补偿: {}分", getCharacterName(playerId), seconds, compensation);
             return compensation;
         } catch (Exception e) {
             log.warn("计算沉默时间补偿失败: {}", e.getMessage());
@@ -1268,7 +1298,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     }
     
     /**
-     * 中央调度器的tick方法，每5秒执行一次
+     * 中央调度器的tick方法，每1秒执行一次
      */
     private void tick() {
         try {
@@ -1290,7 +1320,10 @@ public class DiscussionServiceImpl implements DiscussionService {
                 return;
             }
             
-            log.info("[中央调度器] 执行tick方法，当前时间: {}", java.time.LocalDateTime.now());
+            // 动态阈值调整：如果长时间无人发言，自动降低阈值
+            updateDynamicThreshold();
+            
+            log.info("[中央调度器] 执行tick方法，当前时间: {}, 当前阈值: {}", java.time.LocalDateTime.now(), currentThreshold);
             
             // 计算所有玩家的欲望值
             Map<Long, Integer> currentScores = new HashMap<>();
@@ -1304,8 +1337,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             // 选择下一个发言的玩家
             Long nextSpeakerId = selectNextSpeaker(currentScores);
             if (nextSpeakerId != null) {
-                log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 发言阈值: {}", 
-                        getCharacterName(nextSpeakerId), currentScores.get(nextSpeakerId), SPEAK_THRESHOLD);
+                log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 当前阈值: {}", 
+                        getCharacterName(nextSpeakerId), currentScores.get(nextSpeakerId), currentThreshold);
                 
                 // 执行发言（移除发言锁定，根据用户建议）
                 executorService.submit(() -> {
@@ -1336,11 +1369,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                     }
                 });
             } else {
-                log.debug("[中央调度器] 没有玩家的发言欲望值超过阈值 {}", SPEAK_THRESHOLD);
-                // 打印所有玩家的欲望值，以便调试
-                for (Long playerId : playerIds) {
-//                    log.debug("[中央调度器] 玩家 {} 的欲望值: {}", getCharacterName(playerId), currentScores.get(playerId));
-                }
+                log.debug("[中央调度器] 没有玩家的发言欲望值超过阈值 {}", currentThreshold);
             }
         } catch (Exception e) {
             log.error("[中央调度器] tick执行失败: {}", e.getMessage(), e);
@@ -1348,53 +1377,121 @@ public class DiscussionServiceImpl implements DiscussionService {
     }
     
     /**
+     * 更新动态阈值
+     * 如果长时间无人发言，自动降低阈值以避免大段沉默
+     */
+    private void updateDynamicThreshold() {
+        // 如果还没有记录上次发言时间，初始化为当前时间
+        if (lastAnySpeakTime == null) {
+            lastAnySpeakTime = LocalDateTime.now();
+            return;
+        }
+        
+        // 计算距离上次发言的时间
+        Duration silenceDuration = Duration.between(lastAnySpeakTime, LocalDateTime.now());
+        long silenceSeconds = silenceDuration.getSeconds();
+        
+        // 每隔 THRESHOLD_DECAY_INTERVAL 秒无人发言，阈值降低 THRESHOLD_DECAY_AMOUNT
+        int decaySteps = (int) (silenceSeconds / THRESHOLD_DECAY_INTERVAL);
+        int newThreshold = SPEAK_THRESHOLD - (decaySteps * THRESHOLD_DECAY_AMOUNT);
+        
+        // 阈值不低于 MIN_THRESHOLD
+        currentThreshold = Math.max(newThreshold, MIN_THRESHOLD);
+        
+        if (currentThreshold < SPEAK_THRESHOLD) {
+            log.debug("[动态阈值] 无人发言已 {} 秒，阈值调整为: {}", silenceSeconds, currentThreshold);
+        }
+    }
+    
+    /**
      * 选择下一个发言的玩家
+     * 使用发言者池选择和加权随机算法
      * @param scores 所有玩家的欲望值
      * @return 选中的玩家ID，若没有则返回null
      */
     private Long selectNextSpeaker(Map<Long, Integer> scores) {
-        // 找出欲望值最高的玩家
-        Long selectedPlayerId = null;
-        int maxScore = 0;
-        
-        for (Map.Entry<Long, Integer> entry : scores.entrySet()) {
-            Long playerId = entry.getKey();
-            int score = entry.getValue();
-            
-            if (score > maxScore) {
-                maxScore = score;
-                selectedPlayerId = playerId;
-            }
-        }
-        
-        // 检查是否有玩家
-        if (selectedPlayerId == null) {
+        if (scores == null || scores.isEmpty()) {
             log.warn("[中央调度器] 没有玩家可以选择发言");
             return null;
         }
         
-        // 降低初始发言的阈值要求，确保玩家能够更容易地开始发言
-        // 对于第一轮发言，降低阈值要求
-        boolean hasAnyPlayerSpoken = false;
-        for (LocalDateTime time : lastSpeakTimes.values()) {
-            if (time != null) {
-                hasAnyPlayerSpoken = true;
-                break;
+        // 使用当前动态阈值
+        int threshold = currentThreshold;
+        
+        // 收集所有欲望值超过阈值的玩家形成候选池
+        List<Long> candidatePool = new ArrayList<>();
+        List<Integer> candidateScores = new ArrayList<>();
+        
+        for (Map.Entry<Long, Integer> entry : scores.entrySet()) {
+            if (entry.getValue() >= threshold) {
+                candidatePool.add(entry.getKey());
+                candidateScores.add(entry.getValue());
             }
         }
         
-        // 初始发言阈值降低到10，后续发言保持20
-        int effectiveThreshold = hasAnyPlayerSpoken ? SPEAK_THRESHOLD : 10;
-        
-        // 如果最高分数超过有效阈值或没有玩家发言过，选择该玩家
-        if (maxScore >= effectiveThreshold || !hasAnyPlayerSpoken) {
-            log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 有效发言阈值: {}", 
-                    getCharacterName(selectedPlayerId), maxScore, effectiveThreshold);
-            return selectedPlayerId;
+        // 如果候选池不为空，进行加权随机选择
+        if (!candidatePool.isEmpty()) {
+            Long selectedId = weightedRandomSelect(candidatePool, candidateScores);
+            log.info("[中央调度器] 从 {} 个候选玩家中加权随机选择玩家 {} 发言，欲望值: {}, 当前阈值: {}", 
+                    candidatePool.size(), getCharacterName(selectedId), scores.get(selectedId), threshold);
+            return selectedId;
         }
         
-        log.debug("[中央调度器] 没有玩家的发言欲望值超过阈值 {}，最高分数: {}", effectiveThreshold, maxScore);
+        // 如果没有玩家超过阈值，选择欲望值最高的玩家（但给予较低的发言概率）
+        Long highestScorer = null;
+        int maxScore = 0;
+        
+        for (Map.Entry<Long, Integer> entry : scores.entrySet()) {
+            if (entry.getValue() > maxScore) {
+                maxScore = entry.getValue();
+                highestScorer = entry.getKey();
+            }
+        }
+        
+        // 只有当最高分接近阈值时才允许发言（差距在30分以内）
+        if (highestScorer != null && (threshold - maxScore) <= 30) {
+            log.info("[中央调度器] 无玩家超过阈值，选择最高分玩家 {} 发言，欲望值: {}, 当前阈值: {}", 
+                    getCharacterName(highestScorer), maxScore, threshold);
+            return highestScorer;
+        }
+        
+        log.debug("[中央调度器] 没有玩家的发言欲望值接近阈值 {}，最高分数: {}", threshold, maxScore);
         return null;
+    }
+    
+    /**
+     * 加权随机选择
+     * 欲望值越高的玩家被选中的概率越大
+     * @param candidates 候选玩家列表
+     * @param weights 对应的权重（欲望值）列表
+     * @return 被选中的玩家ID
+     */
+    private Long weightedRandomSelect(List<Long> candidates, List<Integer> weights) {
+        if (candidates.size() == 1) {
+            return candidates.get(0);
+        }
+        
+        // 计算总权重
+        int totalWeight = 0;
+        for (Integer weight : weights) {
+            totalWeight += weight;
+        }
+        
+        // 生成随机数
+        java.util.Random random = new java.util.Random();
+        int randomValue = random.nextInt(totalWeight);
+        
+        // 根据权重选择
+        int cumulativeWeight = 0;
+        for (int i = 0; i < candidates.size(); i++) {
+            cumulativeWeight += weights.get(i);
+            if (randomValue < cumulativeWeight) {
+                return candidates.get(i);
+            }
+        }
+        
+        // 兜底返回最后一个
+        return candidates.get(candidates.size() - 1);
     }
 
     /**
@@ -1490,6 +1587,10 @@ public class DiscussionServiceImpl implements DiscussionService {
         privateChatCounts.clear();
         desireScores.clear();
         lastSpeakTimes.clear();
+        
+        // 重置动态阈值相关状态
+        currentThreshold = SPEAK_THRESHOLD;
+        lastAnySpeakTime = null;
         log.info("[停止讨论] 玩家相关状态已清理");
 
         // 取消所有计时器
