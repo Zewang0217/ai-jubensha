@@ -10,21 +10,21 @@
 /**
  * @readonly
  * @enum {string}
- * @description 游戏阶段类型枚举
+ * @description 游戏阶段类型枚举（与后端保持一致）
  */
 export const PHASE_TYPE = {
-    /** 剧本生成/概述 */
-    SCRIPT_OVERVIEW: 'script_overview',
+    /** 剧本概览 */
+    SCRIPT_OVERVIEW: 'SCRIPT_OVERVIEW',
     /** 角色分配 */
-    CHARACTER_ASSIGNMENT: 'character_assignment',
-    /** 剧本阅读 */
-    SCRIPT_READING: 'script_reading',
+    CHARACTER_ASSIGNMENT: 'CHARACTER_ASSIGNMENT',
     /** 搜证阶段 */
-    INVESTIGATION: 'investigation',
+    INVESTIGATION: 'INVESTIGATION',
     /** 讨论阶段 */
-    DISCUSSION: 'discussion',
-    /** 总结阶段 */
-    SUMMARY: 'summary',
+    DISCUSSION: 'DISCUSSION',
+    /** 答题阶段 */
+    ANSWER: 'ANSWER',
+    /** 结局阶段 */
+    ENDING: 'ENDING',
 }
 
 // =============================================================================
@@ -53,14 +53,6 @@ export const PHASE_CONFIG = {
         allowSkip: false,
         allowBack: true,
     },
-    [PHASE_TYPE.SCRIPT_READING]: {
-        id: PHASE_TYPE.SCRIPT_READING,
-        title: '阅读剧本',
-        description: '阅读剧本内容',
-        icon: 'Scroll',
-        allowSkip: true,
-        allowBack: true,
-    },
     [PHASE_TYPE.INVESTIGATION]: {
         id: PHASE_TYPE.INVESTIGATION,
         title: '线索搜证',
@@ -77,8 +69,16 @@ export const PHASE_CONFIG = {
         allowSkip: false,
         allowBack: true,
     },
-    [PHASE_TYPE.SUMMARY]: {
-        id: PHASE_TYPE.SUMMARY,
+    [PHASE_TYPE.ANSWER]: {
+        id: PHASE_TYPE.ANSWER,
+        title: '答题环节',
+        description: '回答问题验证推理',
+        icon: 'HelpCircle',
+        allowSkip: false,
+        allowBack: true,
+    },
+    [PHASE_TYPE.ENDING]: {
+        id: PHASE_TYPE.ENDING,
         title: '真相揭晓',
         description: '查看最终结果',
         icon: 'Trophy',
@@ -99,10 +99,10 @@ export const PHASE_CONFIG = {
 export const DEFAULT_PHASE_SEQUENCE = [
     PHASE_TYPE.SCRIPT_OVERVIEW,
     PHASE_TYPE.CHARACTER_ASSIGNMENT,
-    PHASE_TYPE.SCRIPT_READING,
     PHASE_TYPE.INVESTIGATION,
     PHASE_TYPE.DISCUSSION,
-    PHASE_TYPE.SUMMARY,
+    PHASE_TYPE.ANSWER,
+    PHASE_TYPE.ENDING,
 ]
 
 // =============================================================================

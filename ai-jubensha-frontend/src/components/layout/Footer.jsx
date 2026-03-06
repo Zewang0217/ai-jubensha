@@ -1,9 +1,27 @@
+/**
+ * @fileoverview Footer 组件 - 统一的页面底部导航栏
+ * @description 提供网站品牌标识、导航链接和版权信息
+ * @author zewang
+ * 
+ * 设计特点：
+ * - 深邃夜空蓝背景 (#0F172A)
+ * - 科技电光蓝到极光青的渐变效果
+ * - 发光阴影和悬停动画
+ * - 响应式布局设计
+ */
+
 import {motion} from 'framer-motion'
 
 function Footer() {
     return (
-        <footer className="bg-slate-900 border-t border-slate-800">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <footer className="bg-[#0F172A] border-t border-[#1E293B] relative overflow-hidden">
+            {/* 背景装饰效果 */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#2563EB]/5 rounded-full blur-3xl"/>
+                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#08D9D6]/5 rounded-full blur-3xl"/>
+            </div>
+
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                     {/* Logo */}
                     <motion.div
@@ -13,8 +31,8 @@ function Footer() {
                         transition={{duration: 0.6}}
                         className="flex items-center gap-3"
                     >
-                        <div
-                            className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#08D9D6] flex items-center justify-center shadow-lg shadow-[#2563EB]/50"
+                             style={{boxShadow: '0 0 20px rgba(37, 99, 235, 0.4), 0 0 40px rgba(8, 217, 214, 0.2)'}}>
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                       d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
@@ -38,7 +56,8 @@ function Footer() {
                             href="#"
                             whileHover={{scale: 1.05}}
                             whileTap={{scale: 0.95}}
-                            className="px-5 py-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300 flex items-center gap-2"
+                            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#08D9D6] text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+                            style={{boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4), 0 0 30px rgba(8, 217, 214, 0.2)'}}
                             title="GitHub 仓库"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -53,7 +72,8 @@ function Footer() {
                             href="#"
                             whileHover={{scale: 1.05}}
                             whileTap={{scale: 0.95}}
-                            className="px-5 py-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white text-sm font-semibold shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-300"
+                            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#08D9D6] text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                            style={{boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4), 0 0 30px rgba(8, 217, 214, 0.2)'}}
                         >
                             关于我们
                         </motion.a>
@@ -66,9 +86,9 @@ function Footer() {
                     whileInView={{opacity: 1}}
                     viewport={{once: true}}
                     transition={{duration: 0.6, delay: 0.2}}
-                    className="mt-8 pt-6 border-t border-slate-800 text-center"
+                    className="mt-8 pt-6 border-t border-[#1E293B] text-center"
                 >
-                    <p className="text-slate-500 text-sm">
+                    <p className="text-[#94A3B8] text-sm">
                         © 2026 AI-ScriptKill. All rights reserved.
                     </p>
                 </motion.div>
