@@ -123,7 +123,18 @@ public class PlayerAllocatorNode {
                     for (GamePlayer gp : existingGamePlayers) {
                         if (gp.getCharacter() != null && gp.getPlayer() != null) {
                             // 根据玩家的实际角色类型设置 playerType
-                            String playerType = gp.getPlayer().getRole() == PlayerRole.REAL ? "REAL" : "AI";
+                            // 只有 role 为 REAL 的才是真人玩家，其他都是 AI 玩家
+                            PlayerRole playerRole = gp.getPlayer().getRole();
+                            String playerType;
+                            if (playerRole == PlayerRole.REAL) {
+                                playerType = "REAL";
+                            } else {
+                                playerType = "AI";
+                            }
+                            
+                            log.info("[角色选择] 玩家 {} 角色: {}, 设置 playerType: {}", 
+                                    gp.getPlayer().getNickname(), playerRole, playerType);
+                            
                             Map<String, Object> assignment = Map.of(
                                     "playerType", playerType,
                                     "playerId", gp.getPlayer().getId(),

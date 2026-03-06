@@ -9,6 +9,7 @@ import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.models.enums.GamePlayerStatus;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
@@ -165,13 +166,24 @@ public class ScriptReaderNode {
                 // 区分真人玩家和AI玩家
                 List<Long> realPlayerIds = new ArrayList<>();
                 List<Long> aiPlayerIds = new ArrayList<>();
+                
+                log.info("[阶段同步] 开始分析玩家分配结果，总数: {}", playerAssignments.size());
                 for (Map<String, Object> assignment : playerAssignments) {
-                    String playerType = (String) assignment.get("playerType");
-                    Long playerId = (Long) assignment.get("playerId");
+                    Object playerTypeObj = assignment.get("playerType");
+                    String playerType = playerTypeObj != null ? playerTypeObj.toString() : "AI";  // 默认为 AI
+                    Object playerIdObj = assignment.get("playerId");
+                    Long playerId = playerIdObj instanceof Number ? ((Number) playerIdObj).longValue() : null;
+                    String characterName = (String) assignment.get("characterName");
+                    
+                    log.info("[阶段同步] 玩家分配 - playerType: {}, playerId: {}, characterName: {}", 
+                            playerType, playerId, characterName);
+                    
                     if ("REAL".equals(playerType)) {
                         realPlayerIds.add(playerId);
+                        log.info("[阶段同步] 添加真人玩家: {}", playerId);
                     } else {
                         aiPlayerIds.add(playerId);
+                        log.info("[阶段同步] 添加AI玩家: {}", playerId);
                     }
                 }
                 
@@ -250,6 +262,17 @@ public class ScriptReaderNode {
                             context = latestContext;
                         }
                         
+                        // 检查游戏阶段是否已经推进（如果阶段已经不是 SCRIPT_READING，说明已经推进）
+                        try {
+                            Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                            if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.SCRIPT_READING) {
+                                log.info("[阶段同步] 检测到游戏阶段已推进到 {}，退出等待", latestGame.getCurrentPhase());
+                                break;
+                            }
+                        } catch (Exception e) {
+                            log.warn("[阶段同步] 检查游戏阶段失败: {}", e.getMessage());
+                        }
+                        
                         // 每30秒输出一次等待日志
                         if (waitCount % 30 == 0) {
                             log.info("[阶段同步] 等待真人玩家确认剧本阅读，已等待: {}秒，未确认玩家: {}",
@@ -260,7 +283,7 @@ public class ScriptReaderNode {
                     if (context.isAllPlayersConfirmed()) {
                         log.info("[阶段同步] 所有真人玩家已确认剧本阅读，继续工作流");
                     } else {
-                        log.warn("[阶段同步] 等待超时，强制继续工作流");
+                        log.warn("[阶段同步] 等待超时或阶段已推进，继续工作流");
                     }
                 }
                 
