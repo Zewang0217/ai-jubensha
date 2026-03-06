@@ -306,6 +306,13 @@ function GameGrid({games, getStatusConfig}) {
     )
 }
 
+/**
+ * 游戏卡片组件
+ * @param {Object} game - 游戏数据对象
+ * @param {Object} statusConfig - 状态配置对象
+ * @param {number} index - 卡片索引，用于动画延迟
+ * @returns {JSX.Element} 游戏卡片组件
+ */
 function GameCard({game, statusConfig, index}) {
     const playerCount = game.currentPlayers || 0
     const maxPlayers = game.maxPlayers || 8
@@ -325,17 +332,19 @@ function GameCard({game, statusConfig, index}) {
             whileHover={{y: -4}}
             className="group relative"
         >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-xl rounded-2xl border border-white/60 shadow-lg shadow-[var(--color-primary-900)]/5 transition-all duration-500 group-hover:shadow-xl group-hover:shadow-[var(--color-primary-900)]/10 group-hover:border-[var(--color-primary-200)]/80"/>
+            {/* 毛玻璃卡片背景 + 悬浮发光阴影 */}
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-[10px] rounded-2xl border border-[#E2E8F0] shadow-lg transition-all duration-500 group-hover:shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] group-hover:border-[#2563EB]/30"/>
             
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[var(--color-primary-400)]/0 via-[var(--color-primary-500)]/0 to-[var(--color-primary-600)]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"/>
+            {/* 悬浮时的渐变光晕效果 */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#2563EB]/0 via-[#08D9D6]/0 to-[#2563EB]/0 opacity-0 group-hover:opacity-5 transition-opacity duration-500"/>
             
             <Link to={`/game/${game.id}`} className="relative block p-6">
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                        <h3 className="text-lg font-bold text-[var(--color-secondary-800)] mb-1 group-hover:text-[var(--color-primary-700)] transition-colors">
+                        <h3 className="text-lg font-bold text-[#0F172A] mb-1 group-hover:text-[#2563EB] transition-colors">
                             {game.name || `游戏房间 #${game.id}`}
                         </h3>
-                        <p className="text-sm text-[var(--color-secondary-500)]">
+                        <p className="text-sm text-[#64748B]">
                             {game.scriptName || '未选择剧本'}
                         </p>
                     </div>
@@ -348,67 +357,76 @@ function GameCard({game, statusConfig, index}) {
                 
                 <div className="space-y-3 mb-4">
                     <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-[var(--color-secondary-600)]">
+                        <div className="flex items-center gap-2 text-[#64748B]">
                             <Users className="w-4 h-4"/>
                             <span>玩家</span>
                         </div>
-                        <span className="font-medium text-[var(--color-secondary-800)]">
+                        <span className="font-medium text-[#0F172A]">
                             {playerCount} / {maxPlayers} 人
                         </span>
                     </div>
                     
-                    <div className="h-1.5 bg-[var(--color-secondary-100)] rounded-full overflow-hidden">
+                    {/* 玩家进度条 - 使用科技电光蓝到极光青渐变 */}
+                    <div className="h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
                         <motion.div
                             initial={{width: 0}}
                             animate={{width: `${playerPercentage}%`}}
                             transition={{duration: 0.8, delay: index * 0.05}}
-                            className="h-full bg-gradient-to-r from-[var(--color-primary-400)] to-[var(--color-primary-600)] rounded-full"
+                            className="h-full bg-gradient-to-r from-[#2563EB] to-[#08D9D6] rounded-full"
                         />
                     </div>
                     
                     <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-[var(--color-secondary-600)]">
+                        <div className="flex items-center gap-2 text-[#64748B]">
                             <Clock className="w-4 h-4"/>
                             <span>时长</span>
                         </div>
-                        <span className="font-medium text-[var(--color-secondary-800)]">
+                        <span className="font-medium text-[#0F172A]">
                             {game.duration || 120} 分钟
                         </span>
                     </div>
                 </div>
                 
+                {/* 等待中状态 - 使用科技电光蓝到极光青渐变 */}
                 {game.status === 'waiting' && (
                     <motion.div
                         initial={{opacity: 0}}
                         animate={{opacity: 1}}
-                        className="flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-600)] text-white rounded-xl font-medium text-sm group-hover:from-[var(--color-primary-600)] group-hover:to-[var(--color-primary-700)] transition-all"
+                        className="flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] text-white rounded-xl font-medium text-sm shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] group-hover:shadow-[0_6px_20px_0_rgba(37,99,235,0.5)] transition-all"
                     >
                         <Gamepad2 className="w-4 h-4"/>
                         点击加入游戏
                     </motion.div>
                 )}
                 
+                {/* 游戏中状态 */}
                 {game.status === 'playing' && (
-                    <div className="flex items-center justify-center gap-2 py-3 bg-[var(--color-secondary-100)] text-[var(--color-secondary-500)] rounded-xl font-medium text-sm">
-                        <span className="w-2 h-2 rounded-full bg-[var(--color-secondary-400)] animate-pulse"/>
+                    <div className="flex items-center justify-center gap-2 py-3 bg-[#F1F5F9] text-[#64748B] rounded-xl font-medium text-sm">
+                        <span className="w-2 h-2 rounded-full bg-[#94A3B8] animate-pulse"/>
                         游戏进行中
                     </div>
                 )}
                 
+                {/* 已结束状态 */}
                 {game.status === 'finished' && (
-                    <div className="flex items-center justify-center gap-2 py-3 bg-[var(--color-secondary-100)] text-[var(--color-secondary-500)] rounded-xl font-medium text-sm">
+                    <div className="flex items-center justify-center gap-2 py-3 bg-[#F1F5F9] text-[#64748B] rounded-xl font-medium text-sm">
                         查看游戏记录
                     </div>
                 )}
             </Link>
             
+            {/* 右上角装饰光效 */}
             <div className="absolute top-0 right-0 w-20 h-20 overflow-hidden rounded-tr-2xl">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[var(--color-primary-100)]/50 to-transparent transform translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-500"/>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#2563EB]/10 to-transparent transform translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-500"/>
             </div>
         </motion.div>
     )
 }
 
+/**
+ * 空状态组件 - 当没有游戏房间时显示
+ * @returns {JSX.Element} 空状态展示组件
+ */
 function EmptyState() {
     return (
         <motion.div
@@ -421,22 +439,22 @@ function EmptyState() {
                 initial={{scale: 0}}
                 animate={{scale: 1}}
                 transition={{duration: 0.5, delay: 0.2}}
-                className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[var(--color-primary-100)] to-[var(--color-primary-200)] flex items-center justify-center"
+                className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#EFF6FF] to-[#DBEAFE] flex items-center justify-center"
             >
-                <Gamepad2 className="w-12 h-12 text-[var(--color-primary-500)]"/>
+                <Gamepad2 className="w-12 h-12 text-[#2563EB]"/>
             </motion.div>
             
-            <h3 className="text-2xl font-bold text-[var(--color-secondary-800)] mb-2">
+            <h3 className="text-2xl font-bold text-[#0F172A] mb-2">
                 暂无游戏房间
             </h3>
-            <p className="text-[var(--color-secondary-500)] mb-8 max-w-md mx-auto">
+            <p className="text-[#64748B] mb-8 max-w-md mx-auto">
                 当前没有符合条件的游戏房间，成为第一个创建房间的人吧！
             </p>
             
             <motion.button
                 whileHover={{scale: 1.02}}
                 whileTap={{scale: 0.98}}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-700)] text-white rounded-xl font-medium shadow-lg shadow-[var(--color-primary-500)]/30 hover:shadow-xl transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] text-white rounded-xl font-medium shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_0_rgba(37,99,235,0.5)] transition-all"
             >
                 <Plus className="w-5 h-5"/>
                 创建第一个房间
