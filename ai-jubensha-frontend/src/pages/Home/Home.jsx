@@ -508,7 +508,7 @@ function GameFlowSection({phases, activePhase}) {
                                     className={`relative p-6 rounded-2xl border transition-all duration-300 ${
                                         isActive
                                             ? `bg-gradient-to-br ${phase.gradient} border-white/30 text-white`
-                                            : 'bg-white border-gray-200/50 text-[#0F172A] hover:border-2'
+                                            : 'bg-white/60 backdrop-blur-[10px] border border-[#2563EB]/10 text-[#0F172A] hover:border-2'
                                     }`}
                                     style={!isActive ? {
                                         '--accent-color': phase.accentColor,
@@ -528,12 +528,30 @@ function GameFlowSection({phases, activePhase}) {
                                         }
                                     }}
                                 >
-                                    {/* 图标容器 - 使用阶段特定的渐变 */}
-                                    <div className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center transition-all duration-300 ${
-                                        isActive
-                                            ? 'bg-white/20 text-white'
-                                            : `bg-gradient-to-br ${phase.iconBgGradient} text-white group-hover:scale-110`
-                                    }`}>
+                                    {/* 图标容器 - 使用阶段特定的颜色 */}
+                                    <div 
+                                        className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center transition-all duration-300 ${
+                                            isActive
+                                                ? 'bg-white/20 text-white'
+                                                : 'group-hover:scale-110'
+                                        }`}
+                                        style={!isActive ? {
+                                            backgroundColor: `${phase.accentColor}15`,
+                                            color: phase.accentColor
+                                        } : {}}
+                                        onMouseEnter={(e) => {
+                                            if (!isActive) {
+                                                e.currentTarget.style.backgroundColor = phase.accentColor
+                                                e.currentTarget.style.color = 'white'
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            if (!isActive) {
+                                                e.currentTarget.style.backgroundColor = `${phase.accentColor}15`
+                                                e.currentTarget.style.color = phase.accentColor
+                                            }
+                                        }}
+                                    >
                                         {phase.icon}
                                     </div>
                                     
@@ -599,8 +617,8 @@ function AgentSection({agents}) {
                             whileHover={{y: -8}}
                             className="group relative"
                         >
-                            <div className="relative p-6 bg-white/80 backdrop-blur-[10px] rounded-2xl border border-[#2563EB]/10 hover:border-[#2563EB]/30 transition-all h-full">
-                                <div className="w-16 h-16 rounded-2xl mb-4 flex items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#08D9D6] text-white shadow-lg group-hover:scale-110 transition-transform">
+                            <div className="relative p-6 bg-white/60 backdrop-blur-[10px] rounded-2xl border border-[#2563EB]/10 hover:border-[#2563EB]/30 transition-all h-full">
+                                <div className="w-16 h-16 rounded-2xl mb-4 flex items-center justify-center bg-[#2563EB]/10 text-[#2563EB] group-hover:bg-[#2563EB] group-hover:text-white transition-all duration-300">
                                     {agent.icon}
                                 </div>
                                 <h3 className="text-xl font-bold mb-1 text-[#0F172A]">{agent.name}</h3>
@@ -652,18 +670,23 @@ function ScriptShowcase({scripts}) {
                             whileInView={{opacity: 1, y: 0}}
                             viewport={{once: true}}
                             transition={{duration: 0.5, delay: index * 0.1}}
-                            whileHover={{y: -8, rotateY: 5}}
+                            whileHover={{y: -8}}
                             className="group relative cursor-pointer"
                         >
-                            <div className="relative h-64 rounded-2xl overflow-hidden bg-gradient-to-br from-[#2563EB] to-[#08D9D6] p-6 flex flex-col justify-end shadow-[0_4px_14px_0_rgba(37,99,235,0.39)]">
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"/>
+                            {/* 优雅的浅色卡片方案 */}
+                            <div className="relative h-64 rounded-2xl overflow-hidden bg-white/60 backdrop-blur-[10px] p-6 flex flex-col justify-end border border-[#2563EB]/10 group-hover:border-[#08D9D6]/50 transition-all duration-300 group-hover:shadow-[0_4px_20px_0_rgba(8,217,214,0.3)]">
+                                {/* 顶部微光效果 - 悬浮时显示蓝青渐变线条 */}
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
+                                {/* 背景装饰 - 悬浮时显示渐变光晕 */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/5 to-[#08D9D6]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
+                                {/* 卡片内容 */}
                                 <div className="relative">
-                                    <h3 className="text-xl font-bold mb-2 text-white">{script.title}</h3>
-                                    <p className="text-sm text-white/80 mb-3">{script.genre}</p>
-                                    <div className="flex items-center gap-4 text-sm text-white/90">
+                                    <h3 className="text-xl font-bold mb-2 text-[#0F172A] group-hover:text-[#2563EB] transition-colors duration-300">{script.title}</h3>
+                                    <p className="text-sm text-[#64748B] mb-3 group-hover:text-[#475569] transition-colors duration-300">{script.genre}</p>
+                                    <div className="flex items-center gap-4 text-sm text-[#64748B] group-hover:text-[#0F172A] transition-colors duration-300">
                                         <span>{script.players}</span>
                                         <span>{script.duration}</span>
-                                        <span>{script.difficulty}</span>
+                                        <span className="text-amber-400">{script.difficulty}</span>
                                     </div>
                                 </div>
                             </div>
@@ -710,8 +733,8 @@ function FeaturesSection({features}) {
                             whileHover={{y: -5}}
                             className="group relative"
                         >
-                            <div className="relative p-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-[#2563EB]/10 hover:border-[#2563EB]/30 hover:shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] transition-all h-full">
-                                <div className="w-14 h-14 rounded-xl mb-4 flex items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#08D9D6] text-white shadow-lg group-hover:scale-110 transition-transform">
+                            <div className="relative p-6 bg-white/60 backdrop-blur-[10px] rounded-2xl border border-[#2563EB]/10 hover:border-[#2563EB]/30 hover:shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] transition-all h-full">
+                                <div className="w-14 h-14 rounded-xl mb-4 flex items-center justify-center bg-[#2563EB]/10 text-[#2563EB] group-hover:bg-[#2563EB] group-hover:text-white transition-all duration-300">
                                     {feature.icon}
                                 </div>
                                 <h3 className="text-lg font-bold mb-2 text-[#0F172A]">{feature.title}</h3>
@@ -727,18 +750,28 @@ function FeaturesSection({features}) {
 }
 
 function ArchitectureSection() {
+    /**
+     * 技术架构层配置
+     * 每层使用不同的蓝色渐变，营造深邃的科技感
+     */
     const layers = [
         {
             title: '前端层 (React 19)',
-            items: ['剧本大厅', '游戏房间', '搜证界面', '讨论界面']
+            items: ['剧本大厅', '游戏房间', '搜证界面', '讨论界面'],
+            gradient: 'from-[#2563EB] to-[#08D9D6]', // 科技电光蓝
+            shadow: 'rgba(37, 99, 235, 0.39)'
         },
         {
             title: '后端层 (Spring Boot 3)',
-            items: ['AI Agent 系统 (LangGraph4j)', '游戏流程 | 记忆管理 | RAG检索 | 剧本生成']
+            items: ['AI Agent 系统 (LangGraph4j)', '游戏流程 | 记忆管理 | RAG检索 | 剧本生成'],
+            gradient: 'from-[#4338CA] to-[#3730A3]', // 靛蓝，融入紫色
+            shadow: 'rgba(67, 56, 202, 0.39)'
         },
         {
             title: '数据存储层',
-            items: ['MySQL', 'Redis', 'Milvus', 'RabbitMQ']
+            items: ['MySQL', 'Redis', 'Milvus', 'RabbitMQ'],
+            gradient: 'from-[#1E3A8A] to-[#1E40AF]', // 深蓝，压住整体
+            shadow: 'rgba(30, 58, 138, 0.39)'
         }
     ]
 
@@ -773,7 +806,9 @@ function ArchitectureSection() {
                             transition={{duration: 0.5, delay: index * 0.1}}
                             className="relative"
                         >
-                            <div className="relative p-6 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] rounded-2xl border border-[#08D9D6]/30 shadow-[0_4px_14px_0_rgba(37,99,235,0.39)]">
+                            <div 
+                                className={`relative p-6 bg-gradient-to-r ${layer.gradient} rounded-2xl border border-white/30 shadow-[0_4px_14px_0_${layer.shadow}]`}
+                            >
                                 <h3 className="text-lg font-bold mb-3 text-white">{layer.title}</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {layer.items.map((item, i) => (
@@ -796,7 +831,7 @@ function ArchitectureSection() {
 
 function StatsSection({stats}) {
     const statItems = [
-        {value: stats.satisfaction, suffix: '%', label: '玩家满意度', color: 'text-[#2563EB]'},
+        {value: stats.satisfaction, suffix: '%', label: '玩家满意度', color: 'text-orange-500'},
         {value: stats.accuracy, suffix: '%', label: 'AI推理准确率', color: 'text-[#08D9D6]'},
         {value: 3, suffix: '分钟', label: '平均剧本生成时长', color: 'text-[#2563EB]'},
         {value: 98, suffix: '%', label: '系统可用性', color: 'text-[#08D9D6]'}
@@ -874,13 +909,13 @@ function ReviewsSection({reviews}) {
                             whileHover={{y: -5}}
                             className="group"
                         >
-                            <div className="relative p-6 bg-white/80 backdrop-blur-[10px] rounded-2xl border border-[#2563EB]/10 hover:border-[#2563EB]/30 transition-all h-full">
+                            <div className="relative p-6 bg-white/60 backdrop-blur-[10px] rounded-2xl border border-[#2563EB]/10 hover:border-[#2563EB]/30 transition-all h-full">
                                 <div className="flex items-center gap-1 mb-3">
                                     {[...Array(review.rating)].map((_, i) => (
                                         <Star key={i} className="w-4 h-4 text-[#08D9D6] fill-[#08D9D6]"/>
                                     ))}
                                 </div>
-                                <Quote className="w-8 h-8 text-[#2563EB]/20 mb-2"/>
+                                <Quote className="w-8 h-8 text-[#2563EB]/20 group-hover:text-[#2563EB]/40 transition-colors duration-300 mb-2"/>
                                 <p className="text-sm text-[#64748B] mb-4">{review.comment}</p>
                                 <div className="text-xs text-[#64748B]">— {review.name}</div>
                             </div>
@@ -895,8 +930,35 @@ function ReviewsSection({reviews}) {
 function CTASection() {
     return (
         <section className="relative py-32 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#2563EB] to-[#08D9D6]"/>
+            {/* 深邃的深蓝渐变背景，压住整体轻浮感 */}
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-[#1E3A8A] to-slate-900"/>
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px]"/>
+            
+            {/* 漂浮的青色发光粒子效果，增加科技感 */}
+            {[...Array(10)].map((_, i) => (
+                <motion.div
+                    key={i}
+                    initial={{
+                        x: Math.random() * 100 + '%',
+                        y: Math.random() * 100 + '%',
+                        opacity: 0
+                    }}
+                    animate={{
+                        y: [null, -30, null],
+                        opacity: [0.3, 0.6, 0.3],
+                        scale: [1, 1.5, 1]
+                    }}
+                    transition={{
+                        duration: 4 + Math.random() * 2,
+                        repeat: Infinity,
+                        delay: Math.random() * 2
+                    }}
+                    className="absolute w-1 h-1 bg-[#08D9D6] rounded-full"
+                    style={{
+                        boxShadow: '0 0 10px rgba(8, 217, 214, 0.8)'
+                    }}
+                />
+            ))}
             
             <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                 <motion.div
@@ -917,7 +979,7 @@ function CTASection() {
                         <motion.div whileHover={{scale: 1.05}} whileTap={{scale: 0.95}}>
                             <Link
                                 to="/games"
-                                className="group inline-flex items-center px-10 py-5 bg-white text-[#2563EB] text-lg font-bold rounded-2xl shadow-2xl hover:shadow-white/25 transition-all"
+                                className="group inline-flex items-center px-10 py-5 bg-white text-[#1E3A8A] text-lg font-bold rounded-2xl shadow-2xl hover:shadow-white/25 transition-all"
                             >
                                 探索游戏房间
                                 <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform"/>

@@ -597,33 +597,83 @@ function GameRoom() {
    * @description 通知后端阶段确认后进入下一阶段
    */
   const handlePhaseComplete = useCallback(async () => {
-    // 搜证阶段需要检查后端是否所有玩家完成搜证
-    if (currentPhase === 'investigation' && !isAllInvestigationComplete) {
-      // 显示提示：有玩家未完成搜证
-      setWaitingMessage('有玩家未完成搜证，请等待')
-      setTimeout(() => setWaitingMessage(null), 3000)
-      return
+    // 根据阶段类型执行不同的检查逻辑
+    const phaseChecks = {
+      // 剧本概览、角色分配、剧本阅读：直接允许进入下一阶段
+      script_overview: () => true,
+      character_assignment: () => true,
+      script_reading: () => true,
+      
+      // 搜证阶段：需要检查后端是否所有玩家完成搜证
+      investigation: () => {
+        if (!isAllInvestigationComplete) {
+          setWaitingMessage('有玩家未完成搜证，请等待');
+          setTimeout(() => setWaitingMessage(null), 3000);
+          return false;
+        }
+        return true;
+      },
+      
+      // 讨论阶段：需要检查是否完成投票（非观察者模式）
+      discussion: () => {
+        if (!isObserverMode) {
+          // 玩家模式需要完成投票
+          // 投票检查由 Discussion 组件内部处理
+          // 这里直接返回 true，因为 Discussion 组件已经限制了按钮
+          return true;
+        }
+        return true;
+      },
+    };
+
+    // 执行阶段检查
+    const checkFn = phaseChecks[currentPhase];
+    if (checkFn && !checkFn()) {
+      return;
     }
 
-    
     // 获取真人玩家ID（从 playerData 中查找 playerRole 为 REAL 的玩家）
     // playerData 结构：GamePlayerResponseDTO 列表
     // - p.id: GamePlayer ID
     // - p.playerId: Player ID（后端期望的）
     // - p.playerRole: Player 角色类型（REAL/AI）
-    const players = playerData?.data || playerData || []
-    console.log('[GameRoom] 所有玩家数据:', JSON.stringify(players))
-    const realPlayer = players.find(p => p.playerRole === 'REAL')
-    const currentPlayerId = realPlayer?.playerId
-    console.log('[GameRoom] 找到的真人玩家:', realPlayer, 'playerId:', currentPlayerId)
+    const players = playerData?.data || playerData || [];
+    console.log('[GameRoom] 所有玩家数据:', JSON.stringify(players));
+    const realPlayer = players.find(p => p.playerRole === 'REAL');
+    const currentPlayerId = realPlayer?.playerId;
+    console.log('[GameRoom] 找到的真人玩家:', realPlayer, 'playerId:', currentPlayerId);
 
     if (id) {
       // 如果有真人玩家ID，发送玩家确认；否则发送观察者确认（playerId = null）
-      console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId)
-      await confirmCurrentPhase(id, currentPlayerId || null)
+      console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId);
+      await confirmCurrentPhase(id, currentPlayerId || null);
     }
-    goToNext()
-  }, [goToNext, confirmCurrentPhase, id, playerData, currentPhase, isAllInvestigationComplete])
+    goToNext();
+  }, [goToNext, confirmCurrentPhase, id, playerData, currentPhase, isAllInvestigationComplete, isObserverMode, setWaitingMessage])
+
+  // WebSocket 监听讨论超时消息
+  useEffect(() => {
+    if (isDebugMode || !isConnected || !id) return
+
+    /**
+     * 处理讨论超时消息
+     * @param {Object} data - 消息数据
+     * @param {string} [data.message] - 提示消息
+     */
+    const handleDiscussionTimeout = (data) => {
+      console.log('[GameRoom] 收到讨论超时通知:', data)
+      // 自动进入下一阶段
+      handlePhaseComplete()
+    }
+
+    const discussionTimeoutSubscriptionId = subscribe(`/topic/game/${id}/discussion-timeout`, handleDiscussionTimeout)
+
+    return () => {
+      if (discussionTimeoutSubscriptionId) {
+        console.log('[GameRoom] 取消讨论超时订阅')
+      }
+    }
+  }, [isDebugMode, isConnected, id, subscribe, handlePhaseComplete])
 
   const handlePhaseSkip = useCallback(() => goToNext(), [goToNext])
   const handlePhaseBack = useCallback(() => goToPrevious(), [goToPrevious])
