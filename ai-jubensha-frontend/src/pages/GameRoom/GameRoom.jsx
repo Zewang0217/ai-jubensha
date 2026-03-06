@@ -272,6 +272,10 @@ function GameRoom() {
     forcePhaseChange,
   } = useDebugMode({enabled: DEFAULT_DEBUG_MODE})
 
+  // 使用 ref 存储 adaptedGameData，供 onPhaseChange 回调使用
+  // 必须在 usePhaseManager 之前定义，因为 onPhaseChange 回调需要使用它
+  const adaptedGameDataRef = useRef(null)
+
   // 阶段管理
   const {
     currentPhase,
@@ -304,15 +308,17 @@ function GameRoom() {
       console.log(`[GameRoom] 阶段切换: ${prevPhase} -> ${newPhase}`)
       // 阶段变化时保存到 localStorage
       if (id) {
+        // 使用 ref 获取最新的 adaptedGameData，避免初始化顺序问题
+        const currentGameData = adaptedGameDataRef.current
         saveGameState({
           gameId: id,
           currentPhase: newPhase,
-          realPlayerCount: adaptedGameData?.realPlayerCount,
-          totalPlayerCount: adaptedGameData?.players?.length,
-          scriptId: adaptedGameData?.scriptId,
+          realPlayerCount: currentGameData?.realPlayerCount,
+          totalPlayerCount: currentGameData?.players?.length,
+          scriptId: currentGameData?.scriptId,
         })
       }
-    }, [id, adaptedGameData?.realPlayerCount, adaptedGameData?.players?.length, adaptedGameData?.scriptId]),
+    }, [id]),
     onComplete: useCallback(() => {
       console.log('[GameRoom] 游戏完成')
       clearGameState()
@@ -407,6 +413,11 @@ function GameRoom() {
   // 适配后的游戏数据
   const [adaptedGameData, setAdaptedGameData] = useState(null)
   const [isAdapting, setIsAdapting] = useState(false)
+
+  // 同步 adaptedGameData 到 ref
+  useEffect(() => {
+    adaptedGameDataRef.current = adaptedGameData
+  }, [adaptedGameData])
 
   // 搜证完成状态
   const [isAllInvestigationComplete, setIsAllInvestigationComplete] = useState(false)
