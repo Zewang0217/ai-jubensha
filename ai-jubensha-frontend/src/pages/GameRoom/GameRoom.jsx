@@ -418,6 +418,17 @@ function GameRoom() {
   const isLoading = isDebugMode ? debugIsLoading : (apiIsLoading || isAdapting)
   const error = isDebugMode ? null : apiError
 
+  /**
+   * 计算是否为观察者模式
+   * @description 当 realPlayerCount === 0 时为观察者模式，真人用户只能查看不能操作
+   */
+  const isObserverMode = useMemo(() => {
+    const realPlayerCount = gameData?.data?.realPlayerCount ?? 1
+    const isObserver = realPlayerCount === 0
+    console.log('[GameRoom] 模式判断 - realPlayerCount:', realPlayerCount, 'isObserverMode:', isObserver)
+    return isObserver
+  }, [gameData])
+
   // WebSocket - 使用新的 STOMP over SockJS 连接
   // 后端要求连接格式: /ws?gameId={gameId}
   const wsBaseUrl = WS_BASE_URL.replace('ws://', 'http://').replace('wss://', 'https://')
@@ -710,6 +721,7 @@ function GameRoom() {
       onSkip: handlePhaseSkip,
       onBack: handlePhaseBack,
       onAction: handleAction,
+      isObserverMode,
     }
 
     // 为Discussion阶段添加WebSocket相关props
@@ -719,6 +731,8 @@ function GameRoom() {
               {...baseProps}
               isConnected={isConnected}
               subscribeToGameChat={subscribeToGameChat}
+              subscribeToPersonalMessages={subscribeToPersonalMessages}
+              subscribe={subscribe}
               sendChatMessage={sendChatMessage}
               sendVote={sendVote}
               unsubscribe={unsubscribe}
@@ -744,6 +758,7 @@ function GameRoom() {
     sendVote,
     unsubscribe,
     currentPlayerId,
+    isObserverMode,
   ])
 
   // 渲染状态
