@@ -276,22 +276,32 @@ export const adaptGameData = async (gameData, players) => {
 
 /**
  * 阶段映射 - 后端阶段到前端阶段
+ * @description 后端使用大写下划线格式（如 SCRIPT_OVERVIEW），前端使用小写下划线格式（如 script_overview）
  */
 export const PHASE_MAPPING = {
-    'INTRODUCTION': 'SCRIPT_OVERVIEW',
-    'SEARCH': 'INVESTIGATION',
-    'DISCUSSION': 'DISCUSSION',
-    'VOTING': 'VOTING',
-    'ENDING': 'SUMMARY',
+    'SCRIPT_OVERVIEW': 'script_overview',
+    'CHARACTER_ASSIGNMENT': 'character_assignment',
+    'SCRIPT_READING': 'script_reading',
+    'INVESTIGATION': 'investigation',
+    'DISCUSSION': 'discussion',
+    'SUMMARY': 'summary',
 }
 
 /**
- * 将后端阶段转换为前端阶段
- * @param {string} backendPhase - 后端阶段名称
- * @returns {string} 前端阶段名称
+ * 将后端阶段转换为前端阶段（支持双向映射）
+ * @param {string} phase - 阶段名称（后端格式或前端格式）
+ * @returns {string} 前端阶段名称（小写下划线格式）
+ * @example
+ * adaptPhase('SCRIPT_OVERVIEW') // 返回 'script_overview'
+ * adaptPhase('script_overview') // 返回 'script_overview'（已经是前端格式，直接返回）
  */
-export const adaptPhase = (backendPhase) => {
-    return PHASE_MAPPING[backendPhase] || backendPhase
+export const adaptPhase = (phase) => {
+    // 如果传入的是前端阶段格式（小写下划线），直接返回
+    if (phase && phase === phase.toLowerCase()) {
+        return phase
+    }
+    // 否则从映射表中查找转换
+    return PHASE_MAPPING[phase] || phase
 }
 
 export default {
