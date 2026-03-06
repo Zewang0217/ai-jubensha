@@ -6,20 +6,31 @@ import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
 import org.jubensha.aijubenshabackend.ai.service.WorkflowStatusService;
 import org.jubensha.aijubenshabackend.ai.workflow.jubenshaWorkflow;
 import org.jubensha.aijubenshabackend.ai.workflow.state.WorkflowContext;
+import org.jubensha.aijubenshabackend.models.dto.CharacterSelectDTO;
 import org.jubensha.aijubenshabackend.models.dto.GameCreateDTO;
 import org.jubensha.aijubenshabackend.models.dto.GameResponseDTO;
 import org.jubensha.aijubenshabackend.models.dto.GameUpdateDTO;
 import org.jubensha.aijubenshabackend.models.dto.PhaseConfirmDTO;
 import org.jubensha.aijubenshabackend.models.dto.PhaseStatusDTO;
+import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.Game;
+import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
+import org.jubensha.aijubenshabackend.models.entity.Player;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.models.enums.GamePlayerStatus;
 import org.jubensha.aijubenshabackend.models.enums.GameStatus;
+import org.jubensha.aijubenshabackend.models.enums.PlayerRole;
+import org.jubensha.aijubenshabackend.models.enums.PlayerStatus;
+import org.jubensha.aijubenshabackend.service.character.CharacterService;
+import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
 import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.investigation.InvestigationService;
+import org.jubensha.aijubenshabackend.service.player.PlayerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,13 +50,19 @@ public class GameController {
     private final DiscussionService discussionService;
     private final WorkflowStatusService workflowStatusService;
     private final InvestigationService investigationService;
+    private final PlayerService playerService;
+    private final CharacterService characterService;
+    private final GamePlayerService gamePlayerService;
 
-    public GameController(GameService gameService, jubenshaWorkflow workflow, DiscussionService discussionService, WorkflowStatusService workflowStatusService, InvestigationService investigationService) {
+    public GameController(GameService gameService, jubenshaWorkflow workflow, DiscussionService discussionService, WorkflowStatusService workflowStatusService, InvestigationService investigationService, PlayerService playerService, CharacterService characterService, GamePlayerService gamePlayerService) {
         this.gameService = gameService;
         this.workflow = workflow;
         this.discussionService = discussionService;
         this.workflowStatusService = workflowStatusService;
         this.investigationService = investigationService;
+        this.playerService = playerService;
+        this.characterService = characterService;
+        this.gamePlayerService = gamePlayerService;
     }
 
     /**
@@ -374,6 +391,18 @@ public class GameController {
                             .body(Map.of("error", "realPlayerCount must be non-negative"));
                 }
                 log.info("真人玩家数量: {}", realPlayerCount);
+                
+                // 保存真人玩家数量到数据库
+                try {
+                    Game game = gameService.getGameById(gameId).orElse(null);
+                    if (game != null) {
+                        game.setRealPlayerCount(realPlayerCount);
+                        gameService.updateGame(gameId, game);
+                        log.info("已保存真人玩家数量到数据库，游戏ID: {}, realPlayerCount: {}", gameId, realPlayerCount);
+                    }
+                } catch (Exception e) {
+                    log.error("保存真人玩家数量失败: {}", e.getMessage());
+                }
             } else {
                 log.info("未设置真人玩家数量，使用默认值");
             }
@@ -773,10 +802,14 @@ public class GameController {
 
     /**
      * 确认阶段完成
+     * <p>
+     * 前端调用此 API 确认当前阶段完成。
+     * 如果所有玩家都已确认，后端自动推进到下一阶段并广播 PHASE_CHANGE 消息。
+     * </p>
      *
      * @param gameId     游戏ID
      * @param confirmDTO 确认请求
-     * @return 确认结果
+     * @return 确认结果，包含是否推进到下一阶段等信息
      */
     @PostMapping("/{gameId}/confirm-phase")
     public ResponseEntity<?> confirmPhase(@PathVariable Long gameId, @Valid @RequestBody PhaseConfirmDTO confirmDTO) {
@@ -799,37 +832,232 @@ public class GameController {
             }
             
             // 3. 处理确认逻辑
-            boolean isObserver = confirmDTO.getPlayerId() == null || confirmDTO.getPlayerId() <= 0;
-            
-            if (isObserver) {
-                // 观察者确认
+            // 如果 playerId 为 null，则是观察者确认
+            if (confirmDTO.getPlayerId() == null) {
                 context.setObserverConfirmed(true);
-                log.info("观察者确认阶段完成，游戏ID: {}, 阶段: {}", gameId, confirmDTO.getPhase());
+                log.info("[阶段同步] 观察者确认阶段完成，游戏ID: {}", gameId);
             } else {
-                // 真人玩家确认
+                // 玩家确认
                 context.confirmPhase(confirmDTO.getPlayerId());
-                log.info("玩家确认阶段完成，游戏ID: {}, 玩家ID: {}, 阶段: {}", gameId, confirmDTO.getPlayerId(), confirmDTO.getPhase());
+                log.info("[阶段同步] 玩家 {} 确认阶段完成，游戏ID: {}", confirmDTO.getPlayerId(), gameId);
             }
             
             // 4. 同步更新 InvestigationService 缓存中的上下文
             investigationService.saveWorkflowContext(gameId, context);
-            log.info("已同步更新 InvestigationService 缓存，游戏ID: {}, observerConfirmed: {}", gameId, context.isObserverConfirmed());
+            log.info("[阶段同步] 已同步更新 InvestigationService 缓存，游戏ID: {}, observerConfirmed: {}", gameId, context.isObserverConfirmed());
 
-            // 5. 构建确认成功响应
+            // 5. 检查是否所有玩家都已确认
+            boolean allConfirmed = context.isAllPlayersConfirmed();
+            boolean isObserverMode = context.getRealPlayerCount() == null || context.getRealPlayerCount() == 0;
+            boolean shouldAdvance = allConfirmed || (isObserverMode && context.isObserverConfirmed());
+
+            // 6. 构建确认成功响应
             Map<String, Object> response = new java.util.HashMap<>();
             response.put("success", true);
             response.put("gameId", gameId);
             response.put("playerId", confirmDTO.getPlayerId());
             response.put("phase", confirmDTO.getPhase());
-            response.put("isObserver", isObserver);
+            response.put("isObserver", confirmDTO.getPlayerId() == null);
             response.put("message", "阶段确认成功");
             response.put("observerConfirmed", context.isObserverConfirmed());
+            response.put("allConfirmed", allConfirmed);
+            response.put("unconfirmedPlayers", context.getUnconfirmedPlayers());
+            response.put("currentPhase", game.getCurrentPhase() != null ? game.getCurrentPhase().name() : null);
+
+            // 7. 如果所有玩家都已确认，自动推进阶段
+            if (shouldAdvance) {
+                log.info("[阶段同步] 所有玩家已确认，自动推进阶段，游戏ID: {}", gameId);
+                
+                // 推进阶段并广播通知
+                Map<String, Object> advanceResult = gameService.advancePhaseWithNotification(gameId);
+                
+                response.put("phaseAdvanced", true);
+                response.put("nextPhase", advanceResult.get("newPhase"));
+                response.put("advanceMessage", advanceResult.get("message"));
+                
+                // 重置下一阶段的确认状态
+                // 获取所有玩家ID并重新初始化确认状态
+                java.util.List<Long> playerIds = new java.util.ArrayList<>();
+                if (context.getPlayerAssignments() != null) {
+                    for (Map<String, Object> assignment : context.getPlayerAssignments()) {
+                        Object playerIdObj = assignment.get("playerId");
+                        if (playerIdObj instanceof Number) {
+                            playerIds.add(((Number) playerIdObj).longValue());
+                        }
+                    }
+                }
+                context.initPhaseConfirmations(playerIds);
+                context.setObserverConfirmed(false);
+                investigationService.saveWorkflowContext(gameId, context);
+                log.info("[阶段同步] 已重置下一阶段的确认状态，游戏ID: {}", gameId);
+            } else {
+                response.put("phaseAdvanced", false);
+                response.put("nextPhase", null);
+            }
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("确认阶段失败，游戏ID: {}, 错误: {}", gameId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "确认阶段失败", "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 推进游戏到下一阶段
+     * <p>
+     * 手动推进游戏到下一阶段，并广播 PHASE_CHANGE 消息通知所有客户端。
+     * 通常由前端确认阶段完成后自动调用，也可用于管理目的。
+     * </p>
+     *
+     * @param gameId 游戏ID
+     * @return 推进结果
+     */
+    @PostMapping("/{gameId}/advance-phase")
+    public ResponseEntity<?> advancePhase(@PathVariable Long gameId) {
+        try {
+            log.info("收到阶段推进请求，游戏ID: {}", gameId);
+            
+            Map<String, Object> result = gameService.advancePhaseWithNotification(gameId);
+            
+            if (Boolean.TRUE.equals(result.get("success"))) {
+                log.info("阶段推进成功，游戏ID: {}, 新阶段: {}", gameId, result.get("newPhase"));
+                return ResponseEntity.ok(result);
+            } else {
+                log.warn("阶段推进失败，游戏ID: {}, 原因: {}", gameId, result.get("message"));
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+            }
+        } catch (IllegalArgumentException e) {
+            log.error("游戏不存在，游戏ID: {}", gameId, e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "游戏不存在", "gameId", gameId));
+        } catch (Exception e) {
+            log.error("阶段推进失败，游戏ID: {}, 错误: {}", gameId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "阶段推进失败", "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 真人玩家选择角色
+     * <p>
+     * 在角色分配阶段，真人玩家选择一个角色。
+     * 后端创建真人玩家记录并关联选择的角色。
+     * </p>
+     *
+     * @param gameId 游戏ID
+     * @param selectDTO 角色选择请求
+     * @return 选择结果，包含玩家信息
+     */
+    @PostMapping("/{gameId}/select-character")
+    public ResponseEntity<?> selectCharacter(@PathVariable Long gameId, @Valid @RequestBody CharacterSelectDTO selectDTO) {
+        try {
+            log.info("收到角色选择请求，游戏ID: {}, 角色ID: {}", gameId, selectDTO.getCharacterId());
+            
+            // 1. 验证游戏存在
+            Optional<Game> gameOptional = gameService.getGameById(gameId);
+            if (gameOptional.isEmpty()) {
+                log.warn("游戏不存在，游戏ID: {}", gameId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "游戏不存在", "gameId", gameId));
+            }
+            Game game = gameOptional.get();
+            
+            // 2. 验证角色存在
+            Optional<Character> characterOptional = characterService.getCharacterById(selectDTO.getCharacterId());
+            if (characterOptional.isEmpty()) {
+                log.warn("角色不存在，角色ID: {}", selectDTO.getCharacterId());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "角色不存在", "characterId", selectDTO.getCharacterId()));
+            }
+            Character character = characterOptional.get();
+            
+            // 3. 检查是否已有真人玩家
+            List<GamePlayer> existingGamePlayers = gamePlayerService.getGamePlayersByGameId(gameId);
+            for (GamePlayer gp : existingGamePlayers) {
+                // 检查是否已有真人玩家
+                if (gp.getPlayer() != null && gp.getPlayer().getRole() == PlayerRole.REAL) {
+                    log.warn("游戏已有真人玩家，游戏ID: {}, 玩家ID: {}", gameId, gp.getPlayer().getId());
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(Map.of("error", "游戏已有真人玩家", "existingPlayerId", gp.getPlayer().getId()));
+                }
+                // 检查角色是否已被选择
+                if (gp.getCharacter() != null && gp.getCharacter().getId().equals(selectDTO.getCharacterId())) {
+                    log.warn("角色已被选择，角色ID: {}", selectDTO.getCharacterId());
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(Map.of("error", "角色已被选择", "characterId", selectDTO.getCharacterId()));
+                }
+            }
+            
+            // 4. 创建真人玩家
+            String nickname = selectDTO.getNickname();
+            if (nickname == null || nickname.isEmpty()) {
+                nickname = "玩家_" + System.currentTimeMillis();
+            }
+            
+            Player realPlayer = new Player();
+            realPlayer.setUsername("real_" + System.currentTimeMillis());
+            realPlayer.setNickname(nickname);
+            realPlayer.setPassword("123456");
+            realPlayer.setEmail("real_" + System.currentTimeMillis() + "@example.com");
+            realPlayer.setRole(PlayerRole.REAL);
+            realPlayer.setStatus(PlayerStatus.ONLINE);
+            realPlayer = playerService.createPlayer(realPlayer);
+            log.info("创建真人玩家成功，玩家ID: {}, 昵称: {}", realPlayer.getId(), realPlayer.getNickname());
+            
+            // 5. 创建 GamePlayer 关联
+            GamePlayer gamePlayer = new GamePlayer();
+            gamePlayer.setGame(game);
+            gamePlayer.setPlayer(realPlayer);
+            gamePlayer.setCharacter(character);
+            gamePlayer.setIsDm(false);
+            gamePlayer.setStatus(GamePlayerStatus.PLAYING);
+            gamePlayerService.createGamePlayer(gamePlayer);
+            log.info("创建游戏玩家关联成功，游戏ID: {}, 玩家ID: {}, 角色ID: {}", gameId, realPlayer.getId(), character.getId());
+            
+            // 6. 更新 WorkflowContext
+            WorkflowContext context = investigationService.getWorkflowContext(gameId);
+            if (context != null) {
+                // 添加真人玩家分配信息
+                List<Map<String, Object>> assignments = context.getPlayerAssignments();
+                if (assignments == null) {
+                    assignments = new java.util.ArrayList<>();
+                }
+                
+                Map<String, Object> assignment = new HashMap<>();
+                assignment.put("playerType", "REAL");
+                assignment.put("playerId", realPlayer.getId());
+                assignment.put("characterId", character.getId());
+                assignment.put("characterName", character.getName());
+                assignments.add(assignment);
+                context.setPlayerAssignments(assignments);
+                
+                // 设置角色选择完成标志
+                context.setCharacterSelected(true);
+                context.setSelectedCharacterId(character.getId());
+                context.setSelectedPlayerId(realPlayer.getId());
+                
+                investigationService.saveWorkflowContext(gameId, context);
+                log.info("更新工作流上下文成功，游戏ID: {}", gameId);
+            }
+            
+            // 7. 构建响应
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("gameId", gameId);
+            response.put("playerId", realPlayer.getId());
+            response.put("playerNickname", realPlayer.getNickname());
+            response.put("characterId", character.getId());
+            response.put("characterName", character.getName());
+            response.put("playerRole", "REAL");
+            response.put("message", "角色选择成功");
+            
+            log.info("角色选择成功，游戏ID: {}, 玩家ID: {}, 角色ID: {}", gameId, realPlayer.getId(), character.getId());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("角色选择失败，游戏ID: {}, 错误: {}", gameId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "角色选择失败", "message", e.getMessage()));
         }
     }
 }
