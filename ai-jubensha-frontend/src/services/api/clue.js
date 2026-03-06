@@ -58,9 +58,28 @@ export const privateClue = (clueId) => {
     return updateClue(clueId, { visibility: 'PRIVATE' })
 }
 
+/**
+ * 获取公开线索列表
+ * @returns {Promise<Array<ClueResponseDTO>>} 公开线索列表
+ */
+export const getPublicClues = () => {
+    return apiClient.get('/clues/visibility/PUBLIC')
+}
+
+/**
+ * 根据剧本ID获取线索列表
+ * @param {number} scriptId - 剧本ID
+ * @returns {Promise<Array<ClueResponseDTO>>} 线索列表
+ */
+export const getCluesByScriptId = (scriptId) => {
+    return apiClient.get(`/clues/script/${scriptId}`)
+}
+
 export default {
     getClueById,
     updateClue,
     publicClue,
-    privateClue
+    privateClue,
+    getPublicClues,
+    getCluesByScriptId
 }

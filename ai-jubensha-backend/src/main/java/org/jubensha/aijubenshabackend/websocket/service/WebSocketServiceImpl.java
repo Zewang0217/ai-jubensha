@@ -426,4 +426,24 @@ public class WebSocketServiceImpl implements WebSocketService {
             }
         }
     }
+
+    @Override
+    public void broadcastGameEnded(Long gameId, String message) {
+        WebSocketMessage wsMessage = new WebSocketMessage();
+        wsMessage.setType(WebSocketMessage.MessageType.GAME_ENDED);
+        
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("message", message);
+        payload.put("gameId", gameId);
+        payload.put("timestamp", System.currentTimeMillis());
+        wsMessage.setPayload(payload);
+        
+        // 广播到游戏主频道
+        String destination = "/topic/game/" + gameId + "/status";
+        messagingTemplate.convertAndSend(destination, wsMessage);
+        log.info("广播游戏结束通知到游戏 {}: {}", gameId, message);
+        
+        // 同时发送给所有真人玩家
+        sendToGameRealPlayers(gameId, wsMessage);
+    }
 }

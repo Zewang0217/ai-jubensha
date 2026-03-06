@@ -876,20 +876,27 @@ public class GameController {
                 response.put("advanceMessage", advanceResult.get("message"));
                 
                 // 重置下一阶段的确认状态
-                // 获取所有玩家ID并重新初始化确认状态
-                java.util.List<Long> playerIds = new java.util.ArrayList<>();
+                // 只获取真人玩家ID并重新初始化确认状态
+                java.util.List<Long> realPlayerIds = new java.util.ArrayList<>();
                 if (context.getPlayerAssignments() != null) {
+                    log.info("[阶段同步] 重置确认状态 - 玩家分配数量: {}", context.getPlayerAssignments().size());
                     for (Map<String, Object> assignment : context.getPlayerAssignments()) {
+                        Object playerTypeObj = assignment.get("playerType");
+                        String playerType = playerTypeObj != null ? playerTypeObj.toString() : "AI";
                         Object playerIdObj = assignment.get("playerId");
-                        if (playerIdObj instanceof Number) {
-                            playerIds.add(((Number) playerIdObj).longValue());
+                        // 只添加真人玩家到确认列表
+                        if ("REAL".equals(playerType) && playerIdObj instanceof Number) {
+                            realPlayerIds.add(((Number) playerIdObj).longValue());
+                            log.info("[阶段同步] 重置确认状态 - 添加真人玩家: {}", playerIdObj);
+                        } else {
+                            log.info("[阶段同步] 重置确认状态 - 跳过 AI 玩家: playerType={}, playerId={}", playerType, playerIdObj);
                         }
                     }
                 }
-                context.initPhaseConfirmations(playerIds);
+                context.initPhaseConfirmations(realPlayerIds);
                 context.setObserverConfirmed(false);
                 investigationService.saveWorkflowContext(gameId, context);
-                log.info("[阶段同步] 已重置下一阶段的确认状态，游戏ID: {}", gameId);
+                log.info("[阶段同步] 已重置下一阶段的确认状态，游戏ID: {}, 真人玩家数量: {}", gameId, realPlayerIds.size());
             } else {
                 response.put("phaseAdvanced", false);
                 response.put("nextPhase", null);

@@ -10,6 +10,7 @@ import {PHASE_TYPE} from '../types'
 import GhostButton from '../../../components/ui/GhostButton'
 import ClueCard from '../../../components/ui/ClueCard'
 import {publicClue} from '../../../services/api/clue'
+import {investigate, getInvestigationStatus} from '../../../services/api/investigation'
 
 // =============================================================================
 // 动画配置
@@ -211,7 +212,7 @@ ProgressBar.displayName = 'ProgressBar'
  * @param {boolean} props.isObserverMode - 是否为观察者模式
  * @returns {JSX.Element} 组件元素
  */
-function Investigation({_config, gameData, onComplete, onAction, isObserverMode = false}) {
+function Investigation({_config, gameData, onComplete, onAction, isObserverMode = false, isAllInvestigationComplete = false, gameId, currentPlayerId}) {
   const [selectedScene, setSelectedScene] = useState(null)
   const [revealedClues, setRevealedClues] = useState(new Set())
   const [publicClues, setPublicClues] = useState(new Set())
@@ -317,7 +318,7 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
    * @param {string} clueId - 线索ID
    * @returns {void}
    */
-  const handleRevealClue = useCallback((clueId) => {
+  const handleRevealClue = useCallback(async (clueId) => {
     // 观察者模式下不能搜证
     if (isObserverMode) return
     
@@ -328,25 +329,58 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
       return
     }
     
-    // 如果已经揭示过，不扣减次数，也不弹窗
+    // 如果已经揭示过
     if (revealedClues.has(clueId)) {
       return
     }
     
-    // 扣减搜证次数
-    setRemainingChances(prev => prev - 1)
+    // 获取游戏ID和玩家ID（从 props 中获取）
+    const currentGameId = gameId
+    const currentPlayerIdValue = currentPlayerId
     
-    // 揭示线索
-    setRevealedClues(prev => new Set([...prev, clueId]))
-    onAction?.('clue_revealed', {clueId, sceneId: selectedScene})
-    
-    // 找到线索信息，立即弹出公开确认弹窗
-    const clue = scenes.flatMap(s => s.clues).find(c => c.id === clueId)
-    if (clue) {
-      setSelectedClueForPublic(clue)
-      setShowPublicModal(true)
+    if (!currentGameId || !currentPlayerIdValue) {
+      console.warn('[Investigation] 缺少 gameId 或 playerId', { gameId: currentGameId, playerId: currentPlayerIdValue })
+      return
     }
-  }, [selectedScene, onAction, isObserverMode, remainingChances, revealedClues, scenes])
+    
+    // 找到线索所属的场景
+    const clue = scenes.flatMap(s => s.clues || []).find(c => c.id === clueId)
+    const sceneId = clue?.sceneId || selectedScene
+    
+    try {
+      // 调用后端 API 执行搜证
+      const response = await investigate(currentGameId, {
+        playerId: currentPlayerIdValue,
+        sceneId,
+        clueId
+      })
+      
+      console.log('[Investigation] 搜证响应:', response)
+      
+      // 更新本地状态
+      setRemainingChances(response.remainingCount ?? remainingChances - 1)
+      setRevealedClues(prev => new Set([...prev, clueId]))
+      onAction?.('clue_revealed', {clueId, sceneId})
+      
+      // 找到线索信息，弹出公开确认弹窗
+      if (clue) {
+        setSelectedClueForPublic(clue)
+        setShowPublicModal(true)
+      }
+    } catch (error) {
+      console.error('[Investigation] 搜证失败:', error)
+      // 即使失败也更新本地状态（降级处理）
+      setRemainingChances(prev => prev - 1)
+      setRevealedClues(prev => new Set([...prev, clueId]))
+      onAction?.('clue_revealed', {clueId, sceneId})
+      
+      // 找到线索信息，弹出公开确认弹窗
+      if (clue) {
+        setSelectedClueForPublic(clue)
+        setShowPublicModal(true)
+      }
+    }
+  }, [selectedScene, onAction, isObserverMode, remainingChances, revealedClues, scenes, gameId, currentPlayerId])
 
   /**
    * 确认公开线索

@@ -272,6 +272,10 @@ function GameRoom() {
     forcePhaseChange,
   } = useDebugMode({enabled: DEFAULT_DEBUG_MODE})
 
+  // 使用 ref 存储 adaptedGameData，供 onPhaseChange 回调使用
+  // 必须在 usePhaseManager 之前定义，因为 onPhaseChange 回调需要使用它
+  const adaptedGameDataRef = useRef(null)
+
   // 阶段管理
   const {
     currentPhase,
@@ -304,15 +308,17 @@ function GameRoom() {
       console.log(`[GameRoom] 阶段切换: ${prevPhase} -> ${newPhase}`)
       // 阶段变化时保存到 localStorage
       if (id) {
+        // 使用 ref 获取最新的 adaptedGameData，避免初始化顺序问题
+        const currentGameData = adaptedGameDataRef.current
         saveGameState({
           gameId: id,
           currentPhase: newPhase,
-          realPlayerCount: adaptedGameData?.realPlayerCount,
-          totalPlayerCount: adaptedGameData?.players?.length,
-          scriptId: adaptedGameData?.scriptId,
+          realPlayerCount: currentGameData?.realPlayerCount,
+          totalPlayerCount: currentGameData?.players?.length,
+          scriptId: currentGameData?.scriptId,
         })
       }
-    }, [id, adaptedGameData?.realPlayerCount, adaptedGameData?.players?.length, adaptedGameData?.scriptId]),
+    }, [id]),
     onComplete: useCallback(() => {
       console.log('[GameRoom] 游戏完成')
       clearGameState()
@@ -344,10 +350,20 @@ function GameRoom() {
   } = useQuery({
     queryKey: ['gamePlayers', id],
     queryFn: async () => {
-      console.log('[GameRoom] 获取玩家数据，游戏ID:', id)
-      const response = await getGamePlayers(id)
-      console.log('[GameRoom] 玩家数据响应:', response)
-      return response?.data || response
+      console.log('[GameRoom] ========== 获取玩家数据 ==========')
+      console.log('[GameRoom] 游戏ID:', id)
+      try {
+        const response = await getGamePlayers(id)
+        console.log('[GameRoom] 玩家数据响应:', response)
+        console.log('[GameRoom] 响应类型:', typeof response)
+        console.log('[GameRoom] 是否为数组:', Array.isArray(response))
+        console.log('[GameRoom] 数组长度:', response?.length)
+        console.log('[GameRoom] ==============================')
+        return response?.data || response
+      } catch (error) {
+        console.error('[GameRoom] 获取玩家数据失败:', error)
+        throw error
+      }
     },
     enabled: !isDebugMode && !!id,
     staleTime: 60000,
@@ -407,6 +423,11 @@ function GameRoom() {
   // 适配后的游戏数据
   const [adaptedGameData, setAdaptedGameData] = useState(null)
   const [isAdapting, setIsAdapting] = useState(false)
+
+  // 同步 adaptedGameData 到 ref
+  useEffect(() => {
+    adaptedGameDataRef.current = adaptedGameData
+  }, [adaptedGameData])
 
   // 搜证完成状态
   const [isAllInvestigationComplete, setIsAllInvestigationComplete] = useState(false)
@@ -496,10 +517,40 @@ function GameRoom() {
     try {
       const players = playerData?.data || playerData
       if (!Array.isArray(players) || players.length === 0) {
+        console.log('[GameRoom] currentPlayerId - 玩家数据为空或不是数组')
         return null
       }
-      const realPlayer = players.find(p => p.playerRole === 'REAL')
-      return realPlayer?.playerId || null
+      
+      // 打印第一个玩家的完整结构
+      console.log('[GameRoom] currentPlayerId - 第一个玩家:', JSON.stringify(players[0], null, 2))
+      
+      // 打印所有玩家的 playerRole 字段
+      console.log('[GameRoom] currentPlayerId - 玩家列表:', players.map(p => ({ 
+        playerId: p.playerId, 
+        playerRole: p.playerRole,
+        id: p.id,
+        role: p.role,
+        player: p.player
+      })))
+      
+      // 尝试多种方式查找真人玩家
+      // 1. 直接检查 playerRole 字段
+      let realPlayer = players.find(p => p.playerRole === 'REAL' || p.playerRole === 'real')
+      
+      // 2. 检查 player.role 字段
+      if (!realPlayer) {
+        realPlayer = players.find(p => p.player?.role === 'REAL' || p.player?.role === 'real')
+      }
+      
+      // 3. 检查 role 字段
+      if (!realPlayer) {
+        realPlayer = players.find(p => p.role === 'REAL' || p.role === 'real')
+      }
+      
+      console.log('[GameRoom] currentPlayerId - 找到的真人玩家:', realPlayer)
+      
+      // 返回真人玩家的 playerId 或 id
+      return realPlayer?.playerId || realPlayer?.id || null
     } catch (e) {
       console.warn('[GameRoom] 获取真人玩家ID失败:', e)
       return null
@@ -648,6 +699,11 @@ function GameRoom() {
         case 'PHASE_READY':
           // 阶段就绪消息 - 更新等待状态
           console.log('[GameRoom] PHASE_READY 消息:', payload)
+          // 如果是剧本阅读阶段，刷新玩家数据
+          if (payload?.nodeName === 'script_reader' || payload?.phase === 'script_reading') {
+            console.log('[GameRoom] 剧本阅读阶段，刷新玩家数据...')
+            refetchPlayerData?.()
+          }
           if (payload?.isReady) {
             setIsBackendReady(true)
             setWaitingMessage(null)
@@ -655,6 +711,18 @@ function GameRoom() {
             setIsBackendReady(false)
             setWaitingMessage(payload?.message || '等待其他玩家...')
           }
+          break
+          
+        case 'GAME_ENDED':
+          // 游戏结束消息 - 清理并跳转
+          console.log('[GameRoom] GAME_ENDED 消息:', payload)
+          setWaitingMessage(payload?.message || '游戏已结束')
+          // 清理本地状态
+          clearGameState()
+          // 延迟跳转，让用户看到提示
+          setTimeout(() => {
+            navigate('/games')
+          }, 1500)
           break
           
         default:
@@ -676,7 +744,7 @@ function GameRoom() {
         console.log('[GameRoom] 取消阶段变化订阅')
       }
     }
-  }, [isDebugMode, isConnected, id, subscribe, handlePhaseChange, refetchPlayerData])
+  }, [isDebugMode, isConnected, id, subscribe, handlePhaseChange, refetchPlayerData, clearGameState, navigate, setWaitingMessage])
 
   // WebSocket 监听搜证完成消息
   useEffect(() => {
@@ -836,13 +904,21 @@ function GameRoom() {
       sendChatMessage(payload.message)
     } else if (action === 'vote' && payload?.characterId) {
       sendVote(payload.characterId)
+    } else if (action === 'script_reading_complete') {
+      // 剧本阅读完成，调用阶段完成处理
+      console.log('[GameRoom] 剧本阅读完成，调用 handlePhaseComplete...')
+      handlePhaseComplete()
+    } else if (action === 'investigation_complete') {
+      // 搜证完成，调用阶段完成处理
+      console.log('[GameRoom] 搜证完成，调用 handlePhaseComplete...')
+      handlePhaseComplete()
     }
 
     updatePhaseData(currentPhase, {[action]: payload})
 
     if (action === 'return_home') navigate('/')
     if (action === 'play_again') navigate('/games')
-  }, [currentPhase, navigate, sendChatMessage, sendVote, updatePhaseData])
+  }, [currentPhase, navigate, sendChatMessage, sendVote, updatePhaseData, handlePhaseComplete])
 
   /**
    * 处理退出游戏
@@ -917,6 +993,8 @@ function GameRoom() {
       onBack: handlePhaseBack,
       onAction: handleAction,
       isObserverMode,
+      gameId: id,
+      currentPlayerId,
     }
 
     // 为Investigation阶段添加搜证完成状态
@@ -964,6 +1042,8 @@ function GameRoom() {
     unsubscribe,
     currentPlayerId,
     isObserverMode,
+    id,
+    isAllInvestigationComplete,
   ])
 
   // 渲染状态
