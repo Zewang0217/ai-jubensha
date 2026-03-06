@@ -258,22 +258,38 @@ function ScriptReading({_config, _gameData, playerData, onComplete, onAction, is
   const characterId = useMemo(() => {
     // 观察者模式：使用选中的角色ID
     if (isObserverMode) {
+      console.log('[ScriptReading] 观察者模式，使用选中的角色ID:', selectedCharacterId)
       return selectedCharacterId
     }
 
     // 真人模式：从玩家数据中获取
     // playerData 格式：{data: [...]} 或直接是数组
     console.log('[ScriptReading] playerData:', playerData)
+    console.log('[ScriptReading] playerData 类型:', typeof playerData)
+    console.log('[ScriptReading] playerData 是否为数组:', Array.isArray(playerData))
     
     // 获取玩家数组
     const players = playerData?.data || playerData
+    console.log('[ScriptReading] players:', players)
+    console.log('[ScriptReading] players 是否为数组:', Array.isArray(players))
+    console.log('[ScriptReading] players 长度:', players?.length)
+    
     if (!Array.isArray(players) || players.length === 0) {
       console.log('[ScriptReading] 玩家数据为空或不是数组')
       return null
     }
     
+    // 打印所有玩家的 playerRole
+    console.log('[ScriptReading] 所有玩家:', players.map(p => ({ 
+      id: p.id, 
+      playerRole: p.playerRole, 
+      playerRoleType: typeof p.playerRole,
+      characterId: p.characterId 
+    })))
+    
     // 查找真人玩家（playerRole === 'REAL'）
-    const realPlayer = players.find(p => p.playerRole === 'REAL')
+    // 注意：后端返回的是枚举名称字符串，如 'REAL'
+    const realPlayer = players.find(p => p.playerRole === 'REAL' || p.playerRole === 'real')
     console.log('[ScriptReading] 找到的真人玩家:', realPlayer)
     
     const id = realPlayer?.characterId

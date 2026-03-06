@@ -6,6 +6,7 @@
 import {getScriptById} from './script'
 import {getCharactersByScriptId} from './character'
 import {getScenesByScriptId, getSceneClues} from './scene'
+import {getPublicClues} from './clue'
 
 /**
  * 根据场景名称智能分配线索到场景
@@ -269,6 +270,33 @@ export const adaptGameData = async (gameData, players) => {
             joinTime: player.joinTime,
         })) : [],
     }
+
+    // 获取公开线索（用于讨论阶段显示）
+    let publicClues = []
+    if (scriptId) {
+        try {
+            const publicCluesResponse = await getPublicClues()
+            const allPublicClues = publicCluesResponse?.data || publicCluesResponse || []
+            // 过滤出当前剧本的公开线索
+            publicClues = allPublicClues.filter(clue => clue.scriptId === scriptId)
+            console.log('[adaptGameData] Fetched public clues:', publicClues.length)
+        } catch (err) {
+            console.error('[adaptGameData] Failed to fetch public clues:', err)
+        }
+    }
+    
+    // 将公开线索添加到 adaptedData
+    adaptedData.publicClues = publicClues.map(clue => ({
+        id: String(clue.id),
+        name: clue.name || '',
+        description: clue.description || '',
+        type: clue.type || 'OTHER',
+        visibility: clue.visibility || 'PUBLIC',
+        sceneId: clue.sceneId,
+        imageUrl: clue.imageUrl,
+        importance: clue.importance,
+        playerId: clue.playerId,
+    }))
 
     console.log('[adaptGameData] Adapted data:', adaptedData)
     return adaptedData
