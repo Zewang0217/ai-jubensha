@@ -255,3 +255,46 @@ ALTER TABLE scripts MODIFY COLUMN cover_image_url VARCHAR(2048);
 INSERT IGNORE INTO characters (id, script_id, name, description, background_story, secret, avatar) VALUES
 (1, 0, 'DM', '主持人角色，负责引导整个剧本杀的流程，控制游戏节奏，发布任务', '系统自动创建的主持人角色', '无', NULL),
 (2, 0, 'Judge', '裁判角色，负责评判玩家行为，维持游戏秩序', '系统自动创建的裁判角色', '无', NULL);
+
+# 统一前后端阶段描述
+ALTER TABLE scripts MODIFY COLUMN cover_image_url VARCHAR(2048);
+
+INSERT IGNORE INTO characters (id, script_id, name, description, background_story, secret, avatar) VALUES
+                                                                                                       (1, 0, 'DM', '主持人角色，负责引导整个剧本杀的流程，控制游戏节奏，发布任务', '系统自动创建的主持人角色', '无', NULL),
+                                                                                                       (2, 0, 'Judge', '裁判角色，负责评判玩家行为，维持游戏秩序', '系统自动创建的裁判角色', '无', NULL);
+
+ALTER TABLE games MODIFY COLUMN current_phase VARCHAR(50) DEFAULT 'SCRIPT_OVERVIEW' COMMENT '当前阶段';
+
+-- 3. 更新阶段值映射
+-- INTRODUCTION -> SCRIPT_OVERVIEW
+UPDATE games SET current_phase = 'SCRIPT_OVERVIEW' WHERE current_phase = 'INTRODUCTION';
+
+-- SEARCH -> INVESTIGATION
+UPDATE games SET current_phase = 'INVESTIGATION' WHERE current_phase = 'SEARCH';
+
+-- DISCUSSION 保持不变
+-- VOTING -> DISCUSSION（投票在讨论阶段内处理）
+UPDATE games SET current_phase = 'DISCUSSION' WHERE current_phase = 'VOTING';
+
+-- ENDING -> SUMMARY
+UPDATE games SET current_phase = 'SUMMARY' WHERE current_phase = 'ENDING';
+
+-- 4. 将列修改为新的 ENUM 类型
+ALTER TABLE games MODIFY COLUMN current_phase ENUM(
+    'SCRIPT_OVERVIEW',
+    'CHARACTER_ASSIGNMENT',
+    'SCRIPT_READING',
+    'INVESTIGATION',
+    'DISCUSSION',
+    'SUMMARY'
+    ) DEFAULT 'SCRIPT_OVERVIEW' COMMENT '当前阶段';
+
+-- 5. 验证迁移结果
+SELECT
+    id,
+    current_phase,
+    status
+FROM games
+ORDER BY id;
+
+COMMIT;
