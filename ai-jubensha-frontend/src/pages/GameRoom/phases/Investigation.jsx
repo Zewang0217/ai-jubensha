@@ -95,6 +95,16 @@ BackgroundDecor.displayName = 'BackgroundDecor'
 // 场景卡片
 // =============================================================================
 
+/**
+ * 场景卡片组件
+ * @param {Object} props - 组件属性
+ * @param {Object} props.scene - 场景数据
+ * @param {boolean} props.isSelected - 是否选中
+ * @param {boolean} props.isLocked - 是否锁定
+ * @param {Function} props.onClick - 点击回调
+ * @param {number} props.clueCount - 线索数量
+ * @returns {JSX.Element} 场景卡片元素
+ */
 const SceneCard = memo(({scene, isSelected, isLocked, onClick, clueCount}) => (
     <motion.button
         onClick={onClick}
@@ -161,6 +171,14 @@ SceneCard.displayName = 'SceneCard'
 // 进度条组件
 // =============================================================================
 
+/**
+ * 进度条组件
+ * @param {Object} props - 组件属性
+ * @param {number} props.progress - 进度百分比
+ * @param {number} props.current - 当前数量
+ * @param {number} props.total - 总数量
+ * @returns {JSX.Element} 进度条元素
+ */
 const ProgressBar = memo(({progress, current, total}) => (
     <div className="flex items-center gap-3">
       <div className="flex-1 h-2 bg-[#E0E5EE] dark:bg-[#363D4D] rounded-full overflow-hidden">
@@ -183,7 +201,17 @@ ProgressBar.displayName = 'ProgressBar'
 // 主要组件
 // =============================================================================
 
-function Investigation({_config, gameData, onComplete, onAction}) {
+/**
+ * Investigation 组件主函数
+ * @param {Object} props - 组件属性
+ * @param {Object} props._config - 阶段配置
+ * @param {Object} props.gameData - 游戏数据
+ * @param {Function} props.onComplete - 完成回调
+ * @param {Function} props.onAction - 操作回调
+ * @param {boolean} props.isObserverMode - 是否为观察者模式
+ * @returns {JSX.Element} 组件元素
+ */
+function Investigation({_config, gameData, onComplete, onAction, isObserverMode = false}) {
   const [selectedScene, setSelectedScene] = useState(null)
   const [revealedClues, setRevealedClues] = useState(new Set())
   const [publicClues, setPublicClues] = useState(new Set())
@@ -193,16 +221,12 @@ function Investigation({_config, gameData, onComplete, onAction}) {
   const [showPublicModal, setShowPublicModal] = useState(false)
   const [selectedClueForPublic, setSelectedClueForPublic] = useState(null)
 
-  // 判断是否为观察者模式（全AI玩家模式）
-  const realPlayerCount = gameData?.realPlayerCount ?? 1
-  const isObserverMode = realPlayerCount === 0
-
   // 搜证次数限制（非观察者模式下有效）
   const totalChances = gameData?.totalChances ?? 3
   const [remainingChances, setRemainingChances] = useState(gameData?.remainingChances ?? 3)
 
   // 调试日志
-  console.log('[Investigation] realPlayerCount:', realPlayerCount, 'isObserverMode:', isObserverMode)
+  console.log('[Investigation] isObserverMode:', isObserverMode)
   console.log('[Investigation] remainingChances:', remainingChances, 'totalChances:', totalChances)
 
   const scenes = gameData?.scenes || [
@@ -275,6 +299,11 @@ function Investigation({_config, gameData, onComplete, onAction}) {
   const totalClues = scenes.reduce((acc, s) => acc + s.clues.length, 0)
   const progress = Math.round((revealedClues.size / totalClues) * 100)
 
+  /**
+   * 处理线索揭示操作
+   * @param {string} clueId - 线索ID
+   * @returns {void}
+   */
   const handleRevealClue = useCallback((clueId) => {
     // 观察者模式下不能搜证
     if (isObserverMode) return
@@ -306,7 +335,10 @@ function Investigation({_config, gameData, onComplete, onAction}) {
     }
   }, [selectedScene, onAction, isObserverMode, remainingChances, revealedClues, scenes])
 
-  // 确认公开线索
+  /**
+   * 确认公开线索
+   * @returns {Promise<void>}
+   */
   const confirmPublicClue = useCallback(async () => {
     if (!selectedClueForPublic) return
     
@@ -327,12 +359,19 @@ function Investigation({_config, gameData, onComplete, onAction}) {
     }
   }, [selectedClueForPublic, selectedScene, onAction])
 
-  // 取消公开
+  /**
+   * 取消公开操作
+   * @returns {void}
+   */
   const cancelPublic = useCallback(() => {
     setShowPublicModal(false)
     setSelectedClueForPublic(null)
   }, [])
 
+  /**
+   * 处理完成调查操作
+   * @returns {void}
+   */
   const handleComplete = () => {
     onAction?.('investigation_complete', {
       revealedClues: Array.from(revealedClues),
@@ -355,13 +394,49 @@ function Investigation({_config, gameData, onComplete, onAction}) {
             animate="visible"
             className="h-full flex flex-col p-8 relative z-10"
         >
+          {/* 观察者模式横幅提示 */}
+          {isObserverMode && (
+            <motion.div
+              variants={itemVariants}
+              className="mb-4 p-4 rounded-xl bg-gradient-to-r from-[#7C8CD6]/10 to-[#A78BFA]/10 border border-[#7C8CD6]/20 backdrop-blur-sm"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#7C8CD6]/30 to-[#A78BFA]/30 flex items-center justify-center">
+                  <Eye className="w-5 h-5 text-[#7C8CD6]"/>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-[#2D3748] dark:text-[#E8ECF2]">
+                    观察者模式已启用
+                  </h3>
+                  <p className="text-xs text-[#8C96A5] dark:text-[#6B7788] mt-0.5">
+                    您可以查看所有线索，但无法进行搜证或公开操作
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* 标题区 - 左对齐 */}
           <motion.div variants={itemVariants} className="mb-6">
-            <h2 className="text-2xl font-bold text-[#2D3748] dark:text-[#E8ECF2] tracking-tight">
-              {isObserverMode ? '线索查看' : '现场搜证'}
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-[#2D3748] dark:text-[#E8ECF2] tracking-tight">
+                {isObserverMode ? '线索查看' : '现场搜证'}
+              </h2>
+              {/* 观察者模式徽章 */}
+              {isObserverMode && (
+                <motion.div
+                  initial={{opacity: 0, scale: 0.8}}
+                  animate={{opacity: 1, scale: 1}}
+                  transition={{delay: 0.2}}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#7C8CD6]/20 to-[#A78BFA]/20 border border-[#7C8CD6]/30"
+                >
+                  <Eye className="w-4 h-4 text-[#7C8CD6]"/>
+                  <span className="text-sm font-medium text-[#7C8CD6]">观察者模式</span>
+                </motion.div>
+              )}
+            </div>
             <p className="text-[#8C96A5] dark:text-[#6B7788] mt-1 text-sm">
-              {isObserverMode ? '观察者模式：可查看所有线索' : '搜集线索，揭开真相'}
+              {isObserverMode ? '观察者模式：可查看所有线索，无法进行搜证操作' : '搜集线索，揭开真相'}
             </p>
           </motion.div>
 
@@ -517,14 +592,14 @@ function Investigation({_config, gameData, onComplete, onAction}) {
                   <div className="flex items-center gap-3">
                     {/* 观察者模式提示 */}
                     {isObserverMode && (
-                        <motion.span
+                        <motion.div
                             initial={{opacity: 0, scale: 0.9}}
                             animate={{opacity: 1, scale: 1}}
-                            className="text-xs text-[#7C8CD6] font-medium flex items-center gap-1"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#7C8CD6]/10 border border-[#7C8CD6]/20"
                         >
-                          <Eye className="w-3 h-3"/>
-                          观察者模式
-                        </motion.span>
+                          <Eye className="w-4 h-4 text-[#7C8CD6]"/>
+                          <span className="text-xs text-[#7C8CD6] font-medium">观察者模式</span>
+                        </motion.div>
                     )}
                     
                     {/* 非观察者模式：显示调查完成状态 */}
