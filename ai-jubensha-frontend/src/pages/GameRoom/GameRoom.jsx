@@ -9,9 +9,9 @@
  * - 简洁扁平化设计
  */
 
-import React, {memo, Suspense, useCallback, useEffect, useMemo, useState} from 'react'
+import React, {memo, Suspense, useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useNavigate, useParams} from 'react-router-dom'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
 import {getGameById, getGamePlayers, exitGame} from '../../services/api'
 import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
@@ -252,6 +252,7 @@ DebugPanel.displayName = 'DebugPanel'
 function GameRoom() {
   const {id} = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   // 调试模式
   const [showDebugPanel, setShowDebugPanel] = useState(false)
@@ -287,12 +288,19 @@ function GameRoom() {
     isBackendReady: _isBackendReady,
     waitingMessage,
     isCheckingBackend: _isCheckingBackend,
+    isWaitingForBackend,
     confirmCurrentPhase,
     setWaitingMessage,
     setIsBackendReady,
+    handlePhaseChange,
   } = usePhaseManager({
     sequence: DEFAULT_PHASE_SEQUENCE,
-    onPhaseChange: (newPhase, prevPhase) => {
+    onPhaseChange: useCallback((newPhase, prevPhase) => {
+      // 如果阶段没有实际变化，不执行任何操作
+      if (newPhase === prevPhase) {
+        console.log(`[GameRoom] 阶段未变化，跳过: ${newPhase}`)
+        return
+      }
       console.log(`[GameRoom] 阶段切换: ${prevPhase} -> ${newPhase}`)
       // 阶段变化时保存到 localStorage
       if (id) {
@@ -304,11 +312,11 @@ function GameRoom() {
           scriptId: adaptedGameData?.scriptId,
         })
       }
-    },
-    onComplete: () => {
+    }, [id, adaptedGameData?.realPlayerCount, adaptedGameData?.players?.length, adaptedGameData?.scriptId]),
+    onComplete: useCallback(() => {
       console.log('[GameRoom] 游戏完成')
       clearGameState()
-    },
+    }, []),
   })
 
   // 从 localStorage 恢复游戏状态
@@ -332,35 +340,64 @@ function GameRoom() {
 
   const {
     data: apiPlayerData,
+    refetch: refetchPlayerData,
   } = useQuery({
     queryKey: ['gamePlayers', id],
     queryFn: async () => {
+      console.log('[GameRoom] 获取玩家数据，游戏ID:', id)
       const response = await getGamePlayers(id)
+      console.log('[GameRoom] 玩家数据响应:', response)
       return response?.data || response
     },
     enabled: !isDebugMode && !!id,
     staleTime: 60000,
   })
 
-  useEffect(() => {
-    if (isDebugMode || !id || apiGameData) return
+  // 使用 ref 追踪状态恢复，避免循环依赖
+  const stateRestoredRef = useRef(false)
 
+  // 从后端 API 恢复阶段（优先级高于 localStorage）
+  useEffect(() => {
+    if (isDebugMode || !id) return
+
+    // 如果已经恢复过状态，不再重复执行
+    if (stateRestoredRef.current) return
+
+    // 等待 API 数据加载完成
+    if (apiIsLoading) return
+
+    // 如果 API 返回了阶段数据，使用 API 的阶段
+    if (apiGameData?.currentPhase) {
+      const targetPhase = adaptPhase(apiGameData.currentPhase)
+      if (DEFAULT_PHASE_SEQUENCE.includes(targetPhase) && targetPhase !== currentPhase) {
+        console.log('[GameRoom] 从 API 恢复阶段:', targetPhase)
+        goToPhase(targetPhase, false)
+      }
+      stateRestoredRef.current = true
+      setIsStateRestored(true)
+      return
+    }
+
+    // 如果 API 没有返回阶段数据，尝试从 localStorage 恢复
     const savedState = loadGameState()
     if (savedState && savedState.gameId === id) {
-      console.log('[GameRoom] 发现保存的游戏状态:', savedState)
+      console.log('[GameRoom] 从 localStorage 恢复阶段:', savedState.currentPhase)
       setRestoredPhase(savedState.currentPhase)
     }
+    stateRestoredRef.current = true
     setIsStateRestored(true)
-  }, [isDebugMode, id, apiGameData])
+  }, [isDebugMode, id, apiGameData, apiIsLoading, currentPhase, goToPhase])
 
-  // 应用恢复的阶段
+  // 应用 localStorage 恢复的阶段（仅当 API 没有返回阶段时）
   useEffect(() => {
-    if (!restoredPhase || !isStateRestored || !apiGameData) return
+    if (!restoredPhase || !isStateRestored) return
 
-    const targetPhase = adaptPhase(apiGameData.currentPhase) || restoredPhase
-    if (DEFAULT_PHASE_SEQUENCE.includes(targetPhase)) {
-      console.log('[GameRoom] 恢复到保存的阶段:', targetPhase)
-      goToPhase(targetPhase, false)
+    // 如果 API 已经有阶段数据，跳过 localStorage 恢复
+    if (apiGameData?.currentPhase) return
+
+    if (DEFAULT_PHASE_SEQUENCE.includes(restoredPhase)) {
+      console.log('[GameRoom] 应用 localStorage 恢复的阶段:', restoredPhase)
+      goToPhase(restoredPhase, false)
     }
 
     // 清除恢复状态
@@ -421,11 +458,22 @@ function GameRoom() {
   /**
    * 计算是否为观察者模式
    * @description 当 realPlayerCount === 0 时为观察者模式，真人用户只能查看不能操作
+   * @returns {boolean} true - 观察者模式（无真人玩家），false - 真人模式（有真人玩家）
    */
   const isObserverMode = useMemo(() => {
+    // 从游戏数据中获取真人玩家数量，默认值为 1（真人模式）
     const realPlayerCount = gameData?.data?.realPlayerCount ?? 1
+    // 判断是否为观察者模式：真人玩家数量为 0 时为观察者模式
     const isObserver = realPlayerCount === 0
-    console.log('[GameRoom] 模式判断 - realPlayerCount:', realPlayerCount, 'isObserverMode:', isObserver)
+    
+    // 详细的模式判断日志
+    console.log('[GameRoom] ========== 模式判断 ==========')
+    console.log('[GameRoom] realPlayerCount:', realPlayerCount)
+    console.log('[GameRoom] 判断逻辑: realPlayerCount === 0 ?')
+    console.log('[GameRoom] isObserverMode:', isObserver)
+    console.log('[GameRoom] 模式类型:', isObserver ? '观察者模式（无真人玩家）' : '真人模式（有真人玩家）')
+    console.log('[GameRoom] ==============================')
+    
     return isObserver
   }, [gameData])
 
@@ -566,6 +614,70 @@ function GameRoom() {
     }
   }, [isDebugMode, isConnected, id, subscribe, setIsBackendReady, setWaitingMessage])
 
+  // WebSocket 监听阶段变化消息（PHASE_CHANGE）
+  useEffect(() => {
+    if (isDebugMode || !isConnected || !id) return
+
+    /**
+     * 处理阶段变化消息
+     * @description 后端主导模式下，前端被动接收阶段变化通知
+     * @param {Object} data - 消息数据
+     * @param {string} data.type - 消息类型 (PHASE_CHANGE, PHASE_READY)
+     * @param {Object} data.payload - 消息负载
+     */
+    const handlePhaseChangeMessage = (data) => {
+      console.log('[GameRoom] 收到阶段主题消息:', data)
+      
+      // 处理消息结构：可能是 {type: '...', payload: {...}} 或直接 {...}
+      const messageType = data?.type
+      const payload = data?.payload || data
+      
+      // 根据消息类型分发处理
+      switch (messageType) {
+        case 'PHASE_CHANGE':
+          // 阶段变化消息 - 切换阶段
+          console.log('[GameRoom] PHASE_CHANGE 消息:', payload)
+          // 角色分配完成后，刷新玩家数据以获取新创建的真人玩家
+          if (payload?.previousPhase === 'character_assignment' || payload?.prevPhase === 'character_assignment') {
+            console.log('[GameRoom] 角色分配完成，刷新玩家数据...')
+            refetchPlayerData?.()
+          }
+          handlePhaseChange(data)
+          break
+          
+        case 'PHASE_READY':
+          // 阶段就绪消息 - 更新等待状态
+          console.log('[GameRoom] PHASE_READY 消息:', payload)
+          if (payload?.isReady) {
+            setIsBackendReady(true)
+            setWaitingMessage(null)
+          } else {
+            setIsBackendReady(false)
+            setWaitingMessage(payload?.message || '等待其他玩家...')
+          }
+          break
+          
+        default:
+          // 兼容旧格式：直接包含 newPhase 字段
+          if (payload?.newPhase) {
+            console.log('[GameRoom] 兼容格式 PHASE_CHANGE 消息:', payload)
+            handlePhaseChange(data)
+          } else {
+            console.log('[GameRoom] 未知消息类型:', messageType, 'payload:', payload)
+          }
+      }
+    }
+
+    // 订阅阶段变化消息主题
+    const phaseChangeSubscriptionId = subscribe(`/topic/game/${id}/phase`, handlePhaseChangeMessage)
+
+    return () => {
+      if (phaseChangeSubscriptionId) {
+        console.log('[GameRoom] 取消阶段变化订阅')
+      }
+    }
+  }, [isDebugMode, isConnected, id, subscribe, handlePhaseChange, refetchPlayerData])
+
   // WebSocket 监听搜证完成消息
   useEffect(() => {
     if (isDebugMode || !isConnected || !id) return
@@ -594,9 +706,28 @@ function GameRoom() {
   // 事件处理
   /**
    * 处理阶段完成
-   * @description 通知后端阶段确认后进入下一阶段
+   * @description 后端主导模式：调用后端 API 确认阶段完成，等待后端广播 PHASE_CHANGE 消息
    */
   const handlePhaseComplete = useCallback(async () => {
+    // 如果正在等待后端响应，不重复处理
+    if (isWaitingForBackend) {
+      console.log('[GameRoom] 正在等待后端响应，跳过重复请求')
+      return
+    }
+
+    // 剧本概览阶段：直接进入下一阶段，不需要确认
+    if (currentPhase === 'script_overview') {
+      console.log('[GameRoom] 剧本概览阶段，直接进入下一阶段')
+      goToNext()
+      return
+    }
+
+    // 角色分配阶段：由 CharacterAssignment 组件处理，不需要在这里确认
+    if (currentPhase === 'character_assignment') {
+      console.log('[GameRoom] 角色分配阶段，由组件处理')
+      return
+    }
+
     // 根据阶段类型执行不同的检查逻辑
     const phaseChecks = {
       // 剧本概览、角色分配、剧本阅读：直接允许进入下一阶段
@@ -633,10 +764,6 @@ function GameRoom() {
     }
 
     // 获取真人玩家ID（从 playerData 中查找 playerRole 为 REAL 的玩家）
-    // playerData 结构：GamePlayerResponseDTO 列表
-    // - p.id: GamePlayer ID
-    // - p.playerId: Player ID（后端期望的）
-    // - p.playerRole: Player 角色类型（REAL/AI）
     const players = playerData?.data || playerData || [];
     console.log('[GameRoom] 所有玩家数据:', JSON.stringify(players));
     const realPlayer = players.find(p => p.playerRole === 'REAL');
@@ -644,12 +771,30 @@ function GameRoom() {
     console.log('[GameRoom] 找到的真人玩家:', realPlayer, 'playerId:', currentPlayerId);
 
     if (id) {
-      // 如果有真人玩家ID，发送玩家确认；否则发送观察者确认（playerId = null）
-      console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId);
-      await confirmCurrentPhase(id, currentPlayerId || null);
+      // 显示等待提示
+      setWaitingMessage('正在等待其他玩家确认...')
+      
+      try {
+        // 调用后端确认 API，后端会在所有玩家确认后推进阶段并广播 PHASE_CHANGE
+        console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId);
+        const response = await confirmCurrentPhase(id, currentPlayerId || null);
+        console.log('[GameRoom] 阶段确认响应:', response);
+        
+        // 检查响应
+        if (response?.phaseAdvanced) {
+          // 后端已自动推进阶段，等待 PHASE_CHANGE 消息
+          console.log('[GameRoom] 后端已推进阶段，等待 PHASE_CHANGE 消息');
+        } else if (response?.allConfirmed === false) {
+          // 还有玩家未确认，显示等待提示
+          setWaitingMessage(`等待其他玩家确认... (${response.unconfirmedPlayers?.length || 0} 人未确认)`);
+        }
+      } catch (error) {
+        console.error('[GameRoom] 阶段确认失败:', error);
+        setWaitingMessage('阶段确认失败，请重试');
+        setTimeout(() => setWaitingMessage(null), 3000);
+      }
     }
-    goToNext();
-  }, [goToNext, confirmCurrentPhase, id, playerData, currentPhase, isAllInvestigationComplete, isObserverMode, setWaitingMessage])
+  }, [confirmCurrentPhase, id, playerData, currentPhase, isAllInvestigationComplete, isObserverMode, setWaitingMessage, isWaitingForBackend, goToNext])
 
   // WebSocket 监听讨论超时消息
   useEffect(() => {
@@ -772,6 +917,16 @@ function GameRoom() {
       onBack: handlePhaseBack,
       onAction: handleAction,
       isObserverMode,
+    }
+
+    // 为Investigation阶段添加搜证完成状态
+    if (currentPhase === PHASE_TYPE.INVESTIGATION) {
+      return (
+          <PhaseComponent
+              {...baseProps}
+              isAllInvestigationComplete={isAllInvestigationComplete}
+          />
+      )
     }
 
     // 为Discussion阶段添加WebSocket相关props

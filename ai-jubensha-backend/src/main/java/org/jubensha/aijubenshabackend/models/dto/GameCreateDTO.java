@@ -31,6 +31,6 @@ public class GameCreateDTO {
      */
     public GameCreateDTO() {
         this.status = GameStatus.CREATED;
-        this.currentPhase = GamePhase.INTRODUCTION;
+        this.currentPhase = GamePhase.SCRIPT_OVERVIEW;
     }
 }

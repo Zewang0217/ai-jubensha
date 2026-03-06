@@ -245,6 +245,20 @@ public class WorkflowContext implements Serializable {
      * 所有玩家搜证是否完成
      */
     private boolean allInvestigationComplete;
+    
+    // ====== 角色选择相关字段 ======
+    /**
+     * 角色是否已被选择
+     */
+    private boolean characterSelected;
+    /**
+     * 选择的角色ID
+     */
+    private Long selectedCharacterId;
+    /**
+     * 选择的玩家ID
+     */
+    private Long selectedPlayerId;
 
     // ====== 上下文操作方法 ======
 

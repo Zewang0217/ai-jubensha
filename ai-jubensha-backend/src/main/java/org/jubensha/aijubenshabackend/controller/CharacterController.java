@@ -41,6 +41,7 @@ public class CharacterController {
         character.setDescription(characterCreateDTO.getDescription());
         character.setBackgroundStory(characterCreateDTO.getBackgroundStory());
         character.setSecret(characterCreateDTO.getSecret());
+        character.setTimeline(characterCreateDTO.getTimeline());
         character.setAvatarUrl(characterCreateDTO.getAvatarUrl());
 
         Character createdCharacter = characterService.createCharacter(character);
@@ -62,6 +63,7 @@ public class CharacterController {
         character.setDescription(characterUpdateDTO.getDescription());
         character.setBackgroundStory(characterUpdateDTO.getBackgroundStory());
         character.setSecret(characterUpdateDTO.getSecret());
+        character.setTimeline(characterUpdateDTO.getTimeline());
         character.setAvatarUrl(characterUpdateDTO.getAvatarUrl());
 
         try {

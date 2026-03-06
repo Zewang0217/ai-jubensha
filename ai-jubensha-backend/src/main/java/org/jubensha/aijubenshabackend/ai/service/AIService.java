@@ -87,7 +87,7 @@ public class AIService {
         aiPlayer.setEmail(name + "@example.com");
         aiPlayer.setPassword("123456"); // 实际应用中应使用加密密码
         aiPlayer.setStatus(org.jubensha.aijubenshabackend.models.enums.PlayerStatus.ONLINE);
-        aiPlayer.setRole(org.jubensha.aijubenshabackend.models.enums.PlayerRole.USER);
+        aiPlayer.setRole(org.jubensha.aijubenshabackend.models.enums.PlayerRole.AI);
         return playerService.createPlayer(aiPlayer);
     }
 
@@ -233,7 +233,7 @@ public class AIService {
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
                                 "Error: there is no tool called " + toolExecutionRequest.name()))
-                .maxSequentialToolsInvocations(30) // 增加最大工具调用次数
+                .maxSequentialToolsInvocations(8) // 增加最大工具调用次数
                 .build();
     }
 

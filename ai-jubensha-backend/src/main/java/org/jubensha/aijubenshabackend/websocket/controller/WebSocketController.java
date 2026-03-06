@@ -35,13 +35,19 @@ public class WebSocketController {
     /**
      * 2. 前端发送的投票信息
      * 客户端发送到 /app/game/{gameId}/vote
+     *
+     * @param gameId 游戏ID
+     * @param message WebSocket消息，包含投票信息
      */
     @MessageMapping("/game/{gameId}/vote")
     public void handleVote(
             @DestinationVariable Long gameId,
             @Payload WebSocketMessage message) {
         log.info("游戏 {} 收到投票: {}", gameId, message.getPayload());
-        // TODO: 处理投票逻辑
-
+        
+        // 调用 WebSocketService 处理投票逻辑
+        webSocketService.handleVote(gameId, message);
+        
+        log.debug("游戏 {} 投票消息已传递到 WebSocketService 处理", gameId);
     }
 }

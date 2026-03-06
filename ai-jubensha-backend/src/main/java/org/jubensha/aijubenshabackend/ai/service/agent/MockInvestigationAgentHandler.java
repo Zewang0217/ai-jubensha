@@ -337,7 +337,7 @@ public class MockInvestigationAgentHandler {
                 return false;
             }
 
-            return GamePhase.SEARCH.equals(currentPhase);
+            return GamePhase.INVESTIGATION.equals(currentPhase);
         } catch (Exception e) {
             log.error("[Mock AI] 验证游戏状态失败: {}", e.getMessage(), e);
             return false;

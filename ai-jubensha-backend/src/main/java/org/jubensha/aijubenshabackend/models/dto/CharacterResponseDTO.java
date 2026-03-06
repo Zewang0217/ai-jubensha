@@ -17,6 +17,7 @@ public class CharacterResponseDTO {
     private String description;
     private String backgroundStory;
     private String secret;
+    private String timeline;
     private String avatarUrl;
     private LocalDateTime createTime;
 
@@ -34,6 +35,7 @@ public class CharacterResponseDTO {
         dto.setDescription(character.getDescription());
         dto.setBackgroundStory(character.getBackgroundStory());
         dto.setSecret(character.getSecret());
+        dto.setTimeline(character.getTimeline());
         dto.setAvatarUrl(character.getAvatarUrl());
         dto.setCreateTime(character.getCreateTime());
         return dto;
