@@ -10,24 +10,24 @@
  * - 细腻的交互动画
  */
 
-import {useState, useCallback} from 'react'
-import {motion, AnimatePresence} from 'framer-motion'
+import {useCallback, useState} from 'react'
+import {AnimatePresence, motion} from 'framer-motion'
 import {
-    Volume2,
-    VolumeX,
-    Music,
-    Music2,
     Bell,
     BellOff,
+    Check,
+    Languages,
     Monitor,
     Moon,
-    Sun,
-    Languages,
-    Save,
+    Music,
+    Music2,
     RotateCcw,
-    Check,
+    Save,
     Settings as SettingsIcon,
-    Sparkles
+    Sparkles,
+    Sun,
+    Volume2,
+    VolumeX
 } from 'lucide-react'
 
 function Settings() {
@@ -79,20 +79,21 @@ function Settings() {
     }, [showToast])
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-50)] via-white to-[var(--color-primary-100)]/30 relative overflow-hidden">
+        <div
+            className="flex flex-col flex-1 bg-gradient-to-br from-[var(--color-primary-50)] via-white to-[var(--color-primary-100)]/30 relative">
             <BackgroundDecoration/>
-            
-            <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+
+            <div className="relative z-10 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-20">
                 <HeaderSection/>
-                
-                <div className="space-y-6">
+
+                <div className="space-y-6 pb-8">
                     <AudioSettings settings={settings} onChange={handleChange}/>
                     <NotificationSettings settings={settings} onChange={handleChange}/>
                     <GameSettings settings={settings} onChange={handleChange}/>
                     <ActionButtons onSave={handleSave} onReset={handleReset}/>
                 </div>
             </div>
-            
+
             <ToastNotification toast={toast}/>
         </div>
     )
@@ -100,23 +101,23 @@ function Settings() {
 
 function BackgroundDecoration() {
     return (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary-50)] via-white to-[var(--color-primary-100)]/30"/>
-            
+
             <motion.div
                 initial={{opacity: 0, scale: 0.8}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{duration: 1.5}}
                 className="absolute top-0 -left-32 w-96 h-96 bg-[var(--color-primary-400)]/10 rounded-full blur-3xl"
             />
-            
+
             <motion.div
                 initial={{opacity: 0, scale: 0.8}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{duration: 1.5, delay: 0.2}}
                 className="absolute bottom-0 -right-32 w-96 h-96 bg-[var(--color-primary-600)]/10 rounded-full blur-3xl"
             />
-            
+
             <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.02)_1px,transparent_1px)] bg-[size:60px_60px]"/>
         </div>
     )
