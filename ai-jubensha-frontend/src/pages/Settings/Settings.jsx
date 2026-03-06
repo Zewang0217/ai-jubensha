@@ -10,24 +10,24 @@
  * - 细腻的交互动画
  */
 
-import {useState, useCallback} from 'react'
-import {motion, AnimatePresence} from 'framer-motion'
+import {useCallback, useState} from 'react'
+import {AnimatePresence, motion} from 'framer-motion'
 import {
-    Volume2,
-    VolumeX,
-    Music,
-    Music2,
     Bell,
     BellOff,
+    Check,
+    Languages,
     Monitor,
     Moon,
-    Sun,
-    Languages,
-    Save,
+    Music,
+    Music2,
     RotateCcw,
-    Check,
+    Save,
     Settings as SettingsIcon,
-    Sparkles
+    Sparkles,
+    Sun,
+    Volume2,
+    VolumeX
 } from 'lucide-react'
 
 function Settings() {
@@ -81,18 +81,18 @@ function Settings() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] via-white to-[#F8FAFC] relative overflow-hidden">
             <BackgroundDecoration/>
-            
-            <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+
+            <div className="relative z-10 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-20">
                 <HeaderSection/>
-                
-                <div className="space-y-6">
+
+                <div className="space-y-6 pb-8">
                     <AudioSettings settings={settings} onChange={handleChange}/>
                     <NotificationSettings settings={settings} onChange={handleChange}/>
                     <GameSettings settings={settings} onChange={handleChange}/>
                     <ActionButtons onSave={handleSave} onReset={handleReset}/>
                 </div>
             </div>
-            
+
             <ToastNotification toast={toast}/>
         </div>
     )
@@ -109,7 +109,7 @@ function BackgroundDecoration() {
                 transition={{duration: 1.5}}
                 className="absolute top-0 -left-32 w-96 h-96 bg-[#2563EB]/10 rounded-full blur-3xl"
             />
-            
+
             <motion.div
                 initial={{opacity: 0, scale: 0.8}}
                 animate={{opacity: 1, scale: 1}}
