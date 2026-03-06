@@ -1,6 +1,7 @@
 package org.jubensha.aijubenshabackend.service.game;
 
 import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
+import org.jubensha.aijubenshabackend.ai.service.WorkflowStatusService;
 import org.jubensha.aijubenshabackend.models.entity.Game;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.models.enums.GameStatus;
@@ -26,13 +27,15 @@ public class GameServiceImpl implements GameService {
     private final DiscussionService discussionService;
     private final InvestigationService investigationService;
     private final WebSocketService webSocketService;
+    private final WorkflowStatusService workflowStatusService;
 
     @Autowired
-    public GameServiceImpl(GameRepository gameRepository, DiscussionService discussionService, InvestigationService investigationService, WebSocketService webSocketService) {
+    public GameServiceImpl(GameRepository gameRepository, DiscussionService discussionService, InvestigationService investigationService, WebSocketService webSocketService, WorkflowStatusService workflowStatusService) {
         this.gameRepository = gameRepository;
         this.discussionService = discussionService;
         this.investigationService = investigationService;
         this.webSocketService = webSocketService;
+        this.workflowStatusService = workflowStatusService;
     }
 
     @Override
@@ -233,6 +236,26 @@ public class GameServiceImpl implements GameService {
         } catch (Exception e) {
             // 记录错误但不中断退出流程
             logger.warn("清理工作流上下文缓存时发生错误，游戏ID: {}, 错误: {}", id, e.getMessage(), e);
+        }
+
+        try {
+            // 清理工作流状态
+            logger.info("清理工作流状态，游戏ID: {}", id);
+            workflowStatusService.removeWorkflowStatus(id);
+            logger.info("工作流状态已清理，游戏ID: {}", id);
+        } catch (Exception e) {
+            // 记录错误但不中断退出流程
+            logger.warn("清理工作流状态时发生错误，游戏ID: {}, 错误: {}", id, e.getMessage(), e);
+        }
+
+        // 广播游戏结束通知
+        try {
+            logger.info("广播游戏结束通知，游戏ID: {}", id);
+            webSocketService.broadcastGameEnded(id, "玩家退出游戏");
+            logger.info("游戏结束通知已广播，游戏ID: {}", id);
+        } catch (Exception e) {
+            // 记录错误但不中断退出流程
+            logger.warn("广播游戏结束通知时发生错误，游戏ID: {}, 错误: {}", id, e.getMessage(), e);
         }
 
         // 调用 endGame 更新游戏状态为 ENDED
