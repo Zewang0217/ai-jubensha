@@ -3,7 +3,7 @@
  * @description 剧本阅读阶段，展示角色背景故事、秘密和时间线
  */
 
-import {memo, useMemo, useRef, useState} from 'react'
+import {memo, useEffect, useMemo, useRef, useState} from 'react'
 import {AnimatePresence, motion} from 'framer-motion'
 import {ChevronLeft, ChevronRight, Clock, Eye, Scroll, Users} from 'lucide-react'
 import {useQuery} from '@tanstack/react-query'
@@ -248,7 +248,7 @@ function ScriptReading({_config, _gameData, playerData, onComplete, onAction, is
   })
 
   // 初始化观察者模式下选中的角色
-  useMemo(() => {
+  useEffect(() => {
     if (isObserverMode && allCharacters?.length > 0 && !selectedCharacterId) {
       setSelectedCharacterId(allCharacters[0].id)
     }
@@ -262,10 +262,21 @@ function ScriptReading({_config, _gameData, playerData, onComplete, onAction, is
     }
 
     // 真人模式：从玩家数据中获取
+    // playerData 格式：{data: [...]} 或直接是数组
     console.log('[ScriptReading] playerData:', playerData)
-    const player = playerData?.data?.find?.(p => p.player?.role === 'REAL' || p.role === 'REAL')
-    console.log('[ScriptReading] 找到的玩家:', player)
-    const id = player?.characterId || player?.player?.characterId
+    
+    // 获取玩家数组
+    const players = playerData?.data || playerData
+    if (!Array.isArray(players) || players.length === 0) {
+      console.log('[ScriptReading] 玩家数据为空或不是数组')
+      return null
+    }
+    
+    // 查找真人玩家（playerRole === 'REAL'）
+    const realPlayer = players.find(p => p.playerRole === 'REAL')
+    console.log('[ScriptReading] 找到的真人玩家:', realPlayer)
+    
+    const id = realPlayer?.characterId
     console.log('[ScriptReading] 提取的 characterId:', id)
     return id
   }, [playerData, isObserverMode, selectedCharacterId])
@@ -336,8 +347,10 @@ function ScriptReading({_config, _gameData, playerData, onComplete, onAction, is
     if (!isLastChapter) {
       handleChapterChange(currentChapter + 1)
     } else {
+      // 通知 GameRoom 剧本阅读完成
       onAction?.('script_reading_complete', {characterId, chaptersRead: chapters.length})
-      onComplete?.()
+      // 不直接调用 onComplete，等待后端广播 PHASE_CHANGE 消息
+      // onComplete?.()
     }
   }
 
@@ -368,14 +381,41 @@ function ScriptReading({_config, _gameData, playerData, onComplete, onAction, is
   // 加载状态判断
   const isLoadingData = isLoading || (isObserverMode && isLoadingAllCharacters)
 
-  if (isLoadingData) {
+  // 等待角色ID加载（真人模式下 playerData 可能还在加载）
+  const isWaitingForCharacterId = !isObserverMode && !characterId && !isLoading
+
+  // 调试日志
+  console.log('[ScriptReading] 状态检查:', {
+    isObserverMode,
+    characterId,
+    isLoading,
+    isLoadingData,
+    isWaitingForCharacterId,
+    playerDataLength: playerData?.length || playerData?.data?.length || 0,
+  })
+
+  if (isLoadingData || isWaitingForCharacterId) {
     return (
-        <div className="h-full flex items-center justify-center">
+        <div className="h-full flex flex-col items-center justify-center gap-4">
           <motion.div
               animate={{rotate: 360}}
               transition={{duration: 1, repeat: Infinity, ease: 'linear'}}
               className="w-8 h-8 border-2 border-[#7C8CD6] border-t-transparent rounded-full"
           />
+          <p className="text-[#8C96A5] dark:text-[#6B7788] text-sm">
+            {isWaitingForCharacterId ? '正在加载角色信息...' : '加载中...'}
+          </p>
+        </div>
+    )
+  }
+
+  // 如果没有角色数据，显示提示
+  if (!character) {
+    return (
+        <div className="h-full flex flex-col items-center justify-center gap-4">
+          <p className="text-[#8C96A5] dark:text-[#6B7788]">
+            暂无角色数据，请稍后重试
+          </p>
         </div>
     )
   }

@@ -22,6 +22,9 @@ public class CharacterUpdateDTO {
     @Size(max = 2000, message = "秘密信息长度不能超过2000个字符")
     private String secret;
 
+    @Size(max = 5000, message = "时间线长度不能超过5000个字符")
+    private String timeline;
+
     @URL(message = "头像URL格式不正确")
     private String avatarUrl;
 }

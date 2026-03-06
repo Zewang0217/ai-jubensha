@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS games (
     status ENUM('CREATED', 'STARTED', 'PAUSED', 'ENDED') DEFAULT 'CREATED' COMMENT '游戏状态',
     start_time TIMESTAMP COMMENT '开始时间',
     end_time TIMESTAMP COMMENT '结束时间',
-    current_phase ENUM('INTRODUCTION', 'SEARCH', 'DISCUSSION', 'VOTING', 'ENDING') DEFAULT 'INTRODUCTION' COMMENT '当前阶段',
+    current_phase ENUM('SCRIPT_OVERVIEW', 'CHARACTER_ASSIGNMENT', 'SCRIPT_READING', 'INVESTIGATION', 'DISCUSSION', 'SUMMARY') DEFAULT 'SCRIPT_OVERVIEW' COMMENT '当前阶段',
     create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE
@@ -249,3 +249,52 @@ ALTER TABLE clues MODIFY COLUMN type ENUM('PHYSICAL', 'DOCUMENT', 'MEDIA', 'OTHE
 ALTER TABLE clues ADD COLUMN player_id BIGINT DEFAULT NULL COMMENT '发现线索的玩家ID';
 -- cover_image_url增加长度
 ALTER TABLE scripts MODIFY COLUMN cover_image_url VARCHAR(2048);
+
+-- 插入系统角色（DM和Judge），使用script_id=0作为系统角色标记
+-- character_id: 1 = DM（主持人）, 2 = Judge（裁判）
+INSERT IGNORE INTO characters (id, script_id, name, description, background_story, secret, avatar) VALUES
+(1, 0, 'DM', '主持人角色，负责引导整个剧本杀的流程，控制游戏节奏，发布任务', '系统自动创建的主持人角色', '无', NULL),
+(2, 0, 'Judge', '裁判角色，负责评判玩家行为，维持游戏秩序', '系统自动创建的裁判角色', '无', NULL);
+
+# 统一前后端阶段描述
+ALTER TABLE scripts MODIFY COLUMN cover_image_url VARCHAR(2048);
+
+INSERT IGNORE INTO characters (id, script_id, name, description, background_story, secret, avatar) VALUES
+                                                                                                       (1, 0, 'DM', '主持人角色，负责引导整个剧本杀的流程，控制游戏节奏，发布任务', '系统自动创建的主持人角色', '无', NULL),
+                                                                                                       (2, 0, 'Judge', '裁判角色，负责评判玩家行为，维持游戏秩序', '系统自动创建的裁判角色', '无', NULL);
+
+ALTER TABLE games MODIFY COLUMN current_phase VARCHAR(50) DEFAULT 'SCRIPT_OVERVIEW' COMMENT '当前阶段';
+
+-- 3. 更新阶段值映射
+-- INTRODUCTION -> SCRIPT_OVERVIEW
+UPDATE games SET current_phase = 'SCRIPT_OVERVIEW' WHERE current_phase = 'INTRODUCTION';
+
+-- SEARCH -> INVESTIGATION
+UPDATE games SET current_phase = 'INVESTIGATION' WHERE current_phase = 'SEARCH';
+
+-- DISCUSSION 保持不变
+-- VOTING -> DISCUSSION（投票在讨论阶段内处理）
+UPDATE games SET current_phase = 'DISCUSSION' WHERE current_phase = 'VOTING';
+
+-- ENDING -> SUMMARY
+UPDATE games SET current_phase = 'SUMMARY' WHERE current_phase = 'ENDING';
+
+-- 4. 将列修改为新的 ENUM 类型
+ALTER TABLE games MODIFY COLUMN current_phase ENUM(
+    'SCRIPT_OVERVIEW',
+    'CHARACTER_ASSIGNMENT',
+    'SCRIPT_READING',
+    'INVESTIGATION',
+    'DISCUSSION',
+    'SUMMARY'
+    ) DEFAULT 'SCRIPT_OVERVIEW' COMMENT '当前阶段';
+
+-- 5. 验证迁移结果
+SELECT
+    id,
+    current_phase,
+    status
+FROM games
+ORDER BY id;
+
+COMMIT;
