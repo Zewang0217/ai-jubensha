@@ -295,7 +295,7 @@ function GameRoom() {
     handlePhaseChange,
   } = usePhaseManager({
     sequence: DEFAULT_PHASE_SEQUENCE,
-    onPhaseChange: (newPhase, prevPhase) => {
+    onPhaseChange: useCallback((newPhase, prevPhase) => {
       // 如果阶段没有实际变化，不执行任何操作
       if (newPhase === prevPhase) {
         console.log(`[GameRoom] 阶段未变化，跳过: ${newPhase}`)
@@ -312,11 +312,11 @@ function GameRoom() {
           scriptId: adaptedGameData?.scriptId,
         })
       }
-    },
-    onComplete: () => {
+    }, [id, adaptedGameData?.realPlayerCount, adaptedGameData?.players?.length, adaptedGameData?.scriptId]),
+    onComplete: useCallback(() => {
       console.log('[GameRoom] 游戏完成')
       clearGameState()
-    },
+    }, []),
   })
 
   // 从 localStorage 恢复游戏状态
