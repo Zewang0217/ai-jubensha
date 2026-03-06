@@ -277,7 +277,14 @@ public class InvestigationServiceImpl implements InvestigationService {
      */
     @Override
     public WorkflowContext getWorkflowContext(Long gameId) {
-        return workflowContextCache.get(gameId);
+        if (gameId == null) {
+            log.error("[缓存错误] 获取上下文时 gameId 为 null！调用栈信息: ", new Exception("Stack trace"));
+            return null;
+        }
+        WorkflowContext context = workflowContextCache.get(gameId);
+        log.info("[缓存操作] 获取工作流上下文，游戏ID: {}, 存在: {}, 缓存大小: {}, 缓存中的keys: {}", 
+                 gameId, context != null, workflowContextCache.size(), workflowContextCache.keySet());
+        return context;
     }
 
     /**
@@ -285,8 +292,17 @@ public class InvestigationServiceImpl implements InvestigationService {
      */
     @Override
     public void saveWorkflowContext(Long gameId, WorkflowContext context) {
+        if (gameId == null) {
+            log.error("[缓存错误] 保存上下文时 gameId 为 null！调用栈信息: ", new Exception("Stack trace"));
+            return;
+        }
+        if (context == null) {
+            log.error("[缓存错误] 尝试保存 null 上下文，游戏ID: {}", gameId);
+            return;
+        }
         workflowContextCache.put(gameId, context);
-        log.debug("保存工作流上下文，游戏ID: {}", gameId);
+        log.info("[缓存操作] 保存工作流上下文成功，游戏ID: {}, 缓存大小: {}, 缓存中的keys: {}", 
+                 gameId, workflowContextCache.size(), workflowContextCache.keySet());
     }
 
     /**

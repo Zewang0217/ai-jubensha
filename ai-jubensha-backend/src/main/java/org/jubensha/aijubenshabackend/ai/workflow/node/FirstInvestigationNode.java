@@ -139,6 +139,7 @@ public class FirstInvestigationNode {
 
                 // 保存工作流上下文到InvestigationService缓存
                 InvestigationService investigationService = SpringContextUtil.getBean(InvestigationService.class);
+                log.info("[上下文管理] 准备保存工作流上下文，游戏ID: {}, context.gameId: {}", context.getGameId(), context.getGameId());
                 investigationService.saveWorkflowContext(context.getGameId(), context);
                 log.info("[上下文管理] 已保存工作流上下文到InvestigationService缓存，游戏ID: {}", context.getGameId());
 
@@ -230,7 +231,9 @@ public class FirstInvestigationNode {
                 
                 while (!allCompleted && waitCount < maxWaitTime) {
                     // 从缓存中获取最新的WorkflowContext状态
-                    WorkflowContext latestContext = investigationService.getWorkflowContext(context.getGameId());
+                    Long currentGameId = context.getGameId();
+                    log.info("[状态监控] 准备获取上下文，当前 gameId: {}", currentGameId);
+                    WorkflowContext latestContext = investigationService.getWorkflowContext(currentGameId);
                     if (latestContext != null) {
                         // 更新当前上下文为最新状态
                         context = latestContext;
@@ -240,7 +243,7 @@ public class FirstInvestigationNode {
                         log.info("[状态监控] 剩余搜证次数: {}", context.getAllInvestigationCounts());
                         log.info("[状态监控] 已等待时间: {}秒，最大等待时间: {}秒", waitCount, maxWaitTime);
                     } else {
-                        log.warn("[状态监控] 无法获取最新的WorkflowContext状态");
+                        log.warn("[状态监控] 无法获取最新的WorkflowContext状态，gameId: {}", currentGameId);
                     }
                     
                     if (!allCompleted) {
@@ -331,6 +334,17 @@ public class FirstInvestigationNode {
                                 context = latestContext;
                             }
                             
+                            // 检查游戏阶段是否已经推进（如果阶段已经不是 INVESTIGATION，说明已经推进）
+                            try {
+                                Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                                if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.INVESTIGATION) {
+                                    log.info("[阶段同步] 检测到游戏阶段已推进到 {}，退出等待", latestGame.getCurrentPhase());
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                log.warn("[阶段同步] 检查游戏阶段失败: {}", e.getMessage());
+                            }
+                            
                             // 每30秒输出一次等待日志
                             if (confirmWaitCount % 30 == 0) {
                                 log.info("[阶段同步] 等待真人玩家确认搜证完成，已等待: {}秒，未确认玩家: {}", 
@@ -341,7 +355,7 @@ public class FirstInvestigationNode {
                         if (context.isAllPlayersConfirmed()) {
                             log.info("[阶段同步] 所有真人玩家已确认搜证完成，继续工作流");
                         } else {
-                            log.warn("[阶段同步] 等待超时，强制继续工作流");
+                            log.warn("[阶段同步] 等待超时或阶段已推进，继续工作流");
                         }
                     }
                     
