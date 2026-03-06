@@ -280,9 +280,9 @@ function Home() {
 function ParticleBackground() {
     return (
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute inset-0 bg-[#FFFFFF]"/>
+            <div className="absolute inset-0 bg-gradient-to-br from-[#F8FAFC] via-white to-[#F8FAFC]"/>
             
-            {[...Array(20)].map((_, i) => (
+            {[...Array(40)].map((_, i) => (
                 <motion.div
                     key={i}
                     initial={{
@@ -291,18 +291,43 @@ function ParticleBackground() {
                         opacity: 0
                     }}
                     animate={{
-                        y: [null, -20, null],
-                        opacity: [0.2, 0.5, 0.2],
-                        scale: [1, 1.2, 1]
+                        y: [null, -30, null],
+                        opacity: [0.2, 0.6, 0.2],
+                        scale: [1, 1.5, 1]
                     }}
                     transition={{
-                        duration: 3 + Math.random() * 2,
+                        duration: 3 + Math.random() * 3,
                         repeat: Infinity,
-                        delay: Math.random() * 2
+                        delay: Math.random() * 3
                     }}
                     className="absolute w-1 h-1 bg-[#2563EB] rounded-full"
                     style={{
-                        boxShadow: '0 0 10px rgba(37, 99, 235, 0.5)'
+                        boxShadow: '0 0 10px rgba(37, 99, 235, 0.6)'
+                    }}
+                />
+            ))}
+            
+            {[...Array(20)].map((_, i) => (
+                <motion.div
+                    key={`cyan-${i}`}
+                    initial={{
+                        x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
+                        y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 1000),
+                        opacity: 0
+                    }}
+                    animate={{
+                        y: [null, -25, null],
+                        opacity: [0.15, 0.5, 0.15],
+                        scale: [1, 1.3, 1]
+                    }}
+                    transition={{
+                        duration: 4 + Math.random() * 2,
+                        repeat: Infinity,
+                        delay: Math.random() * 2
+                    }}
+                    className="absolute w-1.5 h-1.5 bg-[#08D9D6] rounded-full"
+                    style={{
+                        boxShadow: '0 0 15px rgba(8, 217, 214, 0.7)'
                     }}
                 />
             ))}
@@ -331,6 +356,20 @@ function ParticleBackground() {
                     ease: "easeInOut"
                 }}
                 className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#08D9D6]/10 rounded-full blur-3xl"
+            />
+            
+            <motion.div
+                animate={{
+                    scale: [1, 1.15, 1],
+                    opacity: [0.03, 0.08, 0.03]
+                }}
+                transition={{
+                    duration: 12,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 2
+                }}
+                className="absolute top-1/2 right-1/3 w-80 h-80 bg-[#2563EB]/5 rounded-full blur-3xl"
             />
         </div>
     )
@@ -361,9 +400,9 @@ function HeroSection({stats}) {
                             AI 剧本杀
                         </span>
                         <motion.div
-                            animate={{opacity: [0.5, 1, 0.5]}}
+                            animate={{opacity: [0.3, 0.6, 0.3]}}
                             transition={{duration: 2, repeat: Infinity}}
-                            className="absolute inset-0 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] bg-clip-text text-transparent blur-xl"
+                            className="absolute inset-0 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] bg-clip-text text-transparent blur-md"
                             style={{zIndex: -1}}
                         >
                             AI 剧本杀

@@ -115,6 +115,16 @@ export const confirmPhase = async (gameId, data) => {
     return api.post(`/games/${gameId}/confirm-phase`, data)
 }
 
+/**
+ * 真人玩家选择角色
+ * @param {string|number} gameId - 游戏ID
+ * @param {Object} data - 选择数据 { characterId, nickname }
+ * @returns {Promise<Object>} 选择结果
+ */
+export const selectCharacter = async (gameId, data) => {
+    return api.post(`/games/${gameId}/select-character`, data)
+}
+
 // 导出新的模块化 API
 export {
     getScripts,
