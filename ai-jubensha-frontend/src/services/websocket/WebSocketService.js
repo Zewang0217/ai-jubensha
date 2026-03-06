@@ -2,6 +2,7 @@
  * WebSocket 服务类
  * 使用 STOMP over SockJS 协议连接后端
  * @author zewang
+ * @author luobo
  */
 import {Client} from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
@@ -206,6 +207,32 @@ class WebSocketService {
      */
     subscribeToPersonalMessages(handler) {
         return this.subscribe('/user/queue/messages', handler)
+    }
+
+    /**
+     * 订阅公开线索广播
+     * @param {Function} handler - 消息处理器，接收 PublicClueMessage
+     * @returns {string} 订阅 ID
+     */
+    subscribeToPublicClue(handler) {
+        if (!this.gameId) {
+            console.error('[WebSocketService] gameId 未设置')
+            return null
+        }
+        return this.subscribe(`/topic/game/${this.gameId}/public-clue`, handler)
+    }
+
+    /**
+     * 订阅投票结果广播
+     * @param {Function} handler - 消息处理器，接收 VoteResultMessage
+     * @returns {string} 订阅 ID
+     */
+    subscribeToVoteResult(handler) {
+        if (!this.gameId) {
+            console.error('[WebSocketService] gameId 未设置')
+            return null
+        }
+        return this.subscribe(`/topic/game/${this.gameId}/vote-result`, handler)
     }
 
     /**
