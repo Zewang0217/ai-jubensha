@@ -85,7 +85,7 @@ public class MockAiConfig {
                 player.setEmail(name + "@mock-ai.example.com");
                 player.setPassword("mock-password");
                 player.setStatus(PlayerStatus.ONLINE);
-                player.setRole(PlayerRole.USER);
+                player.setRole(PlayerRole.AI);  // 修复：设置为 AI 角色
                 Player savedPlayer = playerService.createPlayer(player);
                 log.info("[Mock AI] 创建AI玩家: {} (ID: {})", name, savedPlayer.getId());
                 return savedPlayer;
