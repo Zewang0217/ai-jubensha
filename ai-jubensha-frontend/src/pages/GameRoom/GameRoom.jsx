@@ -350,10 +350,20 @@ function GameRoom() {
   } = useQuery({
     queryKey: ['gamePlayers', id],
     queryFn: async () => {
-      console.log('[GameRoom] 获取玩家数据，游戏ID:', id)
-      const response = await getGamePlayers(id)
-      console.log('[GameRoom] 玩家数据响应:', response)
-      return response?.data || response
+      console.log('[GameRoom] ========== 获取玩家数据 ==========')
+      console.log('[GameRoom] 游戏ID:', id)
+      try {
+        const response = await getGamePlayers(id)
+        console.log('[GameRoom] 玩家数据响应:', response)
+        console.log('[GameRoom] 响应类型:', typeof response)
+        console.log('[GameRoom] 是否为数组:', Array.isArray(response))
+        console.log('[GameRoom] 数组长度:', response?.length)
+        console.log('[GameRoom] ==============================')
+        return response?.data || response
+      } catch (error) {
+        console.error('[GameRoom] 获取玩家数据失败:', error)
+        throw error
+      }
     },
     enabled: !isDebugMode && !!id,
     staleTime: 60000,
@@ -659,6 +669,11 @@ function GameRoom() {
         case 'PHASE_READY':
           // 阶段就绪消息 - 更新等待状态
           console.log('[GameRoom] PHASE_READY 消息:', payload)
+          // 如果是剧本阅读阶段，刷新玩家数据
+          if (payload?.nodeName === 'script_reader' || payload?.phase === 'script_reading') {
+            console.log('[GameRoom] 剧本阅读阶段，刷新玩家数据...')
+            refetchPlayerData?.()
+          }
           if (payload?.isReady) {
             setIsBackendReady(true)
             setWaitingMessage(null)
