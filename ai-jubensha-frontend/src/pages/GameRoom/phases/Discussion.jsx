@@ -426,6 +426,17 @@ function Discussion({
     return players.filter(p => p.playerId !== currentPlayerId && !p.isSelf)
   }, [players, currentPlayerId])
 
+  // 格式化时间
+  const formatTime = useCallback((date) => {
+    return date.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})
+  }, [])
+
+  // 根据玩家ID获取玩家名称
+  const getPlayerNameById = useCallback((playerId) => {
+    const player = players.find(p => p.playerId === playerId || p.id === playerId)
+    return player?.name || player?.characterName || `玩家${playerId}`
+  }, [players])
+
   // 投票结果数据（观察者模式使用）
   // 从 gameData 中获取所有玩家的投票信息
   const voteResults = useMemo(() => {
@@ -441,17 +452,6 @@ function Discussion({
       voteMessage: vote.voteMessage || vote.reason || '',
     }))
   }, [isObserverMode, gameData, players, getPlayerNameById])
-
-  // 格式化时间
-  const formatTime = useCallback((date) => {
-    return date.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})
-  }, [])
-
-  // 根据玩家ID获取玩家名称
-  const getPlayerNameById = useCallback((playerId) => {
-    const player = players.find(p => p.playerId === playerId || p.id === playerId)
-    return player?.name || player?.characterName || `玩家${playerId}`
-  }, [players])
 
   // 判断是否为真人玩家
   const isRealPlayer = useCallback((playerId) => {

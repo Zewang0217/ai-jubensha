@@ -18,6 +18,11 @@ target/
 *.iws
 *.iml
 *.ipr
+.claude
+.agent
+.agents
+.trae
+.iflow
 
 ### NetBeans ###
 /nbproject/private/

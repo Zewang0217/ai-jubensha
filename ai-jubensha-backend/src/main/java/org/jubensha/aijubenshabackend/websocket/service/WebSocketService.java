@@ -42,6 +42,16 @@ public interface WebSocketService {
     void broadcastPhaseChange(Long gameId, GamePhase newPhase);
 
     /**
+     * 广播阶段变化通知（包含详细信息）
+     *
+     * @param gameId 游戏ID
+     * @param previousPhase 上一阶段
+     * @param newPhase 新阶段
+     * @param message 提示消息
+     */
+    void broadcastPhaseChange(Long gameId, GamePhase previousPhase, GamePhase newPhase, String message);
+
+    /**
      * 7. 处理投票逻辑
      */
     void handleVote(Long gameId, WebSocketMessage message);

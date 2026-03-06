@@ -3,9 +3,9 @@
  * @description 搜证阶段，与 CharacterAssignment/ScriptReading 风格保持一致
  */
 
-import {memo, useCallback, useState} from 'react'
+import {memo, useCallback, useEffect, useState} from 'react'
 import {AnimatePresence, motion} from 'framer-motion'
-import {ChevronRight, Eye, Globe, Lock, Search, Unlock, X} from 'lucide-react'
+import {CheckCircle, ChevronRight, Eye, Globe, Lock, Search, Unlock, X} from 'lucide-react'
 import {PHASE_TYPE} from '../types'
 import GhostButton from '../../../components/ui/GhostButton'
 import ClueCard from '../../../components/ui/ClueCard'
@@ -220,10 +220,23 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
   // 公开确认弹窗状态
   const [showPublicModal, setShowPublicModal] = useState(false)
   const [selectedClueForPublic, setSelectedClueForPublic] = useState(null)
+  
+  // AI 玩家搜证完毕提示弹窗
+  const [showAICompleteModal, setShowAICompleteModal] = useState(false)
 
   // 搜证次数限制（非观察者模式下有效）
   const totalChances = gameData?.totalChances ?? 3
   const [remainingChances, setRemainingChances] = useState(gameData?.remainingChances ?? 3)
+  
+  // 监听搜证完成事件
+  // 观察者模式：AI 玩家搜证完毕时显示弹窗
+  // 真人模式：所有玩家搜证完毕时显示弹窗
+  useEffect(() => {
+    if (isAllInvestigationComplete) {
+      setShowAICompleteModal(true)
+      console.log('[Investigation] 搜证完成，显示弹窗 - isObserverMode:', isObserverMode)
+    }
+  }, [isAllInvestigationComplete, isObserverMode])
 
   // 调试日志
   console.log('[Investigation] isObserverMode:', isObserverMode)
@@ -646,9 +659,9 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
             </motion.div>
           </div>
 
-          {/* 公开线索确认弹窗 */}
+          {/* 公开线索确认弹窗 - 仅在非观察者模式下显示 */}
           <AnimatePresence>
-            {showPublicModal && selectedClueForPublic && (
+            {showPublicModal && selectedClueForPublic && !isObserverMode && (
                 <motion.div
                     initial={{opacity: 0}}
                     animate={{opacity: 1}}
@@ -723,6 +736,67 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
                             className="flex-1 h-12 rounded-xl bg-gradient-to-r from-[#5DD9A8] to-[#4ECDC4] text-white font-medium hover:from-[#4ECDC4] hover:to-[#45B7AA] transition-all shadow-lg shadow-[#5DD9A8]/20"
                         >
                           公开线索
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+            )}
+          </AnimatePresence>
+          
+          {/* 搜证完毕提示弹窗 */}
+          <AnimatePresence>
+            {showAICompleteModal && (
+                <motion.div
+                    initial={{opacity: 0}}
+                    animate={{opacity: 1}}
+                    exit={{opacity: 0}}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                    onClick={() => setShowAICompleteModal(false)}
+                >
+                  <motion.div
+                      initial={{scale: 0.9, opacity: 0}}
+                      animate={{scale: 1, opacity: 1}}
+                      exit={{scale: 0.9, opacity: 0}}
+                      transition={{type: 'spring', damping: 25, stiffness: 300}}
+                      className="relative w-full max-w-md mx-4 bg-white dark:bg-[#1A1D26] rounded-2xl shadow-2xl overflow-hidden"
+                      onClick={e => e.stopPropagation()}
+                  >
+                    {/* 顶部渐变条 */}
+                    <div className="h-1 bg-gradient-to-r from-[#7C8CD6] via-[#A78BFA] to-[#F5A9C9]"/>
+
+                    {/* 关闭按钮 */}
+                    <button
+                        onClick={() => setShowAICompleteModal(false)}
+                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#EEF1F6] dark:bg-[#2A2F3C] flex items-center justify-center hover:bg-[#E0E5EE] dark:hover:bg-[#363D4D] transition-colors"
+                    >
+                      <X className="w-4 h-4 text-[#5A6978] dark:text-[#9CA8B8]"/>
+                    </button>
+
+                    {/* 内容 */}
+                    <div className="p-6">
+                      {/* 图标 */}
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-[#5DD9A8]/20 to-[#4ECDC4]/20 flex items-center justify-center">
+                        <CheckCircle className="w-8 h-8 text-[#5DD9A8]"/>
+                      </div>
+
+                      {/* 标题 */}
+                      <h3 className="text-xl font-bold text-center text-[#2D3748] dark:text-[#E8ECF2] mb-2">
+                        {isObserverMode ? 'AI 玩家搜证完毕' : '搜证阶段完成'}
+                      </h3>
+                      <p className="text-sm text-center text-[#8C96A5] dark:text-[#6B7788] mb-6">
+                        {isObserverMode 
+                          ? '所有 AI 玩家已完成搜证，可以进行下一阶段' 
+                          : '所有玩家已完成搜证，可以进行下一阶段'}
+                      </p>
+
+                      {/* 按钮组 */}
+                      <div className="flex gap-3">
+                        <button
+                            onClick={() => setShowAICompleteModal(false)}
+                            className="flex-1 h-12 rounded-xl bg-gradient-to-r from-[#7C8CD6] to-[#A78BFA] text-white font-medium hover:from-[#6B7BC5] hover:to-[#9678E9] transition-all shadow-lg shadow-[#7C8CD6]/20"
+                        >
+                          知道了
                         </button>
                       </div>
                     </div>
