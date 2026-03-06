@@ -113,11 +113,11 @@ const ClueCard = memo(({clue, isRevealed, isPublic, isObserverMode, onReveal, in
                         animate={{rotateY: 0, opacity: 1}}
                         exit={{rotateY: -90, opacity: 0}}
                         transition={{duration: 0.4, ease: 'easeInOut'}}
-                        whileHover={{
+                        whileHover={isObserverMode ? {} : {
                             y: -2,
                             transition: {duration: 0.15}
                         }}
-                        className={`absolute inset-0 w-full rounded-xl overflow-hidden flex flex-col shadow-sm ${isObserverMode ? 'cursor-default' : 'cursor-pointer'}`}
+                        className={`absolute inset-0 w-full rounded-xl overflow-hidden flex flex-col shadow-sm cursor-default`}
                         style={{transformStyle: 'preserve-3d', backfaceVisibility: 'hidden'}}
                     >
                         {/* 卡牌正面背景 */}

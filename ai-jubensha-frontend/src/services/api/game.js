@@ -19,7 +19,7 @@ export const createGameFromScript = async (scriptId, realPlayerCount) => {
     const createResponse = await apiClient.post('/games', {
         scriptId: scriptId,
         status: 'CREATED',
-        currentPhase: 'INTRODUCTION'
+        currentPhase: 'SCRIPT_OVERVIEW'
     })
     
     console.log('[createGameFromScript] Create response:', createResponse)
