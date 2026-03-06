@@ -263,8 +263,40 @@ public class WebSocketServiceImpl implements WebSocketService {
 
     @Override
     public void broadcastPhaseChange(Long gameId, GamePhase newPhase) {
-        WebSocketMessage message = new WebSocketMessage("PHASE_CHANGE", 0L, newPhase.name());
-        messagingTemplate.convertAndSend("/topic/game/" + gameId + "/phase", message);
+        broadcastPhaseChange(gameId, null, newPhase, "阶段已切换");
+    }
+
+    /**
+     * 广播阶段变化通知（包含详细信息）
+     *
+     * @param gameId 游戏ID
+     * @param previousPhase 上一阶段
+     * @param newPhase 新阶段
+     * @param message 提示消息
+     */
+    public void broadcastPhaseChange(Long gameId, GamePhase previousPhase, GamePhase newPhase, String message) {
+        WebSocketMessage wsMessage = new WebSocketMessage();
+        wsMessage.setType(WebSocketMessage.MessageType.PHASE_CHANGE);
+        
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("newPhase", newPhase != null ? newPhase.toFrontendFormat() : null);
+        payload.put("previousPhase", previousPhase != null ? previousPhase.toFrontendFormat() : null);
+        payload.put("newPhaseBackend", newPhase != null ? newPhase.name() : null);
+        payload.put("previousPhaseBackend", previousPhase != null ? previousPhase.name() : null);
+        payload.put("timestamp", System.currentTimeMillis());
+        payload.put("message", message != null ? message : "进入" + (newPhase != null ? newPhase.getTitle() : "新阶段"));
+        payload.put("phaseTitle", newPhase != null ? newPhase.getTitle() : null);
+        payload.put("phaseDescription", newPhase != null ? newPhase.getDescription() : null);
+        wsMessage.setPayload(payload);
+        
+        // 广播到游戏的阶段主题
+        String destination = "/topic/game/" + gameId + "/phase";
+        messagingTemplate.convertAndSend(destination, wsMessage);
+        log.info("广播阶段变化通知到游戏 {}: {} -> {}, message={}", 
+            gameId, 
+            previousPhase != null ? previousPhase.name() : "null", 
+            newPhase != null ? newPhase.name() : "null", 
+            message);
     }
 
     @Override
