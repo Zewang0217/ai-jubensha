@@ -147,9 +147,9 @@ public class FirstInvestigationNode {
                     var gameOpt = gameService.getGameById(context.getGameId());
                     if (gameOpt.isPresent()) {
                         Game game = gameOpt.get();
-                        game.setCurrentPhase(GamePhase.SEARCH);
+                        game.setCurrentPhase(GamePhase.INVESTIGATION);
                         gameService.updateGame(context.getGameId(), game);
-                        log.info("[状态转换] 游戏状态已更新为: SEARCH");
+                        log.info("[状态转换] 游戏状态已更新为: INVESTIGATION");
                     }
                 }
 

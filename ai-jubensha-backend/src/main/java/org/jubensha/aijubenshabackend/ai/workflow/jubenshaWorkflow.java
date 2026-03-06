@@ -272,7 +272,7 @@ public class jubenshaWorkflow {
         if (newGame.getGameCode() == null || newGame.getGameCode().isEmpty()) {
             newGame.setGameCode(generateGameCode());
         }
-        newGame.setCurrentPhase(GamePhase.INTRODUCTION);
+        newGame.setCurrentPhase(GamePhase.SCRIPT_OVERVIEW);
         newGame.setStartTime(LocalDateTime.now());
 
         newGame = gameService.createGame(newGame);

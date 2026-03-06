@@ -150,8 +150,9 @@ public class ImageGenerationServiceImpl implements ImageGenerationService {
      */
     private String buildImagePrompt(String scriptName, String scriptDescription, String scriptGenre) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("你是一个专业的剧本杀封面绘画师,需要生成一张符合下面描述剧本杀封面,为竖版构图 ");
-        prompt.append("8k分辨率, 极其精致的细节, 商业插画, ");
+        prompt.append("你是一个专业的剧本杀封面绘画师,请为以下剧本杀作品创作一张精美的封面图片。");
+        prompt.append("这是一张用于剧本杀游戏的竖版封面图，需要具有强烈的故事感和悬疑氛围，能够吸引玩家探索剧情。");
+        prompt.append("竖版构图, 8k分辨率, 极其精致的细节, 商业插画, ");
 
         // 画面描述
         if (scriptDescription != null && !scriptDescription.isEmpty()) {

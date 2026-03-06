@@ -356,7 +356,7 @@ public class InvestigationAgentHandler {
             }
             
             // 只处理处于搜证阶段的游戏
-            return GamePhase.SEARCH.equals(currentPhase);
+            return GamePhase.INVESTIGATION.equals(currentPhase);
         } catch (Exception e) {
             log.error("验证游戏状态失败: {}", e.getMessage(), e);
             return false;
