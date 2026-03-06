@@ -84,27 +84,27 @@ function GameList() {
             <Loading
                 fullScreen
                 text="正在加载游戏大厅..."
-                className="bg-gradient-to-br from-[var(--color-primary-50)] via-white to-[var(--color-primary-100)]/30"
+                className="bg-gradient-to-br from-[#EFF6FF] via-white to-[#DBEAFE]/30"
             />
         )
     }
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-50)] via-white to-[var(--color-primary-100)]/30 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gradient-to-br from-[#EFF6FF] via-white to-[#DBEAFE]/30 flex items-center justify-center p-4">
                 <motion.div
                     initial={{opacity: 0, scale: 0.95}}
                     animate={{opacity: 1, scale: 1}}
-                    className="max-w-md w-full bg-white/80 backdrop-blur-xl border border-[var(--color-secondary-200)] rounded-2xl shadow-xl p-8 text-center"
+                    className="max-w-md w-full bg-white/80 backdrop-blur-xl border border-[#E2E8F0] rounded-2xl shadow-xl p-8 text-center"
                 >
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
                         <Gamepad2 className="w-8 h-8 text-red-500"/>
                     </div>
-                    <h2 className="text-2xl font-bold text-[var(--color-secondary-800)] mb-2">加载失败</h2>
-                    <p className="text-[var(--color-secondary-500)] mb-6">无法获取游戏列表，请稍后重试</p>
+                    <h2 className="text-2xl font-bold text-[#0F172A] mb-2">加载失败</h2>
+                    <p className="text-[#64748B] mb-6">无法获取游戏列表，请稍后重试</p>
                     <button
                         onClick={() => window.location.reload()}
-                        className="px-6 py-3 bg-[var(--color-primary-500)] text-white rounded-xl font-medium hover:bg-[var(--color-primary-600)] transition-colors"
+                        className="px-6 py-3 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] text-white rounded-xl font-medium hover:shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] transition-all"
                     >
                         重新加载
                     </button>
@@ -114,7 +114,7 @@ function GameList() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-50)] via-white to-[var(--color-primary-100)]/30 relative overflow-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-[#EFF6FF] via-[#FFFFFF] to-[#F8FAFC] relative overflow-hidden">
             <BackgroundDecoration/>
             
             <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -138,47 +138,47 @@ function GameList() {
 function BackgroundDecoration() {
     return (
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary-50)] via-white to-[var(--color-primary-100)]/30"/>
+            <div className="absolute inset-0 bg-gradient-to-br from-[#EFF6FF] via-[#FFFFFF] to-[#F8FAFC]"/>
             
             <motion.div
                 initial={{opacity: 0, scale: 0.8}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{duration: 1.5}}
-                className="absolute top-0 -left-32 w-96 h-96 bg-[var(--color-primary-400)]/20 rounded-full blur-3xl"
+                className="absolute top-0 -left-32 w-96 h-96 bg-[#2563EB]/20 rounded-full blur-3xl"
             />
             
             <motion.div
                 initial={{opacity: 0, scale: 0.8}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{duration: 1.5, delay: 0.2}}
-                className="absolute bottom-0 -right-32 w-96 h-96 bg-[var(--color-primary-600)]/20 rounded-full blur-3xl"
+                className="absolute bottom-0 -right-32 w-96 h-96 bg-[#08D9D6]/20 rounded-full blur-3xl"
             />
             
             <motion.div
                 initial={{opacity: 0, scale: 0.8}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{duration: 1.5, delay: 0.4}}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-[var(--color-primary-300)]/10 to-[var(--color-primary-500)]/10 rounded-full blur-3xl"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-[#2563EB]/10 to-[#08D9D6]/10 rounded-full blur-3xl"
             />
             
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:60px_60px]"/>
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.03)_1px,transparent_1px)] bg-[size:60px_60px]"/>
             
             <motion.div
                 animate={{y: [0, -20, 0], rotate: [0, 5, 0]}}
                 transition={{duration: 6, repeat: Infinity, ease: "easeInOut"}}
-                className="absolute top-32 right-[15%] w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--color-primary-400)]/30 to-[var(--color-primary-600)]/30 backdrop-blur-sm border border-[var(--color-primary-300)]/30"
+                className="absolute top-32 right-[15%] w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2563EB]/30 to-[#08D9D6]/30 backdrop-blur-sm border border-[#2563EB]/30"
             />
             
             <motion.div
                 animate={{y: [0, 15, 0], rotate: [0, -5, 0]}}
                 transition={{duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1}}
-                className="absolute bottom-40 left-[10%] w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-primary-500)]/30 to-[var(--color-primary-700)]/30 backdrop-blur-sm border border-[var(--color-primary-300)]/30"
+                className="absolute bottom-40 left-[10%] w-12 h-12 rounded-xl bg-gradient-to-br from-[#2563EB]/30 to-[#08D9D6]/30 backdrop-blur-sm border border-[#2563EB]/30"
             />
             
             <motion.div
                 animate={{y: [0, -10, 0], x: [0, 10, 0]}}
                 transition={{duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5}}
-                className="absolute top-1/3 left-[20%] w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-primary-300)]/40 to-[var(--color-primary-500)]/40 backdrop-blur-sm"
+                className="absolute top-1/3 left-[20%] w-8 h-8 rounded-lg bg-gradient-to-br from-[#2563EB]/40 to-[#08D9D6]/40 backdrop-blur-sm"
             />
         </div>
     )
@@ -196,26 +196,26 @@ function HeroSection() {
                 initial={{opacity: 0, scale: 0.9}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{duration: 0.5}}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-primary-100)]/80 backdrop-blur-sm border border-[var(--color-primary-200)] mb-6"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#EFF6FF]/80 backdrop-blur-sm border border-[#DBEAFE] mb-6"
             >
-                <Sparkles className="w-4 h-4 text-[var(--color-primary-600)]"/>
-                <span className="text-[var(--color-primary-700)] text-sm font-medium">AI 驱动的智能游戏大厅</span>
+                <Sparkles className="w-4 h-4 text-[#2563EB]"/>
+                <span className="text-[#2563EB] text-sm font-medium">AI 驱动的智能游戏大厅</span>
             </motion.div>
             
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 tracking-tight">
-                <span className="bg-gradient-to-r from-[var(--color-primary-600)] via-[var(--color-primary-500)] to-[var(--color-primary-700)] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[#2563EB] to-[#08D9D6] bg-clip-text text-transparent">
                     游戏大厅
                 </span>
             </h1>
             
-            <p className="text-lg text-[var(--color-secondary-600)] max-w-2xl mx-auto mb-8">
+            <p className="text-lg text-[#64748B] max-w-2xl mx-auto mb-8">
                 选择房间加入或创建新游戏，开启你的推理之旅
             </p>
             
             <motion.button
                 whileHover={{scale: 1.02}}
                 whileTap={{scale: 0.98}}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-700)] text-white text-lg font-semibold rounded-2xl shadow-xl shadow-[var(--color-primary-500)]/30 hover:shadow-2xl hover:shadow-[var(--color-primary-500)]/40 transition-all duration-300"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] text-white text-lg font-semibold rounded-2xl shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_0_rgba(37,99,235,0.5)] transition-all duration-300"
             >
                 <Plus className="w-5 h-5"/>
                 创建房间
@@ -244,8 +244,8 @@ function FilterSection({filters, activeFilter, onFilterChange, searchQuery, onSe
                             className={`
                                 relative px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-300
                                 ${activeFilter === f.key
-                                    ? 'bg-[var(--color-primary-500)] text-white shadow-lg shadow-[var(--color-primary-500)]/30'
-                                    : 'bg-white/80 backdrop-blur-sm text-[var(--color-secondary-600)] border border-[var(--color-secondary-200)] hover:border-[var(--color-primary-300)] hover:text-[var(--color-primary-600)]'
+                                    ? 'bg-gradient-to-r from-[#2563EB] to-[#08D9D6] text-white shadow-[0_4px_14px_0_rgba(37,99,235,0.39)]'
+                                    : 'bg-white/80 backdrop-blur-sm text-[#64748B] border border-[#E2E8F0] hover:border-[#2563EB] hover:text-[#2563EB] hover:shadow-[0_4px_14px_0_rgba(37,99,235,0.39)]'
                                 }
                             `}
                         >
@@ -255,7 +255,7 @@ function FilterSection({filters, activeFilter, onFilterChange, searchQuery, onSe
                                     px-2 py-0.5 rounded-full text-xs font-bold
                                     ${activeFilter === f.key
                                         ? 'bg-white/20 text-white'
-                                        : 'bg-[var(--color-secondary-100)] text-[var(--color-secondary-600)]'
+                                        : 'bg-[#F1F5F9] text-[#64748B]'
                                     }
                                 `}>
                                     {gameCounts[f.key]}
@@ -266,13 +266,13 @@ function FilterSection({filters, activeFilter, onFilterChange, searchQuery, onSe
                 </div>
                 
                 <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-secondary-400)]"/>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]"/>
                     <input
                         type="text"
                         placeholder="搜索房间或剧本..."
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-white/80 backdrop-blur-sm border border-[var(--color-secondary-200)] rounded-xl text-[var(--color-secondary-800)] placeholder-[var(--color-secondary-400)] focus:outline-none focus:border-[var(--color-primary-400)] focus:ring-2 focus:ring-[var(--color-primary-400)]/20 transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white/80 backdrop-blur-sm border border-[#E2E8F0] rounded-xl text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition-all"
                     />
                 </div>
             </div>

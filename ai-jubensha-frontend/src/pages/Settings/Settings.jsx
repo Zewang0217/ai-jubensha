@@ -79,7 +79,7 @@ function Settings() {
     }, [showToast])
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[var(--color-primary-50)] via-white to-[var(--color-primary-100)]/30 relative overflow-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] via-white to-[#F8FAFC] relative overflow-hidden">
             <BackgroundDecoration/>
             
             <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -101,23 +101,23 @@ function Settings() {
 function BackgroundDecoration() {
     return (
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary-50)] via-white to-[var(--color-primary-100)]/30"/>
+            <div className="absolute inset-0 bg-gradient-to-br from-[#F8FAFC] via-white to-[#F8FAFC]"/>
             
             <motion.div
                 initial={{opacity: 0, scale: 0.8}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{duration: 1.5}}
-                className="absolute top-0 -left-32 w-96 h-96 bg-[var(--color-primary-400)]/10 rounded-full blur-3xl"
+                className="absolute top-0 -left-32 w-96 h-96 bg-[#2563EB]/10 rounded-full blur-3xl"
             />
             
             <motion.div
                 initial={{opacity: 0, scale: 0.8}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{duration: 1.5, delay: 0.2}}
-                className="absolute bottom-0 -right-32 w-96 h-96 bg-[var(--color-primary-600)]/10 rounded-full blur-3xl"
+                className="absolute bottom-0 -right-32 w-96 h-96 bg-[#08D9D6]/10 rounded-full blur-3xl"
             />
             
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.02)_1px,transparent_1px)] bg-[size:60px_60px]"/>
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.02)_1px,transparent_1px)] bg-[size:60px_60px]"/>
         </div>
     )
 }
@@ -134,22 +134,22 @@ function HeaderSection() {
                 initial={{opacity: 0, scale: 0.9}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{duration: 0.5}}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-primary-100)]/80 backdrop-blur-sm border border-[var(--color-primary-200)] mb-6"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#2563EB]/10 to-[#08D9D6]/10 backdrop-blur-sm border border-[#2563EB]/20 mb-6"
             >
-                <Sparkles className="w-4 h-4 text-[var(--color-primary-600)]"/>
-                <span className="text-[var(--color-primary-700)] text-sm font-medium">个性化游戏体验</span>
+                <Sparkles className="w-4 h-4 text-[#2563EB]"/>
+                <span className="text-[#0F172A] text-sm font-medium">个性化游戏体验</span>
             </motion.div>
             
             <div className="flex items-center justify-center gap-3 mb-4">
-                <SettingsIcon className="w-8 h-8 text-[var(--color-primary-600)]"/>
+                <SettingsIcon className="w-8 h-8 text-[#2563EB]"/>
                 <h1 className="text-4xl sm:text-5xl font-bold">
-                    <span className="bg-gradient-to-r from-[var(--color-primary-600)] via-[var(--color-primary-500)] to-[var(--color-primary-700)] bg-clip-text text-transparent">
+                    <span className="bg-gradient-to-r from-[#2563EB] to-[#08D9D6] bg-clip-text text-transparent">
                         游戏设置
                     </span>
                 </h1>
             </div>
             
-            <p className="text-lg text-[var(--color-secondary-600)] max-w-2xl mx-auto">
+            <p className="text-lg text-[#64748B] max-w-2xl mx-auto">
                 自定义您的游戏体验，打造专属推理之旅
             </p>
         </motion.div>
@@ -192,7 +192,7 @@ function AudioSettings({settings, onChange}) {
                 </motion.div>
             )}
             
-            <div className="border-t border-[var(--color-secondary-200)] my-4"/>
+            <div className="border-t border-[#E2E8F0] my-4"/>
             
             <SettingItem
                 icon={settings.musicEnabled ? <Music className="w-5 h-5"/> : <Music2 className="w-5 h-5"/>}
@@ -311,7 +311,7 @@ function GameSettings({settings, onChange}) {
                 <select
                     value={settings.language}
                     onChange={(e) => onChange('language', e.target.value)}
-                    className="px-4 py-2 bg-white/80 backdrop-blur-sm border border-[var(--color-secondary-200)] rounded-xl text-[var(--color-secondary-800)] focus:outline-none focus:border-[var(--color-primary-400)] focus:ring-2 focus:ring-[var(--color-primary-400)]/20 transition-all cursor-pointer"
+                    className="px-4 py-2 bg-white/80 backdrop-blur-[10px] border border-[#E2E8F0] rounded-xl text-[#0F172A] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition-all cursor-pointer"
                 >
                     <option value="zh-CN">简体中文</option>
                     <option value="zh-TW">繁體中文</option>
@@ -330,14 +330,14 @@ function SettingsCard({title, icon, delay, children}) {
             transition={{duration: 0.5, delay}}
             className="relative group"
         >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-xl rounded-2xl border border-white/60 shadow-lg shadow-[var(--color-primary-900)]/5 transition-all duration-500 group-hover:shadow-xl group-hover:shadow-[var(--color-primary-900)]/10"/>
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-[10px] rounded-2xl border border-white/60 shadow-lg transition-all duration-500 group-hover:shadow-[0_4px_14px_0_rgba(37,99,235,0.39)]"/>
             
             <div className="relative p-6">
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-primary-500)] to-[var(--color-primary-700)] flex items-center justify-center text-white shadow-lg shadow-[var(--color-primary-500)]/30">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#08D9D6] flex items-center justify-center text-white shadow-lg shadow-[#2563EB]/30">
                         {icon}
                     </div>
-                    <h2 className="text-xl font-bold text-[var(--color-secondary-800)]">{title}</h2>
+                    <h2 className="text-xl font-bold text-[#0F172A]">{title}</h2>
                 </div>
                 
                 <div className="space-y-4">
@@ -346,7 +346,7 @@ function SettingsCard({title, icon, delay, children}) {
             </div>
             
             <div className="absolute top-0 right-0 w-20 h-20 overflow-hidden rounded-tr-2xl">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[var(--color-primary-100)]/50 to-transparent transform translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-500"/>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#08D9D6]/20 to-transparent transform translate-x-8 -translate-y-8 group-hover:translate-x-4 group-hover:-translate-y-4 transition-transform duration-500"/>
             </div>
         </motion.div>
     )
@@ -357,14 +357,14 @@ function SettingItem({icon, label, description, children}) {
         <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3 flex-1">
                 {icon && (
-                    <div className="w-5 h-5 text-[var(--color-secondary-500)] mt-0.5">
+                    <div className="w-5 h-5 text-[#64748B] mt-0.5">
                         {icon}
                     </div>
                 )}
                 <div>
-                    <h3 className="font-medium text-[var(--color-secondary-800)]">{label}</h3>
+                    <h3 className="font-medium text-[#0F172A]">{label}</h3>
                     {description && (
-                        <p className="text-sm text-[var(--color-secondary-500)]">{description}</p>
+                        <p className="text-sm text-[#64748B]">{description}</p>
                     )}
                 </div>
             </div>
@@ -381,10 +381,10 @@ function Toggle({checked, onChange}) {
             onClick={() => onChange(!checked)}
             whileTap={{scale: 0.95}}
             className={`
-                relative w-14 h-8 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-400)]/50
+                relative w-14 h-8 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/50
                 ${checked 
-                    ? 'bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-600)]' 
-                    : 'bg-[var(--color-secondary-300)]'
+                    ? 'bg-gradient-to-r from-[#2563EB] to-[#08D9D6]' 
+                    : 'bg-[#CBD5E1]'
                 }
             `}
         >
@@ -401,12 +401,12 @@ function Toggle({checked, onChange}) {
 function Slider({value, onChange}) {
     return (
         <div className="flex items-center gap-3">
-            <div className="relative w-32 h-2 bg-[var(--color-secondary-200)] rounded-full overflow-hidden">
+            <div className="relative w-32 h-2 bg-[#E2E8F0] rounded-full overflow-hidden">
                 <motion.div
                     initial={{width: 0}}
                     animate={{width: `${value}%`}}
                     transition={{duration: 0.3}}
-                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--color-primary-400)] to-[var(--color-primary-600)] rounded-full"
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] rounded-full"
                 />
                 <input
                     type="range"
@@ -417,7 +417,7 @@ function Slider({value, onChange}) {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
             </div>
-            <span className="text-sm font-medium text-[var(--color-secondary-600)] w-12 text-right">
+            <span className="text-sm font-medium text-[#64748B] w-12 text-right">
                 {value}%
             </span>
         </div>
@@ -436,7 +436,7 @@ function ActionButtons({onSave, onReset}) {
                 whileHover={{scale: 1.02}}
                 whileTap={{scale: 0.98}}
                 onClick={onSave}
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-700)] text-white text-lg font-semibold rounded-2xl shadow-xl shadow-[var(--color-primary-500)]/30 hover:shadow-2xl hover:shadow-[var(--color-primary-500)]/40 transition-all duration-300"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] text-white text-lg font-semibold rounded-2xl shadow-xl shadow-[#2563EB]/30 hover:shadow-2xl hover:shadow-[#2563EB]/40 transition-all duration-300"
             >
                 <Save className="w-5 h-5"/>
                 保存设置
@@ -446,7 +446,7 @@ function ActionButtons({onSave, onReset}) {
                 whileHover={{scale: 1.02}}
                 whileTap={{scale: 0.98}}
                 onClick={onReset}
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/80 backdrop-blur-sm text-[var(--color-secondary-700)] text-lg font-semibold rounded-2xl border border-[var(--color-secondary-200)] hover:border-[var(--color-primary-300)] hover:text-[var(--color-primary-600)] shadow-lg shadow-slate-200/50 transition-all duration-300"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/80 backdrop-blur-[10px] text-[#0F172A] text-lg font-semibold rounded-2xl border border-[#E2E8F0] hover:border-[#2563EB] hover:text-[#2563EB] shadow-lg transition-all duration-300"
             >
                 <RotateCcw className="w-5 h-5"/>
                 重置设置
@@ -466,11 +466,11 @@ function ToastNotification({toast}) {
                     transition={{type: "spring", stiffness: 500, damping: 30}}
                     className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
                 >
-                    <div className="flex items-center gap-3 px-6 py-4 bg-white/95 backdrop-blur-xl border border-[var(--color-primary-200)] rounded-2xl shadow-2xl">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+                    <div className="flex items-center gap-3 px-6 py-4 bg-white/95 backdrop-blur-[10px] border border-[#E2E8F0] rounded-2xl shadow-2xl">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2563EB] to-[#08D9D6] flex items-center justify-center">
                             <Check className="w-5 h-5 text-white"/>
                         </div>
-                        <span className="font-medium text-[var(--color-secondary-800)]">{toast.message}</span>
+                        <span className="font-medium text-[#0F172A]">{toast.message}</span>
                     </div>
                 </motion.div>
             )}
