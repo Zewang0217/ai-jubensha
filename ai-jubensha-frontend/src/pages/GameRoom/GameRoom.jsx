@@ -453,7 +453,11 @@ function GameRoom() {
       setIsAdapting(true)
       try {
         const adapted = await adaptGameData(apiGameData, apiPlayerData)
-        setAdaptedGameData(adapted)
+        // 保留已有的 result 数据（如评分数据），避免被覆盖
+        setAdaptedGameData(prev => ({
+          ...adapted,
+          result: prev?.result || adapted?.result || null
+        }))
       } catch (err) {
         console.error('[GameRoom] Failed to adapt game data:', err)
       } finally {
