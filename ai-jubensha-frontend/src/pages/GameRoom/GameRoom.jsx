@@ -13,6 +13,7 @@ import React, {memo, Suspense, useCallback, useEffect, useMemo, useRef, useState
 import {useNavigate, useParams} from 'react-router-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
+import {getGameById, getGamePlayers, exitGame, confirmPhase} from '../../services/api'
 import {exitGame, getGameById, getGamePlayers} from '../../services/api'
 import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
 import Loading from '../../components/common/Loading'
@@ -377,6 +378,9 @@ function GameRoom() {
   // 使用 ref 存储 adaptedGameData，供 onPhaseChange 回调使用
   // 必须在 usePhaseManager 之前定义，因为 onPhaseChange 回调需要使用它
   const adaptedGameDataRef = useRef(null)
+  
+  // 使用 ref 存储 goToPhase 函数，避免订阅 useEffect 因 goToPhase 变化而重新执行
+  const goToPhaseRef = useRef(null)
 
   // 阶段管理
   const {
@@ -426,6 +430,9 @@ function GameRoom() {
       clearGameState()
     }, []),
   })
+  
+  // 保持 goToPhase ref 同步
+  goToPhaseRef.current = goToPhase
 
   // 从 localStorage 恢复游戏状态
   const [restoredPhase, setRestoredPhase] = useState(null)
@@ -549,7 +556,11 @@ function GameRoom() {
       setIsAdapting(true)
       try {
         const adapted = await adaptGameData(apiGameData, apiPlayerData)
-        setAdaptedGameData(adapted)
+        // 保留已有的 result 数据（如评分数据），避免被覆盖
+        setAdaptedGameData(prev => ({
+          ...adapted,
+          result: prev?.result || adapted?.result || null
+        }))
       } catch (err) {
         console.error('[GameRoom] Failed to adapt game data:', err)
       } finally {
@@ -818,18 +829,6 @@ function GameRoom() {
           }
           break
           
-        case 'GAME_ENDED':
-          // 游戏结束消息 - 清理并跳转
-          console.log('[GameRoom] GAME_ENDED 消息:', payload)
-          setWaitingMessage(payload?.message || '游戏已结束')
-          // 清理本地状态
-          clearGameState()
-          // 延迟跳转，让用户看到提示
-          setTimeout(() => {
-            navigate('/games')
-          }, 1500)
-          break
-          
         default:
           // 兼容旧格式：直接包含 newPhase 字段
           if (payload?.newPhase) {
@@ -876,30 +875,85 @@ function GameRoom() {
     }
   }, [isDebugMode, isConnected, id, subscribe, setWaitingMessage])
 
+  // WebSocket 监听游戏状态消息（GAME_ENDED）
+  useEffect(() => {
+    if (isDebugMode || !isConnected || !id) return
+
+    /**
+     * 处理游戏状态消息
+     * @description 接收游戏结束消息，包含评分数据和真相揭晓内容
+     * @param {Object} data - 消息数据
+     */
+    const handleGameStatusMessage = (data) => {
+      console.log('[GameRoom] 收到游戏状态消息:', data)
+      
+      // 处理消息结构：可能是 {type: '...', payload: {...}} 或直接 {...}
+      const messageType = data?.type
+      const payload = data?.payload || data
+      
+      // 检查是否为游戏结束消息
+      if (messageType === 'GAME_ENDED' || data?.message?.includes('游戏结束')) {
+        console.log('[GameRoom] 游戏结束消息:', payload)
+        
+        // 提取评分数据
+        const gameResult = {
+          scores: payload?.scores || data?.scores || [],
+          ending: payload?.ending || data?.ending || '',
+          summary: payload?.summary || data?.summary || '',
+          playerAnswers: payload?.playerAnswers || data?.playerAnswers || {},
+          message: payload?.message || data?.message || '游戏已结束'
+        }
+        
+        console.log('[GameRoom] 游戏结果数据:', gameResult)
+        
+        // 存储评分数据到 adaptedGameData
+        setAdaptedGameData(prev => ({
+          ...prev,
+          result: gameResult
+        }))
+        
+        // 使用 ref 调用 goToPhase，避免依赖变化导致订阅重建
+        if (goToPhaseRef.current) {
+          goToPhaseRef.current('summary', false)
+        }
+      }
+    }
+
+    // 订阅游戏状态消息主题
+    const statusSubscriptionId = subscribe(`/topic/game/${id}/status`, handleGameStatusMessage)
+
+    return () => {
+      if (statusSubscriptionId && unsubscribe) {
+        console.log('[GameRoom] 取消游戏状态订阅')
+        unsubscribe(statusSubscriptionId)
+      }
+    }
+  }, [isDebugMode, isConnected, id, subscribe, unsubscribe])
+
   // 事件处理
   /**
    * 处理阶段完成
    * @description 后端主导模式：调用后端 API 确认阶段完成，等待后端广播 PHASE_CHANGE 消息
    */
   const handlePhaseComplete = useCallback(async () => {
+    console.log('[GameRoom] handlePhaseComplete 被调用，当前阶段:', currentPhase, '是否观察者模式:', isObserverMode)
+    
     // 如果正在等待后端响应，不重复处理
     if (isWaitingForBackend) {
       console.log('[GameRoom] 正在等待后端响应，跳过重复请求')
       return
     }
 
-    // 剧本概览阶段：直接进入下一阶段，不需要确认
+    // 剧本概览阶段：直接进入下一阶段，不需要后端确认
+    // 因为剧本概览阶段是游戏的开始阶段，后端工作流可能还没有完全启动
     if (currentPhase === 'script_overview') {
       console.log('[GameRoom] 剧本概览阶段，直接进入下一阶段')
       goToNext()
       return
     }
 
-    // 角色分配阶段：由 CharacterAssignment 组件处理，不需要在这里确认
-    if (currentPhase === 'character_assignment') {
-      console.log('[GameRoom] 角色分配阶段，由组件处理')
-      return
-    }
+    // 非 script_overview 阶段：需要调用 confirmPhase API 通知后端
+    console.log('[GameRoom] 当前阶段:', currentPhase, '，继续执行阶段确认逻辑...')
 
     // 根据阶段类型执行不同的检查逻辑
     const phaseChecks = {
@@ -910,7 +964,14 @@ function GameRoom() {
       
       // 搜证阶段：需要检查后端是否所有玩家完成搜证
       investigation: () => {
-        if (!isAllInvestigationComplete) {
+        // 观察者模式下，需要等待 AI 玩家完成搜证
+        if (isObserverMode && !isAllInvestigationComplete) {
+          setWaitingMessage('AI 玩家正在搜证，请稍候...');
+          setTimeout(() => setWaitingMessage(null), 3000);
+          return false;
+        }
+        // 真人模式下，需要等待所有玩家完成搜证
+        if (!isObserverMode && !isAllInvestigationComplete) {
           setWaitingMessage('有玩家未完成搜证，请等待');
           setTimeout(() => setWaitingMessage(null), 3000);
           return false;
@@ -942,6 +1003,7 @@ function GameRoom() {
     const realPlayer = players.find(p => p.playerRole === 'REAL');
     const currentPlayerId = realPlayer?.playerId;
     console.log('[GameRoom] 找到的真人玩家:', realPlayer, 'playerId:', currentPlayerId);
+    console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId);
 
     if (id) {
       // 显示等待提示
@@ -949,7 +1011,7 @@ function GameRoom() {
       
       try {
         // 调用后端确认 API，后端会在所有玩家确认后推进阶段并广播 PHASE_CHANGE
-        console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId);
+        // 观察者模式下 currentPlayerId 为 null，后端会设置 observerConfirmed = true
         const response = await confirmCurrentPhase(id, currentPlayerId || null);
         console.log('[GameRoom] 阶段确认响应:', response);
         
@@ -1054,13 +1116,20 @@ function GameRoom() {
       // 搜证完成，调用阶段完成处理
       console.log('[GameRoom] 搜证完成，调用 handlePhaseComplete...')
       handlePhaseComplete()
+    } else if (action === 'character_assignment_complete') {
+      // 观察者模式：角色分配确认，统一使用 handlePhaseComplete 处理
+      // 避免重复调用 confirmPhase API
+      if (isObserverMode) {
+        console.log('[GameRoom] 观察者模式角色分配确认，调用 handlePhaseComplete...')
+        handlePhaseComplete()
+      }
     }
 
     updatePhaseData(currentPhase, {[action]: payload})
 
     if (action === 'return_home') navigate('/')
     if (action === 'play_again') navigate('/games')
-  }, [currentPhase, navigate, sendChatMessage, sendVote, updatePhaseData, handlePhaseComplete])
+  }, [currentPhase, navigate, sendChatMessage, sendVote, updatePhaseData, handlePhaseComplete, isObserverMode, id])
 
   /**
    * 处理退出游戏
