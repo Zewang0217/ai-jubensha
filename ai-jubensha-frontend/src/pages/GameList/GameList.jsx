@@ -10,13 +10,13 @@
  * - 流畅的交互动画
  */
 
-import {useState, useMemo} from 'react'
+import {useMemo, useState} from 'react'
 import {Link} from 'react-router-dom'
 import {useQuery} from '@tanstack/react-query'
-import {motion, AnimatePresence} from 'framer-motion'
+import {AnimatePresence, motion} from 'framer-motion'
 import {gameApi} from '../../services/api'
 import Loading from '../../components/common/Loading'
-import {Users, Clock, Plus, Search, Gamepad2, Sparkles} from 'lucide-react'
+import {Clock, Gamepad2, Plus, Search, Sparkles, Users} from 'lucide-react'
 
 function GameList() {
     const [filter, setFilter] = useState('all')
@@ -91,7 +91,8 @@ function GameList() {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-[#EFF6FF] via-white to-[#DBEAFE]/30 flex items-center justify-center p-4">
+            <div
+                className="min-h-screen bg-gradient-to-br from-[#EFF6FF] via-white to-[#DBEAFE]/30 flex items-center justify-center p-4 pt-24 pb-12">
                 <motion.div
                     initial={{opacity: 0, scale: 0.95}}
                     animate={{opacity: 1, scale: 1}}
@@ -116,8 +117,8 @@ function GameList() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#EFF6FF] via-[#FFFFFF] to-[#F8FAFC] relative overflow-hidden">
             <BackgroundDecoration/>
-            
-            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
                 <HeroSection/>
                 
                 <FilterSection
