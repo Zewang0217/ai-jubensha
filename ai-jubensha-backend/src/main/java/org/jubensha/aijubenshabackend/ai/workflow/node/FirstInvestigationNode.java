@@ -50,6 +50,15 @@ public class FirstInvestigationNode {
                 context.setErrorMessage("剧本ID为空，无法开始第一轮搜证");
                 return WorkflowContext.saveContext(context);
             }
+            
+            // 验证游戏ID是否存在
+            Long gameId = context.getGameId();
+            if (gameId == null) {
+                log.error("[上下文错误] 游戏ID为空，无法开始第一轮搜证");
+                context.setErrorMessage("游戏ID为空，无法开始第一轮搜证");
+                return WorkflowContext.saveContext(context);
+            }
+            log.info("[上下文验证] 游戏ID验证通过: {}", gameId);
 
             // 获取玩家分配结果
             List<Map<String, Object>> playerAssignments = context.getPlayerAssignments();

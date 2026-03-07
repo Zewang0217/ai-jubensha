@@ -261,14 +261,35 @@ export const adaptGameData = async (gameData, players) => {
         }) : [],
 
         // 玩家列表
-        players: Array.isArray(players) ? players.map(player => ({
-            id: player.id,
-            playerId: player.playerId,
-            characterId: player.characterId,
-            isDm: player.isDm,
-            status: player.status,
-            joinTime: player.joinTime,
-        })) : [],
+        players: Array.isArray(players) ? players.map(player => {
+            // 获取角色信息（确保类型匹配）
+            const character = characters?.find(c => Number(c.id) === Number(player.characterId))
+            console.log('[adaptGameData] 玩家角色匹配:', {
+                playerId: player.playerId,
+                characterId: player.characterId,
+                characterIdType: typeof player.characterId,
+                foundCharacter: character ? { id: character.id, name: character.name } : null
+            })
+            return {
+                id: player.id,
+                playerId: player.playerId,
+                characterId: player.characterId,
+                isDm: player.isDm,
+                playerRole: player.playerRole,
+                status: player.status,
+                joinTime: player.joinTime,
+                name: character?.name || player.nickname || `玩家${player.playerId}`,
+                characterName: character?.name || player.characterName,
+                // 简短角色标签
+                role: character?.name || '角色',
+                // 完整角色描述（用于悬停显示）
+                description: character?.backgroundStory || character?.description || '',
+                backgroundStory: character?.backgroundStory,
+                avatarUrl: character?.avatarUrl,
+                isAI: player.playerRole === 'AI',
+                isSelf: false,
+            }
+        }) : [],
     }
 
     // 获取公开线索（用于讨论阶段显示）

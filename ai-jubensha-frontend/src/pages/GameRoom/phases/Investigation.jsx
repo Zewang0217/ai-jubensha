@@ -217,6 +217,7 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
   const [revealedClues, setRevealedClues] = useState(new Set())
   const [publicClues, setPublicClues] = useState(new Set())
   const [limitReached, setLimitReached] = useState(false)
+  const [hoveredClue, setHoveredClue] = useState(null)
   
   // 公开确认弹窗状态
   const [showPublicModal, setShowPublicModal] = useState(false)
@@ -228,6 +229,32 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
   // 搜证次数限制（非观察者模式下有效）
   const totalChances = gameData?.totalChances ?? 3
   const [remainingChances, setRemainingChances] = useState(gameData?.remainingChances ?? 3)
+  
+  // 组件挂载时从后端同步搜证状态
+  useEffect(() => {
+    const syncInvestigationStatus = async () => {
+      if (!gameId || !currentPlayerId || isObserverMode) {
+        console.log('[Investigation] 跳过同步搜证状态 - gameId:', gameId, 'currentPlayerId:', currentPlayerId, 'isObserverMode:', isObserverMode)
+        return
+      }
+      
+      try {
+        console.log('[Investigation] 开始同步搜证状态 - gameId:', gameId, 'playerId:', currentPlayerId)
+        const response = await getInvestigationStatus(gameId, currentPlayerId)
+        console.log('[Investigation] 搜证状态响应:', response)
+        
+        if (response && response.remainingCount !== undefined) {
+          console.log('[Investigation] 更新搜证次数:', response.remainingCount)
+          setRemainingChances(response.remainingCount)
+        }
+      } catch (error) {
+        console.error('[Investigation] 同步搜证状态失败:', error)
+        // 同步失败时使用默认值
+      }
+    }
+    
+    syncInvestigationStatus()
+  }, [gameId, currentPlayerId, isObserverMode])
   
   // 监听搜证完成事件
   // 观察者模式：AI 玩家搜证完毕时显示弹窗
@@ -369,16 +396,9 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
       }
     } catch (error) {
       console.error('[Investigation] 搜证失败:', error)
-      // 即使失败也更新本地状态（降级处理）
-      setRemainingChances(prev => prev - 1)
-      setRevealedClues(prev => new Set([...prev, clueId]))
-      onAction?.('clue_revealed', {clueId, sceneId})
-      
-      // 找到线索信息，弹出公开确认弹窗
-      if (clue) {
-        setSelectedClueForPublic(clue)
-        setShowPublicModal(true)
-      }
+      // 搜证失败时不更新本地状态，让用户重新尝试
+      // 显示错误提示
+      alert('搜证失败，请重试: ' + (error.message || '未知错误'))
     }
   }, [selectedScene, onAction, isObserverMode, remainingChances, revealedClues, scenes, gameId, currentPlayerId])
 
@@ -520,7 +540,80 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
           )}
 
           {/* 主内容区 */}
-          <div className="flex-1 min-h-0 flex gap-6">            {/* 场景列表 - 玻璃态侧边栏 */}
+          <div className="flex-1 min-h-0 flex gap-6">
+            {/* 左侧：公开线索列表 */}
+            <motion.nav variants={itemVariants} className="w-60 flex-none hidden md:flex flex-col">
+              <div
+                  className="bg-white/60 dark:bg-[#222631]/60 backdrop-blur-md border border-[#E0E5EE] dark:border-[#363D4D] rounded-xl p-3 flex-1 overflow-hidden flex flex-col">
+                <p className="text-[#8C96A5] dark:text-[#6B7788] text-xs font-medium uppercase tracking-wider mb-3 px-1">
+                  公开线索
+                </p>
+                <div className="flex-1 overflow-y-auto scrollbar-thin space-y-2 pr-1">
+                  {publicClues.size === 0 ? (
+                    <div className="text-center text-[#8C96A5] dark:text-[#6B7788] text-xs py-4">
+                      暂无公开线索
+                    </div>
+                  ) : (
+                    scenes.flatMap(s => s.clues || []).filter(c => publicClues.has(c.id)).map((clue) => (
+                      <div
+                        key={clue.id}
+                        onMouseEnter={() => setHoveredClue(clue)}
+                        onMouseLeave={() => setHoveredClue(null)}
+                        className="p-2.5 rounded-lg bg-white/40 dark:bg-[#222631]/40 backdrop-blur-sm border border-transparent hover:bg-white/60 dark:hover:bg-[#222631]/60 hover:border-[#7C8CD6]/30 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[#5DD9A8]/20 to-[#4ECDC4]/20 flex items-center justify-center flex-shrink-0">
+                            <Globe className="w-3 h-3 text-[#5DD9A8]"/>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[#2D3748] dark:text-[#E8ECF2] text-xs font-medium leading-tight line-clamp-2">
+                              {clue.name}
+                            </p>
+                            <span className="text-[10px] text-[#8C96A5] dark:text-[#6B7788] mt-0.5 block">
+                              {clue.type}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              
+              {/* 线索详情面板 */}
+              <div
+                  className="mt-3 h-40 bg-white/60 dark:bg-[#222631]/60 backdrop-blur-md border border-[#E0E5EE] dark:border-[#363D4D] rounded-xl p-3 flex flex-col">
+                <p className="text-[#8C96A5] dark:text-[#6B7788] text-[10px] font-medium uppercase tracking-wider mb-2">
+                  线索详情
+                </p>
+                {hoveredClue ? (
+                  <div className="flex-1 overflow-hidden">
+                    <h4 className="text-sm font-bold text-[#2D3748] dark:text-[#E8ECF2] mb-1">
+                      {hoveredClue.name}
+                    </h4>
+                    <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed line-clamp-4">
+                      {hoveredClue.description}
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#7C8CD6]/10 text-[#7C8CD6]">
+                        {hoveredClue.type}
+                      </span>
+                      {publicClues.has(hoveredClue.id) && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#5DD9A8]/10 text-[#5DD9A8]">
+                          已公开
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-[#8C96A5] dark:text-[#6B7788] text-xs">
+                    悬停线索查看详情
+                  </div>
+                )}
+              </div>
+            </motion.nav>
+
+            {/* 中间：场景列表 */}
             <motion.nav variants={itemVariants} className="w-60 flex-none hidden md:flex flex-col">
               <div
                   className="bg-white/60 dark:bg-[#222631]/60 backdrop-blur-md border border-[#E0E5EE] dark:border-[#363D4D] rounded-xl p-3 flex-1 overflow-hidden flex flex-col">

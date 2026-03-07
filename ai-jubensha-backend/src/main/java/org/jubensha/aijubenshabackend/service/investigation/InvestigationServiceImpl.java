@@ -310,11 +310,17 @@ public class InvestigationServiceImpl implements InvestigationService {
      */
     @Override
     public WorkflowContext removeWorkflowContext(Long gameId) {
+        if (gameId == null) {
+            log.error("[缓存错误] 移除上下文时 gameId 为 null！");
+            return null;
+        }
         WorkflowContext removed = workflowContextCache.remove(gameId);
         if (removed != null) {
-            log.info("已清理工作流上下文缓存，游戏ID: {}", gameId);
+            log.info("[缓存操作] 已清理工作流上下文缓存，游戏ID: {}, 剩余缓存大小: {}, 剩余keys: {}", 
+                     gameId, workflowContextCache.size(), workflowContextCache.keySet());
         } else {
-            log.debug("工作流上下文缓存不存在，游戏ID: {}", gameId);
+            log.warn("[缓存操作] 工作流上下文缓存不存在，游戏ID: {}, 当前缓存大小: {}, 当前keys: {}", 
+                     gameId, workflowContextCache.size(), workflowContextCache.keySet());
         }
         return removed;
     }
