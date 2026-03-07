@@ -178,6 +178,7 @@ public class InvestigationAgentHandler {
                                                 clue.getName(),
                                                 String.format("在「%s」搜证发现了线索", sceneName),
                                                 true,
+                                                null,
                                                 null
                                         );
                                         log.info("已推送搜证公屏消息: gameId={}, character={}, clue={}", gameId, characterName, clue.getName());
@@ -230,10 +231,11 @@ public class InvestigationAgentHandler {
                                                         clue.getName(),
                                                         String.format("公开了线索「%s」", clue.getName()),
                                                         true,
-                                                        reason
+                                                        reason,
+                                                        analysis
                                                 );
-                                                log.info("已推送公开线索公屏消息: gameId={}, character={}, clue={}, reason={}",
-                                                        gameId, characterName, clue.getName(), reason);
+                                                log.info("已推送公开线索公屏消息: gameId={}, character={}, clue={}",
+                                                        gameId, characterName, clue.getName());
                                             } catch (Exception e) {
                                                 log.error("推送公开线索公屏消息失败: {}", e.getMessage(), e);
                                             }
@@ -259,10 +261,11 @@ public class InvestigationAgentHandler {
                                                         clue.getName(),
                                                         "发现了一条线索但选择不公开",
                                                         false,
-                                                        reason
+                                                        reason,
+                                                        analysis
                                                 );
-                                                log.info("已推送隐藏线索公屏消息: gameId={}, character={}, reason={}",
-                                                        gameId, characterName, reason);
+                                                log.info("已推送隐藏线索公屏消息: gameId={}, character={}",
+                                                        gameId, characterName);
                                             } catch (Exception e) {
                                                 log.error("推送隐藏线索公屏消息失败: {}", e.getMessage(), e);
                                             }
