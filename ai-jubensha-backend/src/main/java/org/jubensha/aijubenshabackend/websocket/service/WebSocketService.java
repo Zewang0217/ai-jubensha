@@ -81,4 +81,13 @@ public interface WebSocketService {
      * @param message 提示信息
      */
     void broadcastGameEnded(Long gameId, String message);
+    
+    /**
+     * 广播游戏结束通知（包含评分数据）
+     *
+     * @param gameId 游戏ID
+     * @param message 提示信息
+     * @param resultData 游戏结果数据（scores、ending、playerAnswers等）
+     */
+    void broadcastGameEnded(Long gameId, String message, Map<String, Object> resultData);
 }
