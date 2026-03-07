@@ -866,6 +866,17 @@ public class GameController {
 
             // 7. 如果所有玩家都已确认，自动推进阶段
             if (shouldAdvance) {
+                // 幂等性检查：重新获取游戏状态，确保阶段未被其他请求推进
+                Game latestGame = gameService.getGameById(gameId).orElse(null);
+                if (latestGame != null && latestGame.getCurrentPhase() != game.getCurrentPhase()) {
+                    log.info("[阶段同步] 阶段已被其他请求推进，当前阶段: {}，跳过重复推进", 
+                            latestGame.getCurrentPhase());
+                    response.put("phaseAdvanced", true);
+                    response.put("nextPhase", latestGame.getCurrentPhase().name());
+                    response.put("advanceMessage", "阶段已被推进");
+                    return ResponseEntity.ok(response);
+                }
+                
                 log.info("[阶段同步] 所有玩家已确认，自动推进阶段，游戏ID: {}", gameId);
                 
                 // 推进阶段并广播通知
