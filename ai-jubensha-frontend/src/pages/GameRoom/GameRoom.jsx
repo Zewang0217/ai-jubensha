@@ -13,12 +13,12 @@ import React, {memo, Suspense, useCallback, useEffect, useMemo, useRef, useState
 import {useNavigate, useParams} from 'react-router-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
-import {getGameById, getGamePlayers, exitGame} from '../../services/api'
+import {exitGame, getGameById, getGamePlayers} from '../../services/api'
 import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
 import Loading from '../../components/common/Loading'
 import {useWebSocket} from '../../hooks/useWebSocket'
 import {Bug, X} from 'lucide-react'
-import {saveGameState, loadGameState, clearGameState} from '../../utils/gameStateStorage'
+import {clearGameState, loadGameState, saveGameState} from '../../utils/gameStateStorage'
 
 // 阶段系统导入
 import {DEFAULT_PHASE_SEQUENCE, PHASE_CONFIG, PHASE_TYPE, usePhaseManager,} from './phases'
@@ -30,6 +30,7 @@ import {useDebugMode} from './hooks/useDebugMode'
 import GameRoomHeader from './components/GameRoomHeader'
 import GameRoomFooter from './components/GameRoomFooter'
 import ExitConfirmModal from './components/ExitConfirmModal'
+import PublicScreen from './components/PublicScreen'
 
 // =============================================================================
 // 延迟加载阶段组件
@@ -258,6 +259,10 @@ function GameRoom() {
   // 调试模式
   const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [showExitModal, setShowExitModal] = useState(false)
+
+  // 公屏状态
+  const [agentActions, setAgentActions] = useState([])
+  const [isPublicScreenExpanded, setIsPublicScreenExpanded] = useState(true)
 
   const {
     isDebugMode,
@@ -519,6 +524,7 @@ function GameRoom() {
     sendVote: apiSendVote,
     subscribeToGameChat,
     subscribeToPersonalMessages,
+    subscribeToAgentActions,
     subscribe,
     unsubscribe,
   } = useWebSocket(isDebugMode ? null : wsBaseUrl, isDebugMode ? null : id)
@@ -645,6 +651,43 @@ function GameRoom() {
       }
     }
   }, [isDebugMode, isConnected, subscribeToGameChat, subscribeToPersonalMessages])
+
+  // WebSocket 监听 AI Agent 操作消息（公屏）
+  useEffect(() => {
+    if (isDebugMode || !isConnected || !id) return
+
+    /**
+     * 处理 AI Agent 操作消息
+     * @param {Object} message - WebSocket 消息
+     */
+    const handleAgentAction = (message) => {
+      console.log('[GameRoom] 收到 AI Agent 操作消息:', message)
+
+      if (message?.type === 'AGENT_ACTION' && message?.payload) {
+        const action = message.payload
+
+        // 添加到公屏列表
+        setAgentActions(prev => {
+          const newActions = [...prev, action]
+          // 最多保留 100 条记录
+          if (newActions.length > 100) {
+            return newActions.slice(newActions.length - 100)
+          }
+          return newActions
+        })
+      }
+    }
+
+    // 订阅 AI Agent 操作消息
+    const agentActionSubscriptionId = subscribeToAgentActions(handleAgentAction)
+
+    return () => {
+      // 清理订阅
+      if (agentActionSubscriptionId) {
+        console.log('[GameRoom] 取消 AI Agent 操作订阅')
+      }
+    }
+  }, [isDebugMode, isConnected, id, subscribeToAgentActions])
 
   // WebSocket 监听阶段就绪消息
   useEffect(() => {
@@ -1262,6 +1305,14 @@ function GameRoom() {
               />
           )}
         </AnimatePresence>
+
+        {/* AI Agent 操作公屏 */}
+        <PublicScreen
+            actions={agentActions}
+            isExpanded={isPublicScreenExpanded}
+            onToggleExpand={() => setIsPublicScreenExpanded(!isPublicScreenExpanded)}
+            onClear={() => setAgentActions([])}
+        />
       </div>
   )
 }

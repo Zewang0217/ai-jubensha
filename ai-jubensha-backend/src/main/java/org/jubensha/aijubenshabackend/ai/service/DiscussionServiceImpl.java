@@ -1,6 +1,7 @@
 package org.jubensha.aijubenshabackend.ai.service;
 
 
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.jubensha.aijubenshabackend.ai.service.agent.DMAgent;
 import org.jubensha.aijubenshabackend.ai.service.agent.JudgeAgent;
@@ -20,24 +21,10 @@ import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.Resource;
-import java.time.LocalDateTime;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * 讨论服务实现
@@ -627,6 +614,25 @@ public class DiscussionServiceImpl implements DiscussionService {
             log.info("[答案提交] 已广播玩家 {} 的答案，isAI={}", playerName, isAI);
         }
 
+        // 广播 AI Agent 投票到公屏
+        if (isAI && webSocketService != null) {
+            try {
+                webSocketService.broadcastAgentAction(
+                        gameId,
+                        "VOTE",
+                        playerName,
+                        answer,
+                        String.format("投票指认凶手为「%s」", answer),
+                        true,
+                        null,
+                        null
+                );
+                log.info("[公屏] 已广播 AI 玩家 {} 的投票", playerName);
+            } catch (Exception e) {
+                log.error("[公屏] 广播 AI 玩家投票失败: {}", e.getMessage(), e);
+            }
+        }
+
         // 检测是否所有玩家都已提交答案
         if (playerAnswers.size() == playerIds.size()) {
             log.info("所有玩家都已提交答案，开始评分流程");
@@ -804,7 +810,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         } catch (Exception e) {
             log.error("[WebSocket] 广播 AI 玩家消息失败: {}", e.getMessage(), e);
         }
-        
+
         // 存储讨论内容到数据库
         storeDiscussionMessageToDatabase(playerId, characterId, processedMessage);
         
