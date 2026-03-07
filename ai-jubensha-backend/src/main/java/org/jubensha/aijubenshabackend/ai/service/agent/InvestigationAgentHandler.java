@@ -3,7 +3,21 @@ package org.jubensha.aijubenshabackend.ai.service.agent;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.service.AiServices;
 import lombok.extern.slf4j.Slf4j;
+import org.jubensha.aijubenshabackend.ai.service.RAGService;
+import org.jubensha.aijubenshabackend.ai.service.util.ResponseUtils;
+import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
+import org.jubensha.aijubenshabackend.memory.MemoryService;
+import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.service.clue.ClueService;
+import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
+import org.jubensha.aijubenshabackend.service.game.GameService;
+import org.jubensha.aijubenshabackend.service.investigation.InvestigationService;
+import org.jubensha.aijubenshabackend.service.scene.SceneService;
+import org.jubensha.aijubenshabackend.websocket.service.WebSocketService;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -11,21 +25,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.service.AiServices;
-import org.jubensha.aijubenshabackend.ai.service.RAGService;
-import org.jubensha.aijubenshabackend.ai.service.util.ResponseUtils;
-import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
-import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
-import org.jubensha.aijubenshabackend.models.enums.GamePhase;
-import org.jubensha.aijubenshabackend.service.clue.ClueService;
-import org.jubensha.aijubenshabackend.service.game.GameService;
-import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
-import org.jubensha.aijubenshabackend.service.investigation.InvestigationService;
-import org.jubensha.aijubenshabackend.service.scene.SceneService;
-import org.jubensha.aijubenshabackend.memory.MemoryService;
-import jakarta.annotation.Resource;
 
 import java.util.List;
 import java.util.Map;
@@ -54,6 +53,7 @@ public class InvestigationAgentHandler {
     private ClueService clueService;
     private MemoryService memoryService;
     private RAGService ragService;
+    private WebSocketService webSocketService;
 
     @Autowired
     public InvestigationAgentHandler(ChatModel chatModel) {
@@ -166,6 +166,24 @@ public class InvestigationAgentHandler {
                                 String clueContent = clue.getName() + ": " + clue.getDescription();
                                 
                                 log.info("AI玩家搜证成功: 线索ID={}, 线索名称={}", clueId, clue.getName());
+
+                                // 推送公屏消息：AI 玩家搜证
+                                if (webSocketService != null) {
+                                    try {
+                                        String sceneName = clue.getScene() != null ? clue.getScene() : "未知场景";
+                                        webSocketService.broadcastAgentAction(
+                                                gameId,
+                                                "INVESTIGATE",
+                                                characterName,
+                                                clue.getName(),
+                                                String.format("在「%s」搜证发现了线索", sceneName),
+                                                true
+                                        );
+                                        log.info("已推送搜证公屏消息: gameId={}, character={}, clue={}", gameId, characterName, clue.getName());
+                                    } catch (Exception e) {
+                                        log.error("推送搜证公屏消息失败: {}", e.getMessage(), e);
+                                    }
+                                }
                                 
                                 // 将线索内容返回给 AI 玩家，让其决定是否公开
                                 String revealDecision = playerAgent.decideToReveal(
@@ -200,6 +218,23 @@ public class InvestigationAgentHandler {
                                         // 将线索存储到向量数据库，playerid设置为0
                                         memoryService.storeClueMemory(gameId, 0L, clueId, clueContent, "AI玩家" + playerId);
                                         log.info("线索 {} 已存储到向量数据库，playerid=0", clueId);
+
+                                        // 推送公屏消息：AI 玩家公开线索
+                                        if (webSocketService != null) {
+                                            try {
+                                                webSocketService.broadcastAgentAction(
+                                                        gameId,
+                                                        "REVEAL_CLUE",
+                                                        characterName,
+                                                        clue.getName(),
+                                                        String.format("公开了线索「%s」", clue.getName()),
+                                                        true
+                                                );
+                                                log.info("已推送公开线索公屏消息: gameId={}, character={}, clue={}", gameId, characterName, clue.getName());
+                                            } catch (Exception e) {
+                                                log.error("推送公开线索公屏消息失败: {}", e.getMessage(), e);
+                                            }
+                                        }
                                     } else {
                                         // 不公开线索的逻辑
                                         log.info("AI玩家选择不公开线索: {}", clueId);
@@ -210,6 +245,23 @@ public class InvestigationAgentHandler {
                                         // 将线索存储到向量数据库，playerid设置为发现玩家的id
                                         memoryService.storeClueMemory(gameId, playerId, clueId, clueContent, "AI玩家" + playerId);
                                         log.info("线索 {} 已存储到向量数据库，playerid={}", clueId, playerId);
+
+                                        // 推送公屏消息：AI 玩家不公开线索（仅显示模糊信息）
+                                        if (webSocketService != null) {
+                                            try {
+                                                webSocketService.broadcastAgentAction(
+                                                        gameId,
+                                                        "HIDE_CLUE",
+                                                        characterName,
+                                                        clue.getName(),
+                                                        "发现了一条线索但选择不公开",
+                                                        false
+                                                );
+                                                log.info("已推送隐藏线索公屏消息: gameId={}, character={}", gameId, characterName);
+                                            } catch (Exception e) {
+                                                log.error("推送隐藏线索公屏消息失败: {}", e.getMessage(), e);
+                                            }
+                                        }
                                     }
                                     
                                     // 扣减搜证次数
@@ -278,12 +330,27 @@ public class InvestigationAgentHandler {
     private void lazyInitServices() {
         if (gameService == null) {
             gameService = SpringContextUtil.getBean(GameService.class);
+        }
+        if (gamePlayerService == null) {
             gamePlayerService = SpringContextUtil.getBean(GamePlayerService.class);
+        }
+        if (investigationService == null) {
             investigationService = SpringContextUtil.getBean(InvestigationService.class);
+        }
+        if (sceneService == null) {
             sceneService = SpringContextUtil.getBean(SceneService.class);
+        }
+        if (clueService == null) {
             clueService = SpringContextUtil.getBean(ClueService.class);
+        }
+        if (memoryService == null) {
             memoryService = SpringContextUtil.getBean(MemoryService.class);
+        }
+        if (ragService == null) {
             ragService = SpringContextUtil.getBean(RAGService.class);
+        }
+        if (webSocketService == null) {
+            webSocketService = SpringContextUtil.getBean(WebSocketService.class);
         }
     }
 
