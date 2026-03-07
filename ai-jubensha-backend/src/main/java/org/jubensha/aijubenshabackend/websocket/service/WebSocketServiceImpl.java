@@ -473,7 +473,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     }
 
     @Override
-    public void broadcastAgentAction(Long gameId, String actionType, String agentName, String targetName, String message, Boolean isPublic) {
+    public void broadcastAgentAction(Long gameId, String actionType, String agentName, String targetName, String message, Boolean isPublic, String reason) {
         WebSocketMessage wsMessage = new WebSocketMessage();
         wsMessage.setType(WebSocketMessage.MessageType.AGENT_ACTION);
 
@@ -483,14 +483,15 @@ public class WebSocketServiceImpl implements WebSocketService {
         payload.put("targetName", targetName);
         payload.put("message", message);
         payload.put("isPublic", isPublic);
+        payload.put("reason", reason);
         payload.put("timestamp", LocalDateTime.now().toString());
         wsMessage.setPayload(payload);
 
         // 广播到游戏公屏主题
         String destination = "/topic/game/" + gameId + "/agent-actions";
         messagingTemplate.convertAndSend(destination, wsMessage);
-        log.info("广播AI Agent操作到游戏 {}: type={}, agent={}, target={}, message={}",
-                gameId, actionType, agentName, targetName, message);
+        log.info("广播AI Agent操作到游戏 {}: type={}, agent={}, target={}, message={}, reason={}",
+                gameId, actionType, agentName, targetName, message, reason);
 
         // 同时发送给所有真人玩家（作为个人消息）
         sendToGameRealPlayers(gameId, wsMessage);

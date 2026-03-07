@@ -923,10 +923,10 @@ function GameRoom() {
           message: payload.message || '',
           timestamp: payload.timestamp || new Date().toISOString(),
           isPublic: payload.isPublic !== false,
+          reason: payload.reason,
         })
       }
     }
-
     // 订阅 AI Agent 操作主题
     const agentActionSubscriptionId = subscribe(`/topic/game/${id}/agent-actions`, handleAgentAction)
     console.log('[GameRoom] 已订阅 AI Agent 操作消息:', `/topic/game/${id}/agent-actions`)

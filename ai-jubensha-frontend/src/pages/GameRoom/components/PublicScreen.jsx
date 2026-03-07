@@ -137,6 +137,16 @@ const ActionMessage = memo(({action}) => {
                             「{action.targetName}」
                         </p>
                     )}
+
+                  {/* 决策理由 */}
+                  {action.reason && (
+                      <div className="mt-2 pl-2 border-l-2 border-slate-300 dark:border-slate-600">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                          <span className="font-medium text-slate-400 dark:text-slate-500">理由：</span>
+                          {action.reason}
+                        </p>
+                      </div>
+                  )}
                 </div>
 
                 {/* 时间戳 */}
