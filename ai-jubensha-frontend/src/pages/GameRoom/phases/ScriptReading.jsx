@@ -9,86 +9,10 @@ import {ChevronLeft, ChevronRight, Clock, Eye, Scroll, Users} from 'lucide-react
 import {useQuery} from '@tanstack/react-query'
 import {PHASE_TYPE} from '../types'
 import GhostButton from '../../../components/ui/GhostButton'
+import PhaseBackgroundDecor from '../../../components/common/PhaseBackgroundDecor'
 import {getCharacterById, getCharactersByScriptId} from '../../../services/api/character'
-
-// =============================================================================
-// 动画配置
-// =============================================================================
-
-const containerVariants = {
-  hidden: {opacity: 0},
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.1,
-    },
-  },
-}
-
-const itemVariants = {
-  hidden: {opacity: 0, y: 12},
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.4,
-      ease: [0.25, 0.1, 0.25, 1],
-    },
-  },
-}
-
-// =============================================================================
-// 背景装饰
-// =============================================================================
-
-const BackgroundDecor = memo(() => (
-    <>
-      <motion.div
-          className="absolute top-0 left-0 w-64 h-64 rounded-full opacity-30 blur-3xl"
-          style={{
-            background: 'radial-gradient(circle, rgba(124, 140, 214, 0.4) 0%, transparent 70%)',
-          }}
-          animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.3, 0.4, 0.3],
-          }}
-          transition={{duration: 4, repeat: Infinity}}
-      />
-      <motion.div
-          className="absolute bottom-0 right-0 w-80 h-80 rounded-full opacity-20 blur-3xl"
-          style={{
-            background: 'radial-gradient(circle, rgba(167, 139, 250, 0.4) 0%, transparent 70%)',
-          }}
-          animate={{
-            scale: [1, 1.15, 1],
-            opacity: [0.2, 0.35, 0.2],
-          }}
-          transition={{duration: 5, repeat: Infinity, delay: 1}}
-      />
-      {[...Array(6)].map((_, i) => (
-          <motion.div
-              key={i}
-              className="absolute w-1 h-1 rounded-full"
-              style={{
-                backgroundColor: i % 2 === 0 ? '#7C8CD6' : '#F5A9C9',
-                top: `${15 + i * 12}%`,
-                left: `${10 + i * 8}%`,
-              }}
-              animate={{
-                opacity: [0.2, 0.8, 0.2],
-                scale: [0.8, 1.2, 0.8],
-              }}
-              transition={{
-                duration: 2 + i * 0.3,
-                repeat: Infinity,
-                delay: i * 0.2,
-              }}
-          />
-      ))}
-    </>
-))
-BackgroundDecor.displayName = 'BackgroundDecor'
+import {containerVariants, itemVariants} from '../config/animations'
+import {PHASE_COLORS} from '../config/theme'
 
 // =============================================================================
 // 章节导航项
@@ -441,7 +365,7 @@ function ScriptReading({_config, _gameData, playerData, onComplete, onAction, is
   return (
       <div className="h-full relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
-          <BackgroundDecor/>
+          <PhaseBackgroundDecor/>
         </div>
 
         <motion.div
