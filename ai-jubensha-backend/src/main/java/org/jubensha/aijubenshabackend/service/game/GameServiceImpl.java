@@ -28,14 +28,16 @@ public class GameServiceImpl implements GameService {
     private final InvestigationService investigationService;
     private final WebSocketService webSocketService;
     private final WorkflowStatusService workflowStatusService;
+    private final GamePlayerService gamePlayerService;
 
     @Autowired
-    public GameServiceImpl(GameRepository gameRepository, DiscussionService discussionService, InvestigationService investigationService, WebSocketService webSocketService, WorkflowStatusService workflowStatusService) {
+    public GameServiceImpl(GameRepository gameRepository, DiscussionService discussionService, InvestigationService investigationService, WebSocketService webSocketService, WorkflowStatusService workflowStatusService, GamePlayerService gamePlayerService) {
         this.gameRepository = gameRepository;
         this.discussionService = discussionService;
         this.investigationService = investigationService;
         this.webSocketService = webSocketService;
         this.workflowStatusService = workflowStatusService;
+        this.gamePlayerService = gamePlayerService;
     }
 
     @Override
@@ -246,6 +248,16 @@ public class GameServiceImpl implements GameService {
         } catch (Exception e) {
             // 记录错误但不中断退出流程
             logger.warn("清理工作流状态时发生错误，游戏ID: {}, 错误: {}", id, e.getMessage(), e);
+        }
+
+        try {
+            // 清理游戏玩家关系记录，防止重复数据
+            logger.info("清理游戏玩家关系记录，游戏ID: {}", id);
+            gamePlayerService.deleteGamePlayersByGameId(id);
+            logger.info("游戏玩家关系记录已清理，游戏ID: {}", id);
+        } catch (Exception e) {
+            // 记录错误但不中断退出流程
+            logger.warn("清理游戏玩家关系记录时发生错误，游戏ID: {}, 错误: {}", id, e.getMessage(), e);
         }
 
         // 广播游戏结束通知
