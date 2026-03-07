@@ -5,3 +5,4 @@
 
 export {default as GameRoomHeader} from './GameRoomHeader'
 export {default as GameRoomFooter} from './GameRoomFooter'
+export {default as PublicScreen} from './PublicScreen'
