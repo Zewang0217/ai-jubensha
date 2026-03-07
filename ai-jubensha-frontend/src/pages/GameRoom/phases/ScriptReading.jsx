@@ -156,33 +156,6 @@ const TimelineViewer = memo(({content}) => {
 TimelineViewer.displayName = 'TimelineViewer'
 
 // =============================================================================
-// 动画配置
-// =============================================================================
-
-const containerVariants = {
-  hidden: {opacity: 0},
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.1,
-    },
-  },
-}
-
-const itemVariants = {
-  hidden: {opacity: 0, y: 12},
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.4,
-      ease: [0.25, 0.1, 0.25, 1],
-    },
-  },
-}
-
-// =============================================================================
 // 背景装饰
 // =============================================================================
 
@@ -384,16 +357,22 @@ CharacterSelector.displayName = 'CharacterSelector'
 /**
  * ScriptReading 组件
  * @description 剧本阅读阶段组件，支持真人模式和观察者模式
- * @param {Object} props - 组件属性
- * @param {Object} props._config - 配置信息
- * @param {Object} props._gameData - 游戏数据
+DM评分响应: {"scores": [{"playerId": "1024", "score": 71, "breakdown": {"motive": 16, "method": 15, "clues": 18, "accuracy": 26}, "comment": "表现不错，推理逻辑清晰"},{"playerId": "1025", "score": 78, "breakdown": {"motive": 15, "method": 19, "clues": 19, "accuracy": 25}, "comment": "表现不错，推理逻辑清晰"},{"playerId": "1026", "score": 94, "breakdown": {"motive": 18, "method": 17, "clues": 17, "accuracy": 33}, "comment": "表现不错，推理逻辑清晰"},{"playerId": "1027", "score": 88, "breakdown": {"motive": 17, "method": 19, "clues": 16, "accuracy": 33}, "comment": "表现不错，推理逻辑清晰"},{"playerId": "1028", "score": 92, "breakdown": {"motive": 19, "method": 15, "clues": 15, "accuracy": 27}, "comment": "表现不错，推理逻辑清晰"},{"playerId": "1029", "score": 87, "breakdown": {"motive": 15, "method": 15, "clues": 19, "accuracy": 34}, "comment": "表现不错，推理逻辑清晰"},{"playerId": "1030", "score": 83, "breakdown": {"motive": 18, "method": 19, "clues": 18, "accuracy": 26}, "comment": "表现不错，推理逻辑清晰"}], "summary": "整体游戏表现良好，大家都很投入，推理过程精彩。", "ending": "案发当晚，侄子张明趁人不备，在叔叔的茶中下了毒。他觊觎遗产已久，得知叔叔要修改遗嘱后，决定先下手为强。真相大白，正义终将到来。"}
+17:05:36.835 INFO  o.j.a.a.s.DiscussionServiceImpl - 提取到结局叙述: 案发当晚，侄子张明趁人不备，在叔叔的茶中下了毒。他觊觎遗产已久，得知叔叔要修改遗嘱后，决定先下手为强。真相大白，正义终将到来。
+17:05:36.835 INFO  o.j.a.a.s.DiscussionServiceImpl - Judge总结: 【Mock Judge】经过激烈的讨论，各方观点已经充分表达。主要争议集中在凶手的动机和作案手法上。希望大家在投票时能够综合考虑所有线索。讨论内容长度：9字符。
+17:05:36.835 INFO  o.j.a.a.s.DiscussionServiceImpl - 讨论已完成，游戏ID: 168
+17:05:36.836 INFO  o.j.a.w.service.WebSocketServiceImpl - 广播阶段变化通知到游戏 168: DISCUSSION -> SUMMARY, message=讨论结束，进入真相揭晓阶段
+17:05:36.836 INFO  o.j.a.a.s.DiscussionServiceImpl - [讨论结束] 已广播阶段切换消息: DISCUSSION -> SUMMARY
+17:05:36.838 INFO  o.j.a.w.service.WebSocketServiceImpl - 广播游戏结束通知到游戏 168: 游戏结束，请查看最终评分和真相揭晓 * @param {Object} props - 组件属性
+ * @param {Object} props.config - 配置信息
+ * @param {Object} props.gameData - 游戏数据
  * @param {Object} props.playerData - 玩家数据
  * @param {Function} props.onComplete - 完成回调函数
  * @param {Function} props.onAction - 动作回调函数
  * @param {boolean} props.isObserverMode - 是否为观察者模式
  * @returns {JSX.Element} 剧本阅读组件
  */
-function ScriptReading({_config, _gameData, playerData, _onComplete, onAction, isObserverMode}) {
+function ScriptReading({config, gameData, playerData, onComplete, onAction, isObserverMode}) {
   const [currentChapter, setCurrentChapter] = useState(0)
   const [direction, setDirection] = useState(0)
   const [selectedCharacterId, setSelectedCharacterId] = useState(null)
@@ -401,20 +380,47 @@ function ScriptReading({_config, _gameData, playerData, _onComplete, onAction, i
 
   // 获取剧本ID（用于观察者模式）
   const scriptId = useMemo(() => {
-    return _gameData?.scriptId || _gameData?.script?.id
-  }, [_gameData])
+    const id = gameData?.scriptId || gameData?.script?.id
+    console.log('[ScriptReading] ========== 获取剧本ID ==========')
+    console.log('[ScriptReading] gameData:', gameData)
+    console.log('[ScriptReading] gameData?.scriptId:', gameData?.scriptId)
+    console.log('[ScriptReading] gameData?.script?.id:', gameData?.script?.id)
+    console.log('[ScriptReading] 最终 scriptId:', id)
+    console.log('[ScriptReading] ==============================')
+    return id
+  }, [gameData])
 
   // 观察者模式：获取所有角色列表
-  const {data: allCharacters, isLoading: isLoadingAllCharacters} = useQuery({
+  // 优先使用 gameData 中的 characters，必要时从 API 获取
+  const gameDataCharacters = useMemo(() => {
+    return gameData?.characters || []
+  }, [gameData])
+
+  const {data: apiCharacters, isLoading: isLoadingAllCharacters} = useQuery({
     queryKey: ['characters', 'script', scriptId],
     queryFn: () => getCharactersByScriptId(scriptId),
-    enabled: isObserverMode && !!scriptId,
+    enabled: isObserverMode && !!scriptId && gameDataCharacters.length === 0,
     staleTime: 5 * 60 * 1000,
   })
 
+  // 合并角色列表：优先使用 gameData 中的数据，否则使用 API 数据
+  const allCharacters = useMemo(() => {
+    if (gameDataCharacters.length > 0) {
+      console.log('[ScriptReading] 使用 gameData.characters:', gameDataCharacters.length, '个角色')
+      return gameDataCharacters
+    }
+    if (apiCharacters) {
+      const chars = apiCharacters?.data || apiCharacters || []
+      console.log('[ScriptReading] 使用 API 获取的角色:', chars.length, '个角色')
+      return chars
+    }
+    return []
+  }, [gameDataCharacters, apiCharacters])
+
   // 初始化观察者模式下选中的角色
   useEffect(() => {
-    if (isObserverMode && allCharacters?.length > 0 && !selectedCharacterId) {
+    if (isObserverMode && allCharacters.length > 0 && !selectedCharacterId) {
+      console.log('[ScriptReading] 初始化观察者模式选中的角色:', allCharacters[0].id)
       setSelectedCharacterId(allCharacters[0].id)
     }
   }, [isObserverMode, allCharacters, selectedCharacterId])
@@ -525,13 +531,16 @@ function ScriptReading({_config, _gameData, playerData, _onComplete, onAction, i
    * 处理下一步操作
    */
   const handleNext = () => {
+    console.log('[ScriptReading] handleNext 被调用, isLastChapter:', isLastChapter, 'isObserverMode:', isObserverMode)
     if (!isLastChapter) {
       handleChapterChange(currentChapter + 1)
     } else {
+      console.log('[ScriptReading] 剧本阅读完成，调用 onAction 和 onComplete')
+      console.log('[ScriptReading] characterId:', characterId, 'chaptersRead:', chapters.length)
       // 通知 GameRoom 剧本阅读完成
       onAction?.('script_reading_complete', {characterId, chaptersRead: chapters.length})
-      // 不直接调用 onComplete，等待后端广播 PHASE_CHANGE 消息
-      // onComplete?.()
+      // 调用 onComplete 触发阶段确认
+      onComplete?.()
     }
   }
 
@@ -560,7 +569,10 @@ function ScriptReading({_config, _gameData, playerData, _onComplete, onAction, i
   }
 
   // 加载状态判断
-  const isLoadingData = isLoading || (isObserverMode && isLoadingAllCharacters)
+  const isLoadingData = isLoading || (isObserverMode && isLoadingAllCharacters && allCharacters.length === 0)
+
+  // 观察者模式：等待角色选择
+  const isWaitingForObserverSelection = isObserverMode && !selectedCharacterId && allCharacters.length > 0
 
   // 等待角色ID加载（真人模式下 playerData 可能还在加载）
   const isWaitingForCharacterId = !isObserverMode && !characterId && !isLoading
@@ -569,9 +581,13 @@ function ScriptReading({_config, _gameData, playerData, _onComplete, onAction, i
   console.log('[ScriptReading] 状态检查:', {
     isObserverMode,
     characterId,
+    selectedCharacterId,
+    allCharactersCount: allCharacters.length,
     isLoading,
+    isLoadingAllCharacters,
     isLoadingData,
     isWaitingForCharacterId,
+    isWaitingForObserverSelection,
     playerDataLength: playerData?.length || playerData?.data?.length || 0,
   })
 
@@ -585,6 +601,17 @@ function ScriptReading({_config, _gameData, playerData, _onComplete, onAction, i
           />
           <p className="text-[#8C96A5] dark:text-[#6B7788] text-sm">
             {isWaitingForCharacterId ? '正在加载角色信息...' : '加载中...'}
+          </p>
+        </div>
+    )
+  }
+
+  // 观察者模式：如果没有角色列表，显示提示
+  if (isObserverMode && allCharacters.length === 0) {
+    return (
+        <div className="h-full flex flex-col items-center justify-center gap-4">
+          <p className="text-[#8C96A5] dark:text-[#6B7788]">
+            暂无角色数据，请稍后重试
           </p>
         </div>
     )
@@ -639,7 +666,7 @@ function ScriptReading({_config, _gameData, playerData, _onComplete, onAction, i
             {/* 左侧面板 - 章节导航或角色选择器 */}
             <motion.nav variants={itemVariants} className="w-64 flex-none hidden md:flex flex-col gap-3">
               {/* 观察者模式：角色选择器 */}
-              {isObserverMode && allCharacters && (
+              {isObserverMode && allCharacters.length > 0 && (
                   <CharacterSelector
                       characters={allCharacters}
                       selectedCharacterId={selectedCharacterId}

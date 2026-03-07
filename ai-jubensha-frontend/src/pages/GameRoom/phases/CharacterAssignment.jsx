@@ -208,8 +208,12 @@ function CharacterAssignment({_config, gameData, _playerData, onComplete, onActi
 
   // 处理确认选择按钮点击
   const handleConfirmSelection = useCallback(async () => {
+    console.log('[CharacterAssignment] handleConfirmSelection 被调用')
+    console.log('[CharacterAssignment] isObserverMode:', isObserverMode, 'selectedCharacterId:', selectedCharacterId)
+    
     // 观察者模式：直接进入下一阶段
     if (isObserverMode) {
+      console.log('[CharacterAssignment] 观察者模式，调用 onAction 和 onComplete')
       onAction?.('character_assignment_complete', {})
       onComplete?.()
       return
