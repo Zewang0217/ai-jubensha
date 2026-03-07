@@ -1,10 +1,10 @@
 /**
- * @fileoverview 讨论/投票阶段 WebSocket 订阅 Hook
+ * 讨论/投票阶段 WebSocket 订阅 Hook
  * @description 封装讨论阶段的 WebSocket 订阅逻辑，包括游戏聊天、个人消息和阶段就绪消息
  * @author zewang
  */
 
-import {useEffect, useRef, useCallback} from 'react'
+import {useEffect, useRef, useCallback, useState} from 'react'
 import {TIMEOUTS, WS_MESSAGE_TYPES} from '../../../config'
 
 /**
@@ -20,6 +20,7 @@ import {TIMEOUTS, WS_MESSAGE_TYPES} from '../../../config'
  * @param {Function} options.onChatMessage - 聊天消息回调
  * @param {Function} options.onVoteResult - 投票结果回调
  * @param {Function} options.onPhaseReady - 阶段就绪回调
+ * @param {Function} options.onPlayerAnswer - 玩家答案回调（观察者模式）
  * @param {Function} options.getPlayerNameById - 根据玩家ID获取玩家名称
  * @param {Function} options.formatTime - 格式化时间
  * @param {boolean} options.isConnected - WebSocket 连接状态
@@ -37,6 +38,7 @@ export function useDiscussionWebSocket({
   onChatMessage,
   onVoteResult,
   onPhaseReady,
+  onPlayerAnswer,
   getPlayerNameById,
   formatTime,
   isConnected,
@@ -45,6 +47,7 @@ export function useDiscussionWebSocket({
   const subscriptionIdRef = useRef(null)
   const personalSubscriptionIdRef = useRef(null)
   const phaseSubscriptionIdRef = useRef(null)
+  const answerSubscriptionIdRef = useRef(null)
 
   /**
    * 判断是否为真人玩家
@@ -192,10 +195,53 @@ export function useDiscussionWebSocket({
     }
   }, [subscribe, unsubscribe, isConnected, gameId, onPhaseReady])
 
+  /**
+   * 观察者模式：订阅玩家答案消息
+   */
+  useEffect(() => {
+    // 仅在观察者模式下订阅
+    if (!isObserverMode || !subscribe || !isConnected || !gameId) {
+      console.log('[useDiscussionWebSocket] 跳过玩家答案订阅 - isObserverMode:', isObserverMode)
+      return
+    }
+
+    const topic = `/topic/game/${gameId}/discussion`
+    console.log('[useDiscussionWebSocket] 开始订阅玩家答案消息, topic:', topic)
+
+    answerSubscriptionIdRef.current = subscribe(topic, (message) => {
+      console.log('[useDiscussionWebSocket] 收到玩家答案消息:', message)
+
+      // 处理 PLAYER_ANSWER 类型的消息
+      if (message.type === 'PLAYER_ANSWER' || message.messageType === 'PLAYER_ANSWER') {
+        const payload = message.payload || message
+        const answerData = {
+          id: `answer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          playerId: payload.playerId,
+          playerName: payload.playerName || getPlayerNameById(payload.playerId),
+          answer: payload.answer,
+          isAI: payload.isAI,
+          timestamp: payload.timestamp || Date.now(),
+          time: formatTime(new Date(payload.timestamp || Date.now())),
+        }
+        
+        console.log('[useDiscussionWebSocket] 玩家答案:', answerData)
+        onPlayerAnswer?.(answerData)
+      }
+    })
+
+    return () => {
+      if (answerSubscriptionIdRef.current && unsubscribe) {
+        console.log('[useDiscussionWebSocket] 取消订阅玩家答案消息')
+        unsubscribe(answerSubscriptionIdRef.current)
+      }
+    }
+  }, [subscribe, unsubscribe, isConnected, gameId, isObserverMode, onPlayerAnswer, getPlayerNameById, formatTime])
+
   return {
     subscriptionIdRef,
     personalSubscriptionIdRef,
     phaseSubscriptionIdRef,
+    answerSubscriptionIdRef,
   }
 }
 
