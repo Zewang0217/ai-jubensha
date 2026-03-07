@@ -130,20 +130,29 @@ public class FirstInvestigationNode {
                 }
 
                 // 初始化玩家搜证次数
-                List<Long> playerIds = new ArrayList<>();
+                // 区分AI玩家和真人玩家，两者都需要初始化搜证次数
+                // AI玩家通过后端自动搜证，真人玩家通过前端API进行搜证
+                List<Long> aiPlayerIds = new ArrayList<>();
                 List<Long> realPlayerIds = new ArrayList<>();
                 for (Map<String, Object> assignment : playerAssignments) {
                     Long playerId = (Long) assignment.get("playerId");
                     String playerType = (String) assignment.get("playerType");
-                    playerIds.add(playerId);
-                    if ("REAL".equals(playerType)) {
+                    // 区分玩家类型
+                    if ("AI".equals(playerType)) {
+                        aiPlayerIds.add(playerId);
+                    } else if ("REAL".equals(playerType)) {
                         realPlayerIds.add(playerId);
                     }
                 }
-                context.initInvestigationCounts(playerIds);
+                // 初始化所有玩家的搜证次数（包括AI玩家和真人玩家）
+                List<Long> allPlayerIds = new ArrayList<>();
+                allPlayerIds.addAll(aiPlayerIds);
+                allPlayerIds.addAll(realPlayerIds);
+                context.initInvestigationCounts(allPlayerIds);
                 context.setCurrentInvestigationPhase("FIRST_INVESTIGATION");
-                log.info("已初始化 {} 个玩家的搜证次数，每轮 {} 次", playerIds.size(), WorkflowContext.DEFAULT_INVESTIGATION_LIMIT);
-                log.info("[阶段同步] 玩家分布 - 真人玩家: {}, AI玩家: {}", realPlayerIds.size(), playerIds.size() - realPlayerIds.size());
+                log.info("已初始化 {} 个玩家的搜证次数（AI: {}, 真人: {}），每轮 {} 次", 
+                        allPlayerIds.size(), aiPlayerIds.size(), realPlayerIds.size(), WorkflowContext.DEFAULT_INVESTIGATION_LIMIT);
+                log.info("[阶段同步] 玩家分布 - 真人玩家: {}, AI玩家: {}", realPlayerIds.size(), aiPlayerIds.size());
                 log.info("[状态转换] 进入第一轮搜证阶段，当前阶段: {}", context.getCurrentInvestigationPhase());
 
                 // 保存工作流上下文到InvestigationService缓存
