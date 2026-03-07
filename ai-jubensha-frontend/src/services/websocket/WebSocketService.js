@@ -236,6 +236,19 @@ class WebSocketService {
     }
 
     /**
+     * 订阅 AI Agent 操作消息（公屏）
+     * @param {Function} handler - 消息处理器，接收 AgentActionMessage
+     * @returns {string} 订阅 ID
+     */
+    subscribeToAgentActions(handler) {
+        if (!this.gameId) {
+            console.error('[WebSocketService] gameId 未设置')
+            return null
+        }
+        return this.subscribe(`/topic/game/${this.gameId}/agent-actions`, handler)
+    }
+
+    /**
      * 注册事件处理器
      * @param {string} type - 事件类型
      * @param {Function} handler - 处理器
