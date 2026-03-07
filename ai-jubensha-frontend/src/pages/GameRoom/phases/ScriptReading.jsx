@@ -9,7 +9,10 @@ import {ChevronLeft, ChevronRight, Clock, Eye, Scroll, Users} from 'lucide-react
 import {useQuery} from '@tanstack/react-query'
 import {PHASE_TYPE} from '../types'
 import GhostButton from '../../../components/ui/GhostButton'
+import PhaseBackgroundDecor from '../../../components/common/PhaseBackgroundDecor'
 import {getCharacterById, getCharactersByScriptId} from '../../../services/api/character'
+import {containerVariants, itemVariants} from '../config/animations'
+import {PHASE_COLORS} from '../config/theme'
 
 // =============================================================================
 // 时间线解析工具
@@ -603,7 +606,7 @@ function ScriptReading({_config, _gameData, playerData, _onComplete, onAction, i
   return (
       <div className="h-full relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
-          <BackgroundDecor/>
+          <PhaseBackgroundDecor/>
         </div>
 
         <motion.div
