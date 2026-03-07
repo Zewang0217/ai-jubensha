@@ -715,18 +715,6 @@ function GameRoom() {
           }
           break
           
-        case 'GAME_ENDED':
-          // 游戏结束消息 - 清理并跳转
-          console.log('[GameRoom] GAME_ENDED 消息:', payload)
-          setWaitingMessage(payload?.message || '游戏已结束')
-          // 清理本地状态
-          clearGameState()
-          // 延迟跳转，让用户看到提示
-          setTimeout(() => {
-            navigate('/games')
-          }, 1500)
-          break
-          
         default:
           // 兼容旧格式：直接包含 newPhase 字段
           if (payload?.newPhase) {
@@ -779,24 +767,25 @@ function GameRoom() {
    * @description 后端主导模式：调用后端 API 确认阶段完成，等待后端广播 PHASE_CHANGE 消息
    */
   const handlePhaseComplete = useCallback(async () => {
+    console.log('[GameRoom] handlePhaseComplete 被调用，当前阶段:', currentPhase, '是否观察者模式:', isObserverMode)
+    
     // 如果正在等待后端响应，不重复处理
     if (isWaitingForBackend) {
       console.log('[GameRoom] 正在等待后端响应，跳过重复请求')
       return
     }
 
-    // 剧本概览阶段：直接进入下一阶段，不需要确认
+    // 剧本概览阶段：直接进入下一阶段，不需要后端确认
+    // 因为剧本概览阶段是游戏的开始阶段，后端工作流可能还没有完全启动
     if (currentPhase === 'script_overview') {
       console.log('[GameRoom] 剧本概览阶段，直接进入下一阶段')
       goToNext()
       return
     }
 
-    // 角色分配阶段：由 CharacterAssignment 组件处理，不需要在这里确认
-    if (currentPhase === 'character_assignment') {
-      console.log('[GameRoom] 角色分配阶段，由组件处理')
-      return
-    }
+    // 角色分配阶段：需要调用 confirmPhase API 通知后端
+    // 注意：之前的代码直接返回，导致后端不知道观察者已确认，这是 bug 的根源
+    console.log('[GameRoom] 角色分配阶段，继续执行阶段确认逻辑...')
 
     // 根据阶段类型执行不同的检查逻辑
     const phaseChecks = {
@@ -807,7 +796,14 @@ function GameRoom() {
       
       // 搜证阶段：需要检查后端是否所有玩家完成搜证
       investigation: () => {
-        if (!isAllInvestigationComplete) {
+        // 观察者模式下，需要等待 AI 玩家完成搜证
+        if (isObserverMode && !isAllInvestigationComplete) {
+          setWaitingMessage('AI 玩家正在搜证，请稍候...');
+          setTimeout(() => setWaitingMessage(null), 3000);
+          return false;
+        }
+        // 真人模式下，需要等待所有玩家完成搜证
+        if (!isObserverMode && !isAllInvestigationComplete) {
           setWaitingMessage('有玩家未完成搜证，请等待');
           setTimeout(() => setWaitingMessage(null), 3000);
           return false;
@@ -839,6 +835,7 @@ function GameRoom() {
     const realPlayer = players.find(p => p.playerRole === 'REAL');
     const currentPlayerId = realPlayer?.playerId;
     console.log('[GameRoom] 找到的真人玩家:', realPlayer, 'playerId:', currentPlayerId);
+    console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId);
 
     if (id) {
       // 显示等待提示
@@ -846,7 +843,7 @@ function GameRoom() {
       
       try {
         // 调用后端确认 API，后端会在所有玩家确认后推进阶段并广播 PHASE_CHANGE
-        console.log('[GameRoom] 阶段确认 - 真人玩家ID:', currentPlayerId, '是否观察者:', !currentPlayerId);
+        // 观察者模式下 currentPlayerId 为 null，后端会设置 observerConfirmed = true
         const response = await confirmCurrentPhase(id, currentPlayerId || null);
         console.log('[GameRoom] 阶段确认响应:', response);
         
