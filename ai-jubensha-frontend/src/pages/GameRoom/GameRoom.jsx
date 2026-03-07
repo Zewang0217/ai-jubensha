@@ -14,11 +14,12 @@ import {useNavigate, useParams} from 'react-router-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
 import {getGameById, getGamePlayers, exitGame, confirmPhase} from '../../services/api'
+import {exitGame, getGameById, getGamePlayers} from '../../services/api'
 import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
 import Loading from '../../components/common/Loading'
 import {useWebSocket} from '../../hooks/useWebSocket'
 import {Bug, X} from 'lucide-react'
-import {saveGameState, loadGameState, clearGameState} from '../../utils/gameStateStorage'
+import {clearGameState, loadGameState, saveGameState} from '../../utils/gameStateStorage'
 
 // 阶段系统导入
 import {DEFAULT_PHASE_SEQUENCE, PHASE_CONFIG, PHASE_TYPE, usePhaseManager,} from './phases'
@@ -30,6 +31,7 @@ import {useDebugMode} from './hooks/useDebugMode'
 import GameRoomHeader from './components/GameRoomHeader'
 import GameRoomFooter from './components/GameRoomFooter'
 import ExitConfirmModal from './components/ExitConfirmModal'
+import PublicScreen from './components/PublicScreen'
 
 // =============================================================================
 // 延迟加载阶段组件
@@ -143,8 +145,57 @@ const DebugPanel = memo(({
                                onPhaseChange,
                                isDebugMode,
                                onToggleDebug,
+                           chatMessages = [],
                              }) => {
   if (!isOpen) return null
+
+  // 导出聊天消息为文本文件
+  const exportChatMessages = () => {
+    if (chatMessages.length === 0) {
+      alert('暂无聊天消息可导出')
+      return
+    }
+
+    // 格式化聊天消息为文本
+    const formatMessage = (msg) => {
+      const time = msg.receivedAt ? new Date(msg.receivedAt).toLocaleString('zh-CN') : ''
+      const sender = msg.sender || msg.playerId || msg.playerName || '未知'
+
+      // 提取消息内容
+      let content = ''
+      if (typeof msg.payload === 'string') {
+        content = msg.payload
+      } else if (msg.payload && typeof msg.payload === 'object') {
+        // payload 可能是对象，尝试提取内容
+        content = msg.payload.text || msg.payload.content || msg.payload.message || JSON.stringify(msg.payload)
+      } else if (typeof msg.content === 'string') {
+        content = msg.content
+      } else if (msg.message && typeof msg.message === 'string') {
+        content = msg.message
+      } else {
+        // 兜底：格式化整个消息对象以便调试
+        const msgCopy = {...msg}
+        delete msgCopy.id
+        delete msgCopy.receivedAt
+        content = JSON.stringify(msgCopy)
+      }
+
+      return `[${time}] ${sender}: ${content}`
+    }
+
+    const content = chatMessages.map(formatMessage).join('\n')
+    const blob = new Blob([content], {type: 'text/plain;charset=utf-8'})
+    const url = URL.createObjectURL(blob)
+
+    // 创建下载链接
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `chat-log-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   return (
       <motion.div
@@ -230,8 +281,36 @@ const DebugPanel = memo(({
                         className="text-xs text-[var(--color-primary-600)] dark:text-[var(--color-primary-400)] font-mono">{currentPhase}</code>
                   </div>
                 </div>
+
               </>
           )}
+
+          {/* 导出聊天消息 - 常驻功能 */}
+          <div
+              className="border-t border-[var(--color-secondary-200)] dark:border-[var(--color-secondary-700)] pt-4">
+            <p className="text-xs text-[var(--color-secondary-500)] uppercase tracking-wider mb-2">
+              聊天消息导出
+            </p>
+            <div
+                className="flex items-center justify-between p-3 bg-[var(--color-secondary-50)] dark:bg-[var(--color-secondary-900)]/50 rounded-lg">
+              <span className="text-xs text-[var(--color-secondary-600)] dark:text-[var(--color-secondary-400)]">
+                已接收 {chatMessages.length} 条消息
+              </span>
+              <button
+                  onClick={exportChatMessages}
+                  disabled={chatMessages.length === 0}
+                  className={`
+                    px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
+                    ${chatMessages.length > 0
+                      ? 'bg-[var(--color-primary-100)] dark:bg-[var(--color-primary-800)]/30 text-[var(--color-primary-700)] dark:text-[var(--color-primary-300)] hover:bg-[var(--color-primary-200)] dark:hover:bg-[var(--color-primary-700)]/30'
+                      : 'bg-[var(--color-secondary-200)] dark:bg-[var(--color-secondary-700)] text-[var(--color-secondary-400)] dark:text-[var(--color-secondary-500)] cursor-not-allowed'
+                  }
+              `}
+              >
+                导出日志
+              </button>
+            </div>
+          </div>
 
           {!isDebugMode && (
               <p className="text-xs text-[var(--color-secondary-400)] text-center italic">
@@ -257,6 +336,30 @@ function GameRoom() {
   // 调试模式
   const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [showExitModal, setShowExitModal] = useState(false)
+
+  // AI Agent 公屏消息
+  const [agentActions, setAgentActions] = useState([])
+  const [isPublicScreenExpanded, setIsPublicScreenExpanded] = useState(true)
+
+  // 添加公屏消息
+  const addAgentAction = useCallback((action) => {
+    setAgentActions(prev => [...prev, {
+      ...action,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    }])
+  }, [])
+
+  // 聊天室消息记录（用于导出）
+  const [chatMessages, setChatMessages] = useState([])
+
+  // 添加聊天消息
+  const addChatMessage = useCallback((message) => {
+    setChatMessages(prev => [...prev, {
+      ...message,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      receivedAt: new Date().toISOString(),
+    }])
+  }, [])
 
   const {
     isDebugMode,
@@ -611,7 +714,8 @@ function GameRoom() {
     // 订阅游戏聊天消息
     const chatSubscriptionId = subscribeToGameChat((message) => {
       console.log('[GameRoom] 收到聊天消息:', message)
-      // 处理聊天消息
+      // 存储聊天消息用于导出
+      addChatMessage(message)
     })
 
     // 订阅个人消息
@@ -643,7 +747,7 @@ function GameRoom() {
         console.log('[GameRoom] 取消个人消息订阅')
       }
     }
-  }, [isDebugMode, isConnected, subscribeToGameChat, subscribeToPersonalMessages])
+  }, [isDebugMode, isConnected, subscribeToGameChat, subscribeToPersonalMessages, addChatMessage])
 
   // WebSocket 监听阶段就绪消息
   useEffect(() => {
@@ -951,6 +1055,43 @@ function GameRoom() {
     }
   }, [isDebugMode, isConnected, id, subscribe, handlePhaseComplete])
 
+  // WebSocket 监听 AI Agent 操作消息（公屏）
+  useEffect(() => {
+    if (isDebugMode || !isConnected || !id) return
+
+    /**
+     * 处理 AI Agent 操作消息
+     * @param {Object} data - 消息数据
+     */
+    const handleAgentAction = (data) => {
+      console.log('[GameRoom] 收到 AI Agent 操作消息:', data)
+
+      // 从消息中提取 payload
+      const payload = data?.payload || data
+
+      if (payload) {
+        addAgentAction({
+          actionType: payload.actionType || 'SYSTEM',
+          agentName: payload.agentName || '系统',
+          targetName: payload.targetName,
+          message: payload.message || '',
+          timestamp: payload.timestamp || new Date().toISOString(),
+          isPublic: payload.isPublic !== false,
+          reason: payload.reason,
+        })
+      }
+    }
+    // 订阅 AI Agent 操作主题
+    const agentActionSubscriptionId = subscribe(`/topic/game/${id}/agent-actions`, handleAgentAction)
+    console.log('[GameRoom] 已订阅 AI Agent 操作消息:', `/topic/game/${id}/agent-actions`)
+
+    return () => {
+      if (agentActionSubscriptionId) {
+        console.log('[GameRoom] 取消 AI Agent 操作订阅')
+      }
+    }
+  }, [isDebugMode, isConnected, id, subscribe, addAgentAction])
+
   const handlePhaseSkip = useCallback(() => goToNext(), [goToNext])
   const handlePhaseBack = useCallback(() => goToPrevious(), [goToPrevious])
 
@@ -1244,6 +1385,7 @@ function GameRoom() {
                   onPhaseChange={handleDebugPhaseChange}
                   isDebugMode={isDebugMode}
                   onToggleDebug={toggleDebugMode}
+                  chatMessages={chatMessages}
               />
           )}
         </AnimatePresence>
@@ -1258,6 +1400,13 @@ function GameRoom() {
               />
           )}
         </AnimatePresence>
+
+        {/* AI Agent 公屏 */}
+        <PublicScreen
+            actions={agentActions}
+            isExpanded={isPublicScreenExpanded}
+            onToggleExpand={() => setIsPublicScreenExpanded(prev => !prev)}
+        />
       </div>
   )
 }

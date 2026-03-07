@@ -30,6 +30,9 @@ export const WS_MESSAGE_TYPE = {
 
     // 发送 - 提交投票
     VOTE_SUBMIT: 'VOTE_SUBMIT',
+
+    // 接收 - AI Agent 操作消息（公屏显示）
+    AGENT_ACTION: 'AGENT_ACTION',
 }
 
 // =============================================================================
