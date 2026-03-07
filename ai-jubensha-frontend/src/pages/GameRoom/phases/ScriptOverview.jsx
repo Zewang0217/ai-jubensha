@@ -7,6 +7,8 @@ import {memo, useEffect, useState} from 'react'
 import {AnimatePresence, motion} from 'framer-motion'
 import {PHASE_TYPE} from '../types'
 import GhostButton from '../../../components/ui/GhostButton'
+import PhaseBackgroundDecor from '../../../components/common/PhaseBackgroundDecor'
+import {PHASE_COLORS} from '../config/theme'
 
 // =============================================================================
 // 设计规范色彩（从 style.md 提取）
@@ -28,7 +30,7 @@ const LoadingSpinner = memo(({text = '加载中'}) => (
             <motion.div
                 className="absolute inset-0 rounded-full border-2 border-dashed"
                 style={{
-                    borderColor: 'rgba(124, 140, 214, 0.3)',
+                    borderColor: `${PHASE_COLORS.primary}30`,
                 }}
                 animate={{rotate: 360}}
                 transition={{duration: 3, repeat: Infinity, ease: 'linear'}}
@@ -37,7 +39,7 @@ const LoadingSpinner = memo(({text = '加载中'}) => (
             <motion.div
                 className="absolute inset-2 rounded-full border-2"
                 style={{
-                    borderColor: 'rgba(124, 140, 214, 0.5)',
+                    borderColor: `${PHASE_COLORS.primary}50`,
                     borderStyle: 'dashed',
                 }}
                 animate={{rotate: -360}}
@@ -47,7 +49,7 @@ const LoadingSpinner = memo(({text = '加载中'}) => (
             <motion.div
                 className="absolute inset-4 rounded-full border-2 border-dashed"
                 style={{
-                    borderColor: 'rgba(124, 140, 214, 0.8)',
+                    borderColor: `${PHASE_COLORS.primary}80`,
                 }}
                 animate={{rotate: 360}}
                 transition={{duration: 1.5, repeat: Infinity, ease: 'linear'}}
@@ -58,7 +60,7 @@ const LoadingSpinner = memo(({text = '加载中'}) => (
                 animate={{scale: [1, 1.2, 1]}}
                 transition={{duration: 1, repeat: Infinity}}
             >
-                <div className="w-3 h-3 rounded-full bg-[#7C8CD6]"/>
+                <div className="w-3 h-3 rounded-full" style={{backgroundColor: PHASE_COLORS.primary}}/>
             </motion.div>
         </div>
         {/* 加载文字 */}
@@ -71,7 +73,8 @@ const LoadingSpinner = memo(({text = '加载中'}) => (
                 正在
             </motion.span>
             <motion.span
-                className="text-[#7C8CD6] dark:text-[#A5B4EC] text-sm font-medium"
+                className="text-sm font-medium"
+                style={{color: PHASE_COLORS.primary}}
                 animate={{opacity: [0.5, 1, 0.5]}}
                 transition={{duration: 1.5, repeat: Infinity, delay: 0.2}}
             >
@@ -82,62 +85,6 @@ const LoadingSpinner = memo(({text = '加载中'}) => (
 ))
 
 LoadingSpinner.displayName = 'LoadingSpinner'
-
-// =============================================================================
-// 装饰性背景元素
-// =============================================================================
-
-const BackgroundDecor = memo(() => (
-    <>
-        {/* 左上角装饰 */}
-        <motion.div
-            className="absolute top-0 left-0 w-64 h-64 rounded-full opacity-30 blur-3xl"
-            style={{
-                background: 'radial-gradient(circle, rgba(124, 140, 214, 0.4) 0%, transparent 70%)',
-            }}
-            animate={{
-                scale: [1, 1.1, 1],
-                opacity: [0.3, 0.4, 0.3],
-            }}
-            transition={{duration: 4, repeat: Infinity}}
-        />
-        {/* 右下角装饰 */}
-        <motion.div
-            className="absolute bottom-0 right-0 w-80 h-80 rounded-full opacity-20 blur-3xl"
-            style={{
-                background: 'radial-gradient(circle, rgba(167, 139, 250, 0.4) 0%, transparent 70%)',
-            }}
-            animate={{
-                scale: [1, 1.15, 1],
-                opacity: [0.2, 0.35, 0.2],
-            }}
-            transition={{duration: 5, repeat: Infinity, delay: 1}}
-        />
-        {/* 星星点缀 */}
-        {[...Array(6)].map((_, i) => (
-            <motion.div
-                key={i}
-                className="absolute w-1 h-1 rounded-full"
-                style={{
-                    backgroundColor: i % 2 === 0 ? '#7C8CD6' : '#F5A9C9',
-                    top: `${15 + i * 12}%`,
-                    left: `${10 + i * 8}%`,
-                }}
-                animate={{
-                    opacity: [0.2, 0.8, 0.2],
-                    scale: [0.8, 1.2, 0.8],
-                }}
-                transition={{
-                    duration: 2 + i * 0.3,
-                    repeat: Infinity,
-                    delay: i * 0.2,
-                }}
-            />
-        ))}
-    </>
-))
-
-BackgroundDecor.displayName = 'BackgroundDecor'
 
 // =============================================================================
 // 信息卡片项
@@ -158,7 +105,13 @@ const InfoCard = memo(({label, value, icon, delay}) => (
 
             <div className="relative flex items-center gap-3">
                 {/* 图标 */}
-                <div className="w-8 h-8 rounded-lg bg-[#7C8CD6]/10 flex items-center justify-center text-[#7C8CD6]">
+                <div 
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{
+                        backgroundColor: `${PHASE_COLORS.primary}10`,
+                        color: PHASE_COLORS.primary
+                    }}
+                >
                     {icon}
                 </div>
                 <div className="flex flex-col">
@@ -212,7 +165,7 @@ function ScriptOverview({config: _config, gameData, onComplete, onAction}) {
         <div className="h-full relative overflow-hidden">
             {/* 背景装饰 */}
             <div className="absolute inset-0 pointer-events-none">
-                <BackgroundDecor/>
+                <PhaseBackgroundDecor/>
             </div>
 
             <div className="h-full flex items-center justify-center p-6 relative z-10">

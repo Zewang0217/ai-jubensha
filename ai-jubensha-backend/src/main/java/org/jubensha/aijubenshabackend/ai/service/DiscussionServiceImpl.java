@@ -146,20 +146,20 @@ public class DiscussionServiceImpl implements DiscussionService {
     // 最后发言时间
     private final Map<Long, LocalDateTime> lastSpeakTimes = new ConcurrentHashMap<>();
     
-    // 发言阈值
-    private static final int SPEAK_THRESHOLD = 120;
+    // 发言阈值（提高阈值降低发言频率）
+    private static final int SPEAK_THRESHOLD = 150;
     
     // 最低发言阈值（动态阈值的下限）
-    private static final int MIN_THRESHOLD = 60;
+    private static final int MIN_THRESHOLD = 80;
     
     // 阈值衰减间隔（秒）- 每隔这么多秒无人发言，阈值降低
-    private static final int THRESHOLD_DECAY_INTERVAL = 5;
+    private static final int THRESHOLD_DECAY_INTERVAL = 8;
     
     // 每次阈值衰减的数值
-    private static final int THRESHOLD_DECAY_AMOUNT = 10;
+    private static final int THRESHOLD_DECAY_AMOUNT = 8;
     
     // 发言冷却时间（秒）- 刚发言过的玩家欲望值增长减半
-    private static final int COOLDOWN_SECONDS = 5;
+    private static final int COOLDOWN_SECONDS = 10;
     
     // 当前动态阈值
     private int currentThreshold = SPEAK_THRESHOLD;
@@ -1170,16 +1170,16 @@ public class DiscussionServiceImpl implements DiscussionService {
     private int calculateDesireScore(Long playerId) {
         int score = 0;
         
-        // 被提及 (+50)
+        // 被提及 (+30，降低权重)
         if (checkMentioned(playerId)) {
-            score += 50;
+            score += 30;
         }
         
-        // 话题相关 (+30)
+        // 话题相关 (+15，降低权重)
         int topicScore = calculateTopicRelevance(playerId);
         score += topicScore;
         
-        // 沉默时间补偿 (+2/sec，最高120) - 带发言冷却机制
+        // 沉默时间补偿 (+1/sec，最高100) - 带发言冷却机制
         int silenceScore = calculateSilenceCompensation(playerId);
         score += silenceScore;
         
@@ -1187,8 +1187,8 @@ public class DiscussionServiceImpl implements DiscussionService {
         int personalityScore = getPersonalityFactor(playerId);
         score += personalityScore;
         
-        // 随机波动因子 (-10 到 +20)，倾向于正数鼓励发言
-        int randomFluctuation = (int) (Math.random() * 31) - 10; // -10 到 +20
+        // 随机波动因子 (-5 到 +10)，降低波动范围
+        int randomFluctuation = (int) (Math.random() * 16) - 5; // -5 到 +10
         score += randomFluctuation;
         
         return score;
@@ -1232,13 +1232,13 @@ public class DiscussionServiceImpl implements DiscussionService {
                 if (character != null) {
                     // 这里应该使用EmbeddingService计算话题相关度
                     // 简化实现，返回固定值
-                    return 30;
+                    return 15;
                 }
             }
         } catch (Exception e) {
             log.warn("计算话题相关度失败: {}", e.getMessage());
         }
-        return 20; // 即使获取失败，也给予基础分数，确保玩家能够更容易地开始发言
+        return 10; // 即使获取失败，也给予基础分数
     }
     
     /**
@@ -1252,8 +1252,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             Duration duration = Duration.between(lastSpeakTime, LocalDateTime.now());
             long seconds = duration.getSeconds();
             
-            // 每秒钟增加2分，最多增加120分
-            int compensation = Math.min((int) seconds * 2, 120);
+            // 每秒钟增加1分，最多增加100分
+            int compensation = Math.min((int) seconds * 1, 100);
             
             // 发言冷却机制：刚发言过的玩家（COOLDOWN_SECONDS秒内）欲望值增长速度减半
             if (seconds < COOLDOWN_SECONDS) {
@@ -1263,14 +1263,14 @@ public class DiscussionServiceImpl implements DiscussionService {
             
             // 初始状态下，给予基础补偿，确保玩家能够更容易地开始发言
             if (seconds < 5) { // 前5秒
-                compensation = Math.max(compensation, 15); // 给予至少15分的基础补偿
+                compensation = Math.max(compensation, 10); // 给予至少10分的基础补偿
             }
             
             return compensation;
         } catch (Exception e) {
             log.warn("计算沉默时间补偿失败: {}", e.getMessage());
         }
-        return 15; // 异常情况下，给予基础补偿
+        return 10; // 异常情况下，给予基础补偿
     }
     
     /**
