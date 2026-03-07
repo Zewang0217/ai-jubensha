@@ -301,9 +301,15 @@ TruthCard.displayName = 'TruthCard'
 // 主要组件
 // =============================================================================
 
-function Summary({_config, gameData, currentPlayerId, onAction}) {
+function Summary({_config, gameData, currentPlayerId, onAction, playerData}) {
   // 从 gameData.result 获取真实数据
   const result = gameData?.result || {}
+  
+  // 调试日志
+  console.log('[Summary] gameData:', gameData)
+  console.log('[Summary] result:', result)
+  console.log('[Summary] currentPlayerId:', currentPlayerId)
+  console.log('[Summary] playerData:', playerData)
 
   // 处理玩家评分数据
   const playerScores = useMemo(() => {
@@ -311,26 +317,68 @@ function Summary({_config, gameData, currentPlayerId, onAction}) {
     const playerAnswers = result?.playerAnswers || {}
     const players = gameData?.players || []
 
+    console.log('[Summary] scores:', scores)
+    console.log('[Summary] playerAnswers:', playerAnswers)
+    console.log('[Summary] players:', players)
+
     // 构建 playerId -> player 映射
     const playerMap = new Map()
     players.forEach(p => {
       playerMap.set(String(p.playerId), p)
+      playerMap.set(Number(p.playerId), p)
     })
+    
+    // 从 playerData 获取真人玩家信息
+    const realPlayerMap = new Map()
+    if (playerData && Array.isArray(playerData)) {
+      playerData.forEach(p => {
+        if (p.playerRole === 'REAL') {
+          realPlayerMap.set(String(p.playerId), p)
+          realPlayerMap.set(Number(p.playerId), p)
+        }
+      })
+    }
 
     // 合并评分数据和玩家信息
     return scores.map(score => {
-      const player = playerMap.get(String(score.playerId)) || {}
+      const player = playerMap.get(String(score.playerId)) || playerMap.get(Number(score.playerId)) || {}
+      const realPlayer = realPlayerMap.get(String(score.playerId)) || realPlayerMap.get(Number(score.playerId))
+      
+      // 获取答案 - 尝试多种键格式
+      let answer = ''
+      const playerIdStr = String(score.playerId)
+      const playerIdNum = Number(score.playerId)
+      if (playerAnswers[playerIdStr]) {
+        answer = playerAnswers[playerIdStr]
+      } else if (playerAnswers[playerIdNum]) {
+        answer = playerAnswers[playerIdNum]
+      } else if (typeof playerAnswers === 'object') {
+        // 尝试遍历查找
+        for (const key of Object.keys(playerAnswers)) {
+          if (String(key) === playerIdStr) {
+            answer = playerAnswers[key]
+            break
+          }
+        }
+      }
+      
       return {
         playerId: score.playerId,
-        name: player.name || player.characterName || `玩家${score.playerId}`,
-        role: player.characterName || '角色',
+        name: player.name || player.characterName || realPlayer?.playerName || `玩家${score.playerId}`,
+        role: player.characterName || player.role || '角色',
         score: score.score || 0,
         breakdown: score.breakdown || {},
         comment: score.comment || '',
-        answer: playerAnswers[score.playerId] || '',
+        answer: answer,
+        isRealPlayer: !!realPlayer,
       }
     }).sort((a, b) => b.score - a.score) // 按分数降序排列
-  }, [result?.scores, result?.playerAnswers, gameData?.players])
+  }, [result?.scores, result?.playerAnswers, gameData?.players, playerData])
+  
+  // 获取真人玩家的评分列表（用于左侧展示）
+  const realPlayerScores = useMemo(() => {
+    return playerScores.filter(p => p.isRealPlayer)
+  }, [playerScores])
 
   // 获取当前玩家的评分
   const selfPlayerScore = useMemo(() => {
@@ -351,12 +399,15 @@ function Summary({_config, gameData, currentPlayerId, onAction}) {
     return Math.round(total / playerScores.length)
   }, [playerScores])
 
-  // 判断是否获胜（当前玩家投票正确）
+  // 判断是否获胜（当前玩家投票正确）- 用于显示结果
   const isWin = useMemo(() => {
     // 这里需要根据实际的投票结果判断
     // 暂时根据分数判断
     return (selfPlayerScore?.score || 0) >= averageScore
   }, [selfPlayerScore, averageScore])
+  
+  // 调试日志
+  console.log('[Summary] isWin:', isWin, 'selfPlayerScore:', selfPlayerScore, 'averageScore:', averageScore)
 
   const handleReturnHome = () => {
     onAction?.('return_home')
@@ -408,37 +459,119 @@ function Summary({_config, gameData, currentPlayerId, onAction}) {
 
           {/* 内容网格 - 占满剩余空间 */}
           <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-            {/* 左侧：胜负结果 + 个人表现 */}
+            {/* 左侧：真人玩家表现 */}
             <div className="col-span-4 h-full flex flex-col gap-4 overflow-hidden">
-              {/* 胜负结果卡片 */}
-              <motion.div variants={itemVariants} className="flex-shrink-0">
-                <div
-                    className="relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden">
-                  {/* 顶部渐变线 */}
-                  <div className={`h-1 ${isWin ? 'bg-gradient-to-r from-[#5DD9A8] to-[#10b981]' : 'bg-gradient-to-r from-[#F5A9C9] to-[#E879A9]'}`}/>
-
-                  <div className="p-4 text-center">
-                    {/* 徽章 */}
-                    <div className="flex justify-center mb-3">
-                      <ResultBadge isWin={isWin}/>
-                    </div>
-
-                    {/* 结果文字 */}
-                    <h3 className="text-lg font-bold text-[#2D3748] dark:text-[#E8ECF2] mb-1">
-                      {isWin ? '胜利！' : '失败'}
-                    </h3>
-                    <p className="text-xs text-[#8C96A5] dark:text-[#6B7788]">
-                      {isWin
-                          ? '你的推理得到了验证'
-                          : '真相仍隐藏在迷雾中'}
-                    </p>
-                  </div>
+              {/* 真人玩家表现标题 */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-[#7C8CD6]/10 flex items-center justify-center">
+                  <User className="w-4 h-4 text-[#7C8CD6]"/>
                 </div>
-              </motion.div>
-
-              {/* 个人表现卡片 */}
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <PersonalStatsCard player={selfPlayerScore}/>
+                <h3 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
+                  真人玩家表现
+                </h3>
+              </div>
+              
+              {/* 真人玩家列表 */}
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-3">
+                {realPlayerScores.length > 0 ? (
+                  realPlayerScores.map((player) => (
+                    <motion.div
+                      key={player.playerId}
+                      variants={itemVariants}
+                      className="relative"
+                    >
+                      <div className={`
+                        relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border overflow-hidden
+                        ${String(player.playerId) === String(currentPlayerId) 
+                          ? 'border-[#5DD9A8]/50' 
+                          : 'border-[#E0E5EE] dark:border-[#363D4D]'}
+                      `}>
+                        {/* 顶部渐变线 */}
+                        <div className={`h-1 bg-gradient-to-r ${String(player.playerId) === String(currentPlayerId) ? 'from-[#5DD9A8] to-[#10b981]' : 'from-[#7C8CD6] to-[#A78BFA]'}`}/>
+                        
+                        <div className="p-3">
+                          {/* 玩家名称和分数 */}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`
+                                w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs
+                                ${String(player.playerId) === String(currentPlayerId) 
+                                  ? 'bg-[#5DD9A8] text-white' 
+                                  : 'bg-[#7C8CD6]/10 text-[#7C8CD6]'}
+                              `}>
+                                {player.name?.charAt(0) || '?'}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-medium text-[#2D3748] dark:text-[#E8ECF2]">
+                                    {player.name || '未知玩家'}
+                                  </span>
+                                  {String(player.playerId) === String(currentPlayerId) && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#5DD9A8]/10 text-[#5DD9A8] border border-[#5DD9A8]/30">
+                                      我
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-[#8C96A5]">{player.role}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-[#F5A9C9]"/>
+                              <span className="text-lg font-bold text-[#2D3748] dark:text-[#E8ECF2]">{player.score}</span>
+                              <span className="text-xs text-[#8C96A5]">分</span>
+                            </div>
+                          </div>
+                          
+                          {/* 评分细分 */}
+                          {player.breakdown && Object.keys(player.breakdown).length > 0 && (
+                            <div className="grid grid-cols-4 gap-1.5 mb-2">
+                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
+                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.motive || 0}</p>
+                                <p className="text-[8px] text-[#8C96A5]">动机</p>
+                              </div>
+                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
+                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.method || 0}</p>
+                                <p className="text-[8px] text-[#8C96A5]">手法</p>
+                              </div>
+                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
+                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.clues || 0}</p>
+                                <p className="text-[8px] text-[#8C96A5]">线索</p>
+                              </div>
+                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
+                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.accuracy || 0}</p>
+                                <p className="text-[8px] text-[#8C96A5]">准确</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* 答案 */}
+                          {player.answer && (
+                            <div className="mb-2 p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+                              <p className="text-[10px] text-[#8C96A5] mb-0.5">投票答案</p>
+                              <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed line-clamp-2">
+                                {player.answer}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* DM评论 */}
+                          {player.comment && (
+                            <div className="flex items-start gap-1.5">
+                              <Sparkles className="w-3 h-3 text-[#7C8CD6] flex-shrink-0 mt-0.5"/>
+                              <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+                                {player.comment}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-[#8C96A5] text-sm">
+                    暂无真人玩家数据
+                  </div>
+                )}
               </div>
             </div>
 
