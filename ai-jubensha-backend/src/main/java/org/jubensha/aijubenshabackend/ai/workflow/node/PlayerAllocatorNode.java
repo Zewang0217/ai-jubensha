@@ -152,6 +152,93 @@ public class PlayerAllocatorNode {
             } else {
                 // 观察者模式：不创建真人玩家，所有角色由AI填充
                 log.info("[观察者模式] 自动分配所有角色给AI玩家");
+                
+                // 清理遗留的真人玩家记录（防止之前游戏遗留的真人玩家影响当前游戏）
+                try {
+                    List<GamePlayer> existingGamePlayers = gamePlayerService.getGamePlayersByGameId(gameId);
+                    for (GamePlayer gp : existingGamePlayers) {
+                        if (gp.getPlayer() != null && gp.getPlayer().getRole() == PlayerRole.REAL) {
+                            log.info("[观察者模式] 清理遗留的真人玩家记录: playerId={}, nickname={}", 
+                                    gp.getPlayer().getId(), gp.getPlayer().getNickname());
+                            gamePlayerService.deleteGamePlayer(gp.getId());
+                        }
+                    }
+                    log.info("[观察者模式] 遗留玩家记录清理完成");
+                } catch (Exception e) {
+                    log.warn("[观察者模式] 清理遗留玩家记录失败: {}", e.getMessage());
+                }
+                
+                // 观察者模式下，需要先将游戏阶段设置为 CHARACTER_ASSIGNMENT
+                // 然后等待观察者确认后才进入 SCRIPT_READING 阶段
+                try {
+                    GamePhase previousPhase = game.getCurrentPhase();
+                    game.setCurrentPhase(GamePhase.CHARACTER_ASSIGNMENT);
+                    gameService.updateGame(gameId, game);
+                    log.info("[观察者模式] 游戏阶段已更新为: CHARACTER_ASSIGNMENT");
+                    
+                    // 广播阶段变化通知
+                    WebSocketServiceImpl webSocketService = SpringContextUtil.getBean(WebSocketServiceImpl.class);
+                    webSocketService.broadcastPhaseChange(gameId, previousPhase, GamePhase.CHARACTER_ASSIGNMENT, "进入角色分配阶段");
+                    log.info("[观察者模式] 已广播阶段变化通知到 CHARACTER_ASSIGNMENT");
+                    
+                    // 保存上下文到缓存
+                    InvestigationService investigationService = SpringContextUtil.getBean(InvestigationService.class);
+                    
+                    // 初始化观察者确认状态
+                    context.setObserverConfirmed(false);
+                    investigationService.saveWorkflowContext(context.getGameId(), context);
+                    
+                    // 等待观察者确认角色分配阶段
+                    log.info("[观察者模式] 等待观察者确认角色分配阶段...");
+                    int waitCount = 0;
+                    int maxWaitTime = 1800; // 最大等待时间30分钟
+                    int checkInterval = 3; // 检查间隔3秒
+                    
+                    while (!context.isObserverConfirmed() && waitCount < maxWaitTime) {
+                        Thread.sleep(checkInterval * 1000);
+                        waitCount += checkInterval;
+                        
+                        // 从缓存中获取最新的上下文状态
+                        WorkflowContext latestContext = investigationService.getWorkflowContext(context.getGameId());
+                        if (latestContext != null) {
+                            context = latestContext;
+                        }
+                        
+                        // 检查游戏阶段是否已经推进（如果阶段已经不是 CHARACTER_ASSIGNMENT，说明已经推进）
+                        try {
+                            Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                            if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.CHARACTER_ASSIGNMENT) {
+                                log.info("[观察者模式] 检测到游戏阶段已推进到 {}，退出等待", latestGame.getCurrentPhase());
+                                break;
+                            }
+                        } catch (Exception e) {
+                            log.warn("[观察者模式] 检查游戏阶段失败: {}", e.getMessage());
+                        }
+                        
+                        // 每30秒输出一次等待日志
+                        if (waitCount % 30 == 0) {
+                            log.info("[观察者模式] 等待观察者确认角色分配阶段，已等待: {}秒", waitCount);
+                        }
+                    }
+                    
+                    if (context.isObserverConfirmed()) {
+                        log.info("[观察者模式] 观察者已确认角色分配阶段，继续工作流");
+                    } else {
+                        // 再次检查游戏阶段，判断是否因阶段推进而退出
+                        try {
+                            Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                            if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.CHARACTER_ASSIGNMENT) {
+                                log.info("[观察者模式] 因阶段已推进退出等待，当前阶段: {}", latestGame.getCurrentPhase());
+                            } else {
+                                log.warn("[观察者模式] 等待观察者确认超时，强制继续工作流");
+                            }
+                        } catch (Exception e) {
+                            log.warn("[观察者模式] 等待观察者确认超时，强制继续工作流");
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("[观察者模式] 角色分配阶段处理失败: {}", e.getMessage());
+                }
             }
             
             // AI玩家填充剩余角色
@@ -166,15 +253,26 @@ public class PlayerAllocatorNode {
 
             // 更新游戏阶段到剧本阅读并广播阶段变化
             try {
-                GamePhase previousPhase = game.getCurrentPhase();
-                game.setCurrentPhase(GamePhase.SCRIPT_READING);
-                gameService.updateGame(gameId, game);
-                log.info("[阶段变化] 游戏阶段已更新为: SCRIPT_READING");
-                
-                // 广播阶段变化通知
-                WebSocketServiceImpl webSocketService = SpringContextUtil.getBean(WebSocketServiceImpl.class);
-                webSocketService.broadcastPhaseChange(gameId, previousPhase, GamePhase.SCRIPT_READING, "进入剧本阅读阶段");
-                log.info("[阶段变化] 已广播阶段变化通知");
+                // 重新获取最新游戏状态
+                var latestGameOpt = gameService.getGameById(gameId);
+                if (latestGameOpt.isPresent()) {
+                    Game latestGame = latestGameOpt.get();
+                    GamePhase previousPhase = latestGame.getCurrentPhase();
+                    
+                    // 检查当前阶段是否已经是 SCRIPT_READING（可能已被 GameController 推进）
+                    if (latestGame.getCurrentPhase() == GamePhase.SCRIPT_READING) {
+                        log.info("[阶段变化] 游戏阶段已是 SCRIPT_READING，跳过重复更新和广播");
+                    } else {
+                        latestGame.setCurrentPhase(GamePhase.SCRIPT_READING);
+                        gameService.updateGame(gameId, latestGame);
+                        log.info("[阶段变化] 游戏阶段已更新为: SCRIPT_READING");
+                        
+                        // 广播阶段变化通知
+                        WebSocketServiceImpl webSocketService = SpringContextUtil.getBean(WebSocketServiceImpl.class);
+                        webSocketService.broadcastPhaseChange(gameId, previousPhase, GamePhase.SCRIPT_READING, "进入剧本阅读阶段");
+                        log.info("[阶段变化] 已广播阶段变化通知");
+                    }
+                }
             } catch (Exception e) {
                 log.error("[阶段变化] 更新游戏阶段失败: {}", e.getMessage());
             }

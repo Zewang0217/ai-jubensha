@@ -1,5 +1,6 @@
 package org.jubensha.aijubenshabackend.websocket.message;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
 import lombok.Data;
 
 /**
@@ -32,7 +33,12 @@ public class WebSocketMessage {
         this.payload = payload;
     }
 
-    public void setType(MessageType messageType) {
+    /**
+     * 设置消息类型（通过枚举）
+     * 使用 @JsonSetter 注解避免与 Lombok 生成的 setType(String) 冲突
+     * @param messageType 消息类型枚举
+     */
+    public void setMessageType(MessageType messageType) {
         this.type = messageType.name();
     }
 
@@ -46,10 +52,14 @@ public class WebSocketMessage {
         PUBLIC_CLUE,
         PRIVATE_CLUE,          // 私密线索获得通知
         VOTE_REQUEST,          // 要求玩家开始投票
-        VOTE_RESULT,
+        VOTE_SUBMIT,           // 玩家提交投票（真人玩家发送）
+        VOTE_SUCCESS,          // 投票成功反馈
+        VOTE_ERROR,            // 投票失败反馈
+        VOTE_RESULT,           // 投票结果广播
         PHASE_READY,           // 阶段就绪通知
         INVESTIGATION_COMPLETE, // 搜证完成通知
         GAME_ENDED,            // 游戏结束通知
+        PLAYER_ANSWER          // 玩家提交答案通知（用于观察者模式展示AI答题）
         AGENT_ACTION           // AI Agent 操作消息（公屏显示）
     }
 }

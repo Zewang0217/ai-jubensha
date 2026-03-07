@@ -240,7 +240,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     @Override
     public void notifyGamePlayerScriptReady(Long gamePlayerId, Long scriptId) {
         WebSocketMessage message = new WebSocketMessage();
-        message.setType(WebSocketMessage.MessageType.SCRIPT_READY);
+        message.setMessageType(WebSocketMessage.MessageType.SCRIPT_READY);
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("gamePlayerId", gamePlayerId);
@@ -254,7 +254,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     @Override
     public void notifyPlayerStartInvestigation(Long gamePlayerId, Map<String, Object> investigationScenes) {
         WebSocketMessage message = new WebSocketMessage();
-        message.setType(WebSocketMessage.MessageType.START_INVESTIGATION);
+        message.setMessageType(WebSocketMessage.MessageType.START_INVESTIGATION);
         message.setPayload(investigationScenes);
 
         sendToGamePlayer(gamePlayerId, message);
@@ -264,7 +264,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     @Override
     public void broadcastPublicClues(Long gameId, List<?> clues) {
         WebSocketMessage message = new WebSocketMessage();
-        message.setType(WebSocketMessage.MessageType.PUBLIC_CLUE);
+        message.setMessageType(WebSocketMessage.MessageType.PUBLIC_CLUE);
         message.setPayload(clues);
 
         sendToGameRealPlayers(gameId, message);
@@ -274,7 +274,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     @Override
     public void broadcastVoteResult(Long gameId, Long murdererId, Map<Long, Long> voteDetails, Integer dmScore) {
         WebSocketMessage message = new WebSocketMessage();
-        message.setType(WebSocketMessage.MessageType.VOTE_RESULT);
+        message.setMessageType(WebSocketMessage.MessageType.VOTE_RESULT);
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("murdererId", murdererId);
@@ -301,7 +301,7 @@ public class WebSocketServiceImpl implements WebSocketService {
      */
     public void broadcastPhaseChange(Long gameId, GamePhase previousPhase, GamePhase newPhase, String message) {
         WebSocketMessage wsMessage = new WebSocketMessage();
-        wsMessage.setType(WebSocketMessage.MessageType.PHASE_CHANGE);
+        wsMessage.setMessageType(WebSocketMessage.MessageType.PHASE_CHANGE);
         
         Map<String, Object> payload = new HashMap<>();
         payload.put("newPhase", newPhase != null ? newPhase.toFrontendFormat() : null);
@@ -327,7 +327,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     @Override
     public void broadcastPhaseReady(Long gameId, String nodeName, Boolean isReady, String message) {
         WebSocketMessage wsMessage = new WebSocketMessage();
-        wsMessage.setType(WebSocketMessage.MessageType.PHASE_READY);
+        wsMessage.setMessageType(WebSocketMessage.MessageType.PHASE_READY);
         
         Map<String, Object> payload = new HashMap<>();
         payload.put("nodeName", nodeName);
@@ -345,7 +345,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     @Override
     public void broadcastInvestigationComplete(Long gameId, String message) {
         WebSocketMessage wsMessage = new WebSocketMessage();
-        wsMessage.setType(WebSocketMessage.MessageType.INVESTIGATION_COMPLETE);
+        wsMessage.setMessageType(WebSocketMessage.MessageType.INVESTIGATION_COMPLETE);
         
         Map<String, Object> payload = new HashMap<>();
         payload.put("message", message);
@@ -372,11 +372,9 @@ public class WebSocketServiceImpl implements WebSocketService {
             
             log.info("[投票处理] 解析投票数据: targetId={}, playerId={}, voteMessage={}", targetId, playerId, voteMessage);
             
-            // 获取DiscussionServiceImpl实例并调用onRealPlayerVoteReceived方法
+            // 调用DiscussionService处理投票
             try {
-                // 通过反射调用onRealPlayerVoteReceived方法
-                java.lang.reflect.Method method = discussionService.getClass().getMethod("onRealPlayerVoteReceived", Long.class, String.class);
-                method.invoke(discussionService, playerId, voteMessage);
+                discussionService.onRealPlayerVoteReceived(playerId, voteMessage);
                 log.info("[投票处理] 已通知DiscussionService真人玩家 {} 投票完成", playerId);
             } catch (Exception e) {
                 log.error("[投票处理] 调用DiscussionService.onRealPlayerVoteReceived失败: {}", e.getMessage(), e);
@@ -454,13 +452,24 @@ public class WebSocketServiceImpl implements WebSocketService {
 
     @Override
     public void broadcastGameEnded(Long gameId, String message) {
+        broadcastGameEnded(gameId, message, null);
+    }
+    
+    @Override
+    public void broadcastGameEnded(Long gameId, String message, Map<String, Object> resultData) {
         WebSocketMessage wsMessage = new WebSocketMessage();
-        wsMessage.setType(WebSocketMessage.MessageType.GAME_ENDED);
+        wsMessage.setMessageType(WebSocketMessage.MessageType.GAME_ENDED);
         
         Map<String, Object> payload = new HashMap<>();
         payload.put("message", message);
         payload.put("gameId", gameId);
         payload.put("timestamp", System.currentTimeMillis());
+        
+        // 添加游戏结果数据
+        if (resultData != null) {
+            payload.putAll(resultData);
+        }
+        
         wsMessage.setPayload(payload);
         
         // 广播到游戏主频道
@@ -473,6 +482,23 @@ public class WebSocketServiceImpl implements WebSocketService {
     }
 
     @Override
+    public void broadcastPlayerAnswer(Long gameId, Long playerId, String playerName, String answer, boolean isAI) {
+        WebSocketMessage wsMessage = new WebSocketMessage();
+        wsMessage.setMessageType(WebSocketMessage.MessageType.PLAYER_ANSWER);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("playerId", playerId);
+        payload.put("playerName", playerName);
+        payload.put("answer", answer);
+        payload.put("isAI", isAI);
+        payload.put("timestamp", System.currentTimeMillis());
+
+        wsMessage.setPayload(payload);
+
+        // 广播到游戏主频道
+        String destination = "/topic/game/" + gameId + "/discussion";
+        messagingTemplate.convertAndSend(destination, wsMessage);
+        log.info("[答案广播] 广播玩家答案到游戏 {}: playerId={}, playerName={}, isAI={}", gameId, playerId, playerName, isAI);
     public void broadcastAgentAction(Long gameId, String actionType, String agentName, String targetName, String message, Boolean isPublic, String reason) {
         WebSocketMessage wsMessage = new WebSocketMessage();
         wsMessage.setType(WebSocketMessage.MessageType.AGENT_ACTION);
