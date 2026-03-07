@@ -133,9 +133,24 @@ ProgressBar.displayName = 'ProgressBar'
  * @param {Function} props.onComplete - 完成回调
  * @param {Function} props.onAction - 操作回调
  * @param {boolean} props.isObserverMode - 是否为观察者模式
+ * @param {boolean} props.isConnected - WebSocket连接状态
+ * @param {Function} props.subscribe - WebSocket订阅方法
+ * @param {Function} props.unsubscribe - WebSocket取消订阅方法
  * @returns {JSX.Element} 组件元素
  */
-function Investigation({_config, gameData, onComplete: _onComplete, onAction, isObserverMode = false, isAllInvestigationComplete = false, gameId, currentPlayerId}) {
+function Investigation({
+  _config, 
+  gameData, 
+  onComplete: _onComplete, 
+  onAction, 
+  isObserverMode = false, 
+  isAllInvestigationComplete = false, 
+  gameId, 
+  currentPlayerId,
+  isConnected,
+  subscribe,
+  unsubscribe,
+}) {
   const [selectedScene, setSelectedScene] = useState(null)
   const [revealedClues, setRevealedClues] = useState(new Set())
   const [publicClues, setPublicClues] = useState(new Set())
@@ -151,6 +166,9 @@ function Investigation({_config, gameData, onComplete: _onComplete, onAction, is
   
   // 观察者模式：AI 玩家正在搜证的状态
   const [isWaitingForAI, setIsWaitingForAI] = useState(isObserverMode && !isAllInvestigationComplete)
+  
+  // 观察者模式：AI 搜证决策消息列表
+  const [aiActionMessages, setAiActionMessages] = useState([])
 
   // 搜证次数限制（非观察者模式下有效）
   const totalChances = gameData?.totalChances ?? 3
@@ -192,6 +210,69 @@ function Investigation({_config, gameData, onComplete: _onComplete, onAction, is
       console.log('[Investigation] 搜证完成，显示弹窗 - isObserverMode:', isObserverMode)
     }
   }, [isAllInvestigationComplete, isObserverMode])
+  
+  // 观察者模式：订阅 AI 搜证决策消息
+  useEffect(() => {
+    // 仅在观察者模式下订阅
+    if (!isObserverMode || !isConnected || !gameId || !subscribe || !unsubscribe) {
+      console.log('[Investigation] 跳过AI搜证决策订阅 - isObserverMode:', isObserverMode, 'isConnected:', isConnected, 'subscribe:', !!subscribe, 'unsubscribe:', !!unsubscribe)
+      return
+    }
+
+    console.log('[Investigation] 开始订阅AI搜证决策消息 - gameId:', gameId)
+
+    /**
+     * 处理AI搜证决策消息
+     * @param {Object} data - 消息数据
+     */
+    const handleAIAgentAction = (data) => {
+      console.log('[Investigation] 收到AI搜证决策消息:', data)
+      
+      const actionType = data?.payload?.actionType || data?.actionType
+      const agentName = data?.payload?.agentName || data?.agentName
+      const targetName = data?.payload?.targetName || data?.targetName
+      const message = data?.payload?.message || data?.message
+      const isPublic = data?.payload?.isPublic ?? data?.isPublic
+      const reason = data?.payload?.reason || data?.reason
+      
+      // 添加到消息列表
+      const newMessage = {
+        id: Date.now(),
+        actionType,
+        agentName,
+        targetName,
+        message,
+        isPublic,
+        reason,
+        timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      }
+      
+      setAiActionMessages(prev => {
+        // 最多保留10条消息
+        const newMessages = [...prev, newMessage]
+        if (newMessages.length > 10) {
+          newMessages.shift()
+        }
+        return newMessages
+      })
+      
+      // 如果是公开线索，更新公开线索列表
+      if (isPublic && targetName) {
+        setPublicClues(prev => new Set([...prev, targetName]))
+      }
+    }
+
+    // 订阅 AI Agent 操作主题
+    const subscriptionId = subscribe(`/topic/game/${gameId}/agent-actions`, handleAIAgentAction)
+    console.log('[Investigation] 已订阅 agent-actions 主题, subscriptionId:', subscriptionId)
+
+    return () => {
+      if (subscriptionId) {
+        console.log('[Investigation] 取消AI搜证决策订阅')
+        unsubscribe(subscriptionId)
+      }
+    }
+  }, [isObserverMode, isConnected, gameId, subscribe, unsubscribe])
 
   // 调试日志
   console.log('[Investigation] isObserverMode:', isObserverMode)
@@ -436,6 +517,84 @@ function Investigation({_config, gameData, onComplete: _onComplete, onAction, is
               {isObserverMode ? '观察者模式：可查看所有线索，无法进行搜证操作' : '搜集线索，揭开真相'}
             </p>
           </motion.div>
+          
+          {/* 观察者模式：AI 搜证决策消息横幅 */}
+          {isObserverMode && aiActionMessages.length > 0 && (
+            <motion.div
+              variants={itemVariants}
+              className="mb-4"
+            >
+              <div className="bg-gradient-to-r from-[#7C8CD6]/5 to-[#A78BFA]/5 rounded-xl border border-[#7C8CD6]/20 overflow-hidden">
+                <div className="p-3 bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-[#7C8CD6]/10 flex items-center justify-center">
+                        <Eye className="w-3.5 h-3.5 text-[#7C8CD6]"/>
+                      </div>
+                      <h4 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
+                        AI 玩家搜证动态
+                      </h4>
+                    </div>
+                    <span className="text-xs text-[#8C96A5]">
+                      {aiActionMessages.length} 条记录
+                    </span>
+                  </div>
+                  
+                  {/* 消息列表 */}
+                  <div className="max-h-32 overflow-y-auto scrollbar-thin space-y-1.5">
+                    <AnimatePresence mode="pop">
+                      {aiActionMessages.slice(-5).reverse().map((msg) => (
+                        <motion.div
+                          key={msg.id}
+                          initial={{opacity: 0, x: -20}}
+                          animate={{opacity: 1, x: 0}}
+                          exit={{opacity: 0, x: 20}}
+                          className={`p-2 rounded-lg ${
+                            msg.isPublic 
+                              ? 'bg-[#5DD9A8]/10 border border-[#5DD9A8]/20' 
+                              : 'bg-white/50 dark:bg-[#222631]/50 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            {/* 状态图标 */}
+                            <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                              msg.isPublic 
+                                ? 'bg-[#5DD9A8]/20' 
+                                : 'bg-[#F5A9C9]/20'
+                            }`}>
+                              {msg.isPublic 
+                                ? <Globe className="w-3 h-3 text-[#5DD9A8]"/> 
+                                : <Lock className="w-3 h-3 text-[#F5A9C9]"/>
+                              }
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="text-xs font-medium text-[#2D3748] dark:text-[#E8ECF2]">
+                                  {msg.agentName}
+                                </span>
+                                <span className="text-[10px] text-[#8C96A5]">
+                                  {msg.timestamp}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+                                {msg.message}
+                              </p>
+                              {msg.reason && (
+                                <p className="text-[10px] text-[#8C96A5] italic mt-0.5">
+                                  理由: {msg.reason}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* 进度条 - 仅在非观察者模式下显示 */}
           {!isObserverMode && (

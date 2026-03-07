@@ -6,7 +6,7 @@
  * @author zewang
  */
 
-import {memo, useCallback, useEffect, useMemo} from 'react'
+import {memo, useCallback, useEffect, useMemo, useState} from 'react'
 import PropTypes from 'prop-types'
 import {AnimatePresence, motion} from 'framer-motion'
 import {ChevronRight, Eye, FileText, MessageCircle, Send, User, Vote} from 'lucide-react'
@@ -217,6 +217,9 @@ function Discussion({
     clearFeedback,
     messagesEndRef,
   } = useDiscussionState()
+  
+  // 观察者模式：玩家答案消息列表
+  const [playerAnswers, setPlayerAnswers] = useState([])
 
   const publicClues = gameData?.publicClues || []
   const players = gameData?.players || []
@@ -286,6 +289,17 @@ function Discussion({
     onPhaseReady: (data) => {
       setActiveTab('vote')
       addSystemMessage(data.message, formatTime)
+    },
+    onPlayerAnswer: (answerData) => {
+      // 观察者模式：添加玩家答案到列表
+      console.log('[Discussion] 收到玩家答案:', answerData)
+      setPlayerAnswers(prev => {
+        // 避免重复添加
+        if (prev.some(a => a.playerId === answerData.playerId)) {
+          return prev
+        }
+        return [...prev, answerData]
+      })
     },
     getPlayerNameById,
     formatTime,
@@ -550,6 +564,78 @@ function Discussion({
                     transition={{duration: 0.2}}
                     className="flex-1 min-h-0 flex flex-col p-5"
                   >
+                    {/* 观察者模式：玩家答案消息横幅 */}
+                    {isObserverMode && playerAnswers.length > 0 && (
+                      <motion.div
+                        initial={{opacity: 0, y: -10}}
+                        animate={{opacity: 1, y: 0}}
+                        className="mb-4 bg-gradient-to-r from-[#7C8CD6]/5 to-[#A78BFA]/5 rounded-xl border border-[#7C8CD6]/20 overflow-hidden"
+                      >
+                        <div className="p-3 bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-lg bg-[#7C8CD6]/10 flex items-center justify-center">
+                                <Vote className="w-3.5 h-3.5 text-[#7C8CD6]"/>
+                              </div>
+                              <h4 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
+                                玩家投票动态
+                              </h4>
+                            </div>
+                            <span className="text-xs text-[#8C96A5]">
+                              {playerAnswers.length} / {players.filter(p => p.playerRole !== 'DM' && p.playerRole !== 'JUDGE').length} 人已投票
+                            </span>
+                          </div>
+                          
+                          {/* 消息列表 */}
+                          <div className="max-h-32 overflow-y-auto scrollbar-thin space-y-1.5">
+                            <AnimatePresence mode="pop">
+                              {playerAnswers.slice(-5).reverse().map((answer) => (
+                                <motion.div
+                                  key={answer.id}
+                                  initial={{opacity: 0, x: -20}}
+                                  animate={{opacity: 1, x: 0}}
+                                  exit={{opacity: 0, x: 20}}
+                                  className={`p-2 rounded-lg ${
+                                    answer.isAI 
+                                      ? 'bg-white/50 dark:bg-[#222631]/50 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50' 
+                                      : 'bg-[#5DD9A8]/10 border border-[#5DD9A8]/20'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    {/* 状态图标 */}
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                      answer.isAI ? 'bg-[#7C8CD6]/20' : 'bg-[#5DD9A8]/20'
+                                    }`}>
+                                      <User className={`w-3 h-3 ${answer.isAI ? 'text-[#7C8CD6]' : 'text-[#5DD9A8]'}`}/>
+                                    </div>
+                                    
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5 mb-0.5">
+                                        <span className="text-xs font-medium text-[#2D3748] dark:text-[#E8ECF2]">
+                                          {answer.playerName}
+                                        </span>
+                                        {answer.isAI && (
+                                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#7C8CD6]/10 text-[#7C8CD6]">
+                                            AI
+                                          </span>
+                                        )}
+                                        <span className="text-[10px] text-[#8C96A5]">
+                                          {answer.time}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed line-clamp-2">
+                                        {answer.answer}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </AnimatePresence>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                    
                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#E0E5EE] dark:border-[#363D4D]">
                       <div>
                         <h3 className="text-lg font-bold text-[#2D3748] dark:text-[#E8ECF2]">
