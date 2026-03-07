@@ -157,9 +157,14 @@ public class FirstInvestigationNode {
                     var gameOpt = gameService.getGameById(context.getGameId());
                     if (gameOpt.isPresent()) {
                         Game game = gameOpt.get();
+                        GamePhase previousPhase = game.getCurrentPhase();
                         game.setCurrentPhase(GamePhase.INVESTIGATION);
                         gameService.updateGame(context.getGameId(), game);
                         log.info("[状态转换] 游戏状态已更新为: INVESTIGATION");
+                        
+                        // 广播阶段变化通知，让前端切换到搜证阶段
+                        webSocketService.broadcastPhaseChange(context.getGameId(), previousPhase, GamePhase.INVESTIGATION, "进入搜证阶段");
+                        log.info("[状态转换] 已广播阶段变化通知: {} -> INVESTIGATION", previousPhase);
                     }
                 }
 
