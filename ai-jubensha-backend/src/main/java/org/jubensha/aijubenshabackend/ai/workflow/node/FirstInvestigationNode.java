@@ -130,20 +130,29 @@ public class FirstInvestigationNode {
                 }
 
                 // 初始化玩家搜证次数
-                List<Long> playerIds = new ArrayList<>();
+                // 区分AI玩家和真人玩家，两者都需要初始化搜证次数
+                // AI玩家通过后端自动搜证，真人玩家通过前端API进行搜证
+                List<Long> aiPlayerIds = new ArrayList<>();
                 List<Long> realPlayerIds = new ArrayList<>();
                 for (Map<String, Object> assignment : playerAssignments) {
                     Long playerId = (Long) assignment.get("playerId");
                     String playerType = (String) assignment.get("playerType");
-                    playerIds.add(playerId);
-                    if ("REAL".equals(playerType)) {
+                    // 区分玩家类型
+                    if ("AI".equals(playerType)) {
+                        aiPlayerIds.add(playerId);
+                    } else if ("REAL".equals(playerType)) {
                         realPlayerIds.add(playerId);
                     }
                 }
-                context.initInvestigationCounts(playerIds);
+                // 初始化所有玩家的搜证次数（包括AI玩家和真人玩家）
+                List<Long> allPlayerIds = new ArrayList<>();
+                allPlayerIds.addAll(aiPlayerIds);
+                allPlayerIds.addAll(realPlayerIds);
+                context.initInvestigationCounts(allPlayerIds);
                 context.setCurrentInvestigationPhase("FIRST_INVESTIGATION");
-                log.info("已初始化 {} 个玩家的搜证次数，每轮 {} 次", playerIds.size(), WorkflowContext.DEFAULT_INVESTIGATION_LIMIT);
-                log.info("[阶段同步] 玩家分布 - 真人玩家: {}, AI玩家: {}", realPlayerIds.size(), playerIds.size() - realPlayerIds.size());
+                log.info("已初始化 {} 个玩家的搜证次数（AI: {}, 真人: {}），每轮 {} 次", 
+                        allPlayerIds.size(), aiPlayerIds.size(), realPlayerIds.size(), WorkflowContext.DEFAULT_INVESTIGATION_LIMIT);
+                log.info("[阶段同步] 玩家分布 - 真人玩家: {}, AI玩家: {}", realPlayerIds.size(), aiPlayerIds.size());
                 log.info("[状态转换] 进入第一轮搜证阶段，当前阶段: {}", context.getCurrentInvestigationPhase());
 
                 // 保存工作流上下文到InvestigationService缓存
@@ -157,9 +166,20 @@ public class FirstInvestigationNode {
                     var gameOpt = gameService.getGameById(context.getGameId());
                     if (gameOpt.isPresent()) {
                         Game game = gameOpt.get();
-                        game.setCurrentPhase(GamePhase.INVESTIGATION);
-                        gameService.updateGame(context.getGameId(), game);
-                        log.info("[状态转换] 游戏状态已更新为: INVESTIGATION");
+                        GamePhase previousPhase = game.getCurrentPhase();
+                        
+                        // 检查当前阶段是否已经是 INVESTIGATION（可能已被 GameController 推进）
+                        if (game.getCurrentPhase() == GamePhase.INVESTIGATION) {
+                            log.info("[状态转换] 游戏阶段已是 INVESTIGATION，跳过重复更新和广播");
+                        } else {
+                            game.setCurrentPhase(GamePhase.INVESTIGATION);
+                            gameService.updateGame(context.getGameId(), game);
+                            log.info("[状态转换] 游戏状态已更新为: INVESTIGATION");
+                            
+                            // 广播阶段变化通知，让前端切换到搜证阶段
+                            webSocketService.broadcastPhaseChange(context.getGameId(), previousPhase, GamePhase.INVESTIGATION, "进入搜证阶段");
+                            log.info("[状态转换] 已广播阶段变化通知: {} -> INVESTIGATION", previousPhase);
+                        }
                     }
                 }
 
@@ -314,6 +334,17 @@ public class FirstInvestigationNode {
                                 context = latestContext;
                             }
                             
+                            // 检查游戏阶段是否已经推进（如果阶段已经不是 INVESTIGATION，说明已经推进）
+                            try {
+                                Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                                if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.INVESTIGATION) {
+                                    log.info("[阶段同步] 检测到游戏阶段已推进到 {}，退出等待", latestGame.getCurrentPhase());
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                log.warn("[阶段同步] 检查游戏阶段失败: {}", e.getMessage());
+                            }
+                            
                             // 每30秒输出一次等待日志
                             if (confirmWaitCount % 30 == 0) {
                                 log.info("[阶段同步] 等待观察者确认搜证完成，已等待: {}秒，observerConfirmed: {}", confirmWaitCount, context.isObserverConfirmed());
@@ -323,7 +354,17 @@ public class FirstInvestigationNode {
                         if (context.isObserverConfirmed()) {
                             log.info("[阶段同步] 观察者已确认搜证完成，继续工作流");
                         } else {
-                            log.warn("[阶段同步] 等待观察者确认超时，强制继续工作流");
+                            // 再次检查游戏阶段，判断是否因阶段推进而退出
+                            try {
+                                Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                                if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.INVESTIGATION) {
+                                    log.info("[阶段同步] 因阶段已推进退出等待，当前阶段: {}", latestGame.getCurrentPhase());
+                                } else {
+                                    log.warn("[阶段同步] 等待观察者确认超时，强制继续工作流");
+                                }
+                            } catch (Exception e) {
+                                log.warn("[阶段同步] 等待观察者确认超时，强制继续工作流");
+                            }
                         }
                     } else {
                         // 有真人玩家模式：等待真人玩家确认

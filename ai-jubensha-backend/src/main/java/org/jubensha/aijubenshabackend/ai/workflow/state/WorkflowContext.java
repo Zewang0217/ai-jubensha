@@ -344,6 +344,28 @@ public class WorkflowContext implements Serializable {
     }
 
     /**
+     * 检查所有AI玩家是否都已完成搜证
+     * 用于观察者模式下只检查AI玩家的搜证完成状态
+     *
+     * @param aiPlayerIds AI玩家ID列表
+     * @return 所有AI玩家是否都已完成搜证
+     */
+    public boolean isAllAIPlayersInvestigationCompleted(List<Long> aiPlayerIds) {
+        if (this.playerInvestigationCompleted == null || this.playerInvestigationCompleted.isEmpty()) {
+            return false;
+        }
+        if (aiPlayerIds == null || aiPlayerIds.isEmpty()) {
+            return true;
+        }
+        for (Long playerId : aiPlayerIds) {
+            if (!this.playerInvestigationCompleted.getOrDefault(playerId, false)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * 获取当前搜证阶段
      *
      * @return 当前搜证阶段

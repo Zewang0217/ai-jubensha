@@ -3,14 +3,13 @@
  * @description 真相揭晓阶段，采用玻璃态卡片设计，与 CharacterAssignment 风格保持一致
  */
 
-import {memo} from 'react'
+import {memo, useMemo} from 'react'
 import {motion} from 'framer-motion'
-import {Crown, Home, RotateCcw, Sparkles, Target, Trophy, Users, XCircle} from 'lucide-react'
+import {Crown, Home, RotateCcw, Sparkles, Star, Target, Trophy, User, XCircle} from 'lucide-react'
 import {PHASE_TYPE} from '../types'
 import GhostButton from '../../../components/ui/GhostButton'
 import PhaseBackgroundDecor from '../../../components/common/PhaseBackgroundDecor'
 import {containerVariants, itemVariants, scaleInVariants} from '../config/animations'
-import {PHASE_COLORS} from '../config/theme'
 
 // =============================================================================
 // 胜负徽章 - 玻璃态设计
@@ -29,7 +28,7 @@ const ResultBadge = memo(({isWin}) => (
 
       {/* 徽章本体 */}
       <div className={`
-      relative w-24 h-24 rounded-2xl flex items-center justify-center
+      relative w-20 h-20 rounded-2xl flex items-center justify-center
       bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl
       border border-[#E0E5EE] dark:border-[#363D4D]
       shadow-lg
@@ -46,9 +45,9 @@ const ResultBadge = memo(({isWin}) => (
         {/* 图标 */}
         <div className="relative">
           {isWin ? (
-              <Trophy className="w-12 h-12 text-[#5DD9A8]"/>
+              <Trophy className="w-10 h-10 text-[#5DD9A8]"/>
           ) : (
-              <XCircle className="w-12 h-12 text-[#F5A9C9]"/>
+              <XCircle className="w-10 h-10 text-[#F5A9C9]"/>
           )}
         </div>
       </div>
@@ -58,44 +57,12 @@ const ResultBadge = memo(({isWin}) => (
 ResultBadge.displayName = 'ResultBadge'
 
 // =============================================================================
-// 统计项 - 玻璃态卡片
+// 玩家评分卡片 - 显示答案+得分+评论
 // =============================================================================
 
-const StatItem = memo(({label, value, icon: Icon, color = 'blue'}) => {
-  const colors = {
-    blue: 'text-[#7C8CD6] bg-[#7C8CD6]/10 border-[#7C8CD6]/30',
-    green: 'text-[#5DD9A8] bg-[#5DD9A8]/10 border-[#5DD9A8]/30',
-    pink: 'text-[#F5A9C9] bg-[#F5A9C9]/10 border-[#F5A9C9]/30',
-  }
-
-  return (
-      <div className="relative group">
-        {/* 悬停高光 */}
-        <div
-            className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-[#7C8CD6]/5 to-transparent"/>
-
-        {/* 卡片本体 */}
-        <div
-            className="relative flex items-center gap-3 p-3 rounded-xl bg-white/60 dark:bg-[#222631]/60 backdrop-blur-sm border border-[#E0E5EE] dark:border-[#363D4D] hover:border-[#7C8CD6] dark:hover:border-[#5E6B8A] transition-colors">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${colors[color]}`}>
-            <Icon className="w-5 h-5"/>
-          </div>
-          <div>
-            <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788] uppercase tracking-wider">{label}</p>
-            <p className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">{value}</p>
-          </div>
-        </div>
-      </div>
-  )
-})
-
-StatItem.displayName = 'StatItem'
-
-// =============================================================================
-// 玩家排名项 - 玻璃态设计
-// =============================================================================
-
-const PlayerRankItem = memo(({player, rank}) => {
+const PlayerScoreCard = memo(({player, rank, currentPlayerId, culpritId}) => {
+  const isSelf = String(player.playerId) === String(currentPlayerId)
+  const isCulprit = String(player.playerId) === String(culpritId)
   const isTop3 = rank <= 3
 
   return (
@@ -106,91 +73,205 @@ const PlayerRankItem = memo(({player, rank}) => {
 
         {/* 卡片本体 */}
         <div className={`
-        relative flex items-center gap-3 p-3 rounded-xl border transition-all backdrop-blur-sm
-        ${player.isCulprit
+        relative flex flex-col p-4 rounded-xl border transition-all backdrop-blur-sm
+        ${isCulprit
             ? 'bg-[#F5A9C9]/10 border-[#F5A9C9]/30'
-            : player.voteCorrect
+            : isSelf
                 ? 'bg-[#5DD9A8]/10 border-[#5DD9A8]/30'
                 : 'bg-white/60 dark:bg-[#222631]/60 border-[#E0E5EE] dark:border-[#363D4D] hover:border-[#7C8CD6] dark:hover:border-[#5E6B8A]'
         }
       `}>
-          {/* 排名 */}
-          <div className={`
-          w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm
-          ${isTop3
-              ? 'bg-gradient-to-br from-[#7C8CD6] to-[#A78BFA] text-white'
-              : 'bg-[#EEF1F6] dark:bg-[#2A2F3C] text-[#8C96A5]'
-          }
-        `}>
-            {rank}
-          </div>
+          {/* 第一行：排名、头像、名称、标签 */}
+          <div className="flex items-center gap-3 mb-3">
+            {/* 排名 */}
+            <div className={`
+            w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs
+            ${isTop3
+                ? 'bg-gradient-to-br from-[#7C8CD6] to-[#A78BFA] text-white'
+                : 'bg-[#EEF1F6] dark:bg-[#2A2F3C] text-[#8C96A5]'
+            }
+          `}>
+              {rank}
+            </div>
 
-          {/* 头像 */}
-          <div
-              className={`
-            w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm
-            ${player.isCulprit
+            {/* 头像 */}
+            <div
+                className={`
+              w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm
+              ${isCulprit
                   ? 'bg-[#F5A9C9] text-white'
-                  : player.voteCorrect
+                  : isSelf
                       ? 'bg-[#5DD9A8] text-white'
                       : 'bg-[#EEF1F6] dark:bg-[#2A2F3C] text-[#8C96A5]'
               }
           `}
-          >
-            {player.name.charAt(0)}
-          </div>
-
-          {/* 信息 */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[#2D3748] dark:text-[#E8ECF2] truncate">
-              {player.name}
-            </span>
-              {player.isSelf && (
-                  <span
-                      className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#7C8CD6]/10 text-[#7C8CD6] border border-[#7C8CD6]/30">
-                我
-              </span>
-              )}
+            >
+              {player.name?.charAt(0) || '?'}
             </div>
-            <span className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">{player.role}</span>
+
+            {/* 信息 */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-[#2D3748] dark:text-[#E8ECF2] truncate">
+                  {player.name || '未知玩家'}
+                </span>
+                {isSelf && (
+                    <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#7C8CD6]/10 text-[#7C8CD6] border border-[#7C8CD6]/30">
+                  我
+                </span>
+                )}
+              </div>
+              <span className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">{player.role || '角色'}</span>
+            </div>
+
+            {/* 得分 */}
+            <div className="flex items-center gap-1.5">
+              <Star className="w-4 h-4 text-[#F5A9C9]"/>
+              <span className="text-lg font-bold text-[#2D3748] dark:text-[#E8ECF2]">{player.score || 0}</span>
+              <span className="text-xs text-[#8C96A5]">分</span>
+            </div>
+
+            {/* 标签 */}
+            {isCulprit && (
+                <span className="text-[10px] px-2 py-1 rounded-full bg-[#F5A9C9] text-white font-medium">
+              凶手
+            </span>
+            )}
           </div>
 
-          {/* 标签 */}
-          {player.isCulprit && (
-              <span className="text-[10px] px-2 py-1 rounded-full bg-[#F5A9C9] text-white font-medium">
-            凶手
-          </span>
+          {/* 第二行：答案 */}
+          {player.answer && (
+              <div className="mb-2 p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+                <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788] mb-1">投票答案</p>
+                <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed line-clamp-2">
+                  {player.answer}
+                </p>
+              </div>
           )}
-          {player.voteCorrect && (
-              <span className="text-[10px] px-2 py-1 rounded-full bg-[#5DD9A8] text-white font-medium">
-            正确
-          </span>
+
+          {/* 第三行：评论 */}
+          {player.comment && (
+              <div className="flex items-start gap-2">
+                <div className="w-5 h-5 rounded-md bg-[#7C8CD6]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Sparkles className="w-3 h-3 text-[#7C8CD6]"/>
+                </div>
+                <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+                  {player.comment}
+                </p>
+              </div>
           )}
         </div>
       </motion.div>
   )
 })
 
-PlayerRankItem.displayName = 'PlayerRankItem'
+PlayerScoreCard.displayName = 'PlayerScoreCard'
+
+// =============================================================================
+// 个人表现卡片
+// =============================================================================
+
+const PersonalStatsCard = memo(({player}) => {
+  if (!player) return null
+
+  return (
+      <motion.div variants={itemVariants} className="relative">
+        {/* 卡片本体 */}
+        <div
+            className="relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden">
+          {/* 顶部渐变线 */}
+          <div className="h-1 bg-gradient-to-r from-[#5DD9A8] via-[#7C8CD6] to-[#A78BFA]"/>
+
+          <div className="p-4">
+            {/* 标题 */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 rounded-lg bg-[#5DD9A8]/10 flex items-center justify-center">
+                <User className="w-4 h-4 text-[#5DD9A8]"/>
+              </div>
+              <h3 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
+                你的表现
+              </h3>
+            </div>
+
+            {/* 得分 */}
+            <div className="flex items-center justify-center mb-4">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Star className="w-6 h-6 text-[#F5A9C9]"/>
+                  <span className="text-3xl font-bold text-[#2D3748] dark:text-[#E8ECF2]">{player.score || 0}</span>
+                  <span className="text-sm text-[#8C96A5]">分</span>
+                </div>
+                <p className="text-xs text-[#8C96A5]">综合评分</p>
+              </div>
+            </div>
+
+            {/* 评分细分 */}
+            {player.breakdown && (
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
+                    <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.motive || 0}</p>
+                    <p className="text-[10px] text-[#8C96A5]">动机</p>
+                  </div>
+                  <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
+                    <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.method || 0}</p>
+                    <p className="text-[10px] text-[#8C96A5]">手法</p>
+                  </div>
+                  <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
+                    <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.clues || 0}</p>
+                    <p className="text-[10px] text-[#8C96A5]">线索</p>
+                  </div>
+                  <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
+                    <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.accuracy || 0}</p>
+                    <p className="text-[10px] text-[#8C96A5]">准确</p>
+                  </div>
+                </div>
+            )}
+
+            {/* 答案 */}
+            {player.answer && (
+                <div className="mb-3 p-3 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+                  <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788] mb-1">你的答案</p>
+                  <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+                    {player.answer}
+                  </p>
+                </div>
+            )}
+
+            {/* 评论 */}
+            {player.comment && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-[#7C8CD6]/5 border border-[#7C8CD6]/20">
+                  <Sparkles className="w-4 h-4 text-[#7C8CD6] flex-shrink-0 mt-0.5"/>
+                  <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+                    {player.comment}
+                  </p>
+                </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+  )
+})
+
+PersonalStatsCard.displayName = 'PersonalStatsCard'
 
 // =============================================================================
 // 真相卡片 - 玻璃态设计
 // =============================================================================
 
 const TruthCard = memo(({truth}) => (
-    <motion.div variants={itemVariants} className="relative">
+    <motion.div variants={itemVariants} className="relative h-full">
       {/* 卡片光晕 */}
       <div
           className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#7C8CD6]/20 to-[#A78BFA]/20 blur-lg opacity-50"/>
 
       {/* 卡片本体 */}
       <div
-          className="relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden">
+          className="relative h-full bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden flex flex-col">
         {/* 顶部渐变线 */}
         <div className="h-1 bg-gradient-to-r from-[#7C8CD6] via-[#A78BFA] to-[#F5A9C9]"/>
 
-        <div className="p-5">
+        <div className="flex-1 p-5 flex flex-col">
           {/* 标题 */}
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg bg-[#7C8CD6]/10 flex items-center justify-center">
@@ -202,10 +283,12 @@ const TruthCard = memo(({truth}) => (
           </div>
 
           {/* 真相内容 */}
-          <div className="relative pl-4 border-l-2 border-[#7C8CD6]/50">
-            <p className="text-sm text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed whitespace-pre-line">
-              {truth}
-            </p>
+          <div className="flex-1 overflow-y-auto scrollbar-thin">
+            <div className="relative pl-4 border-l-2 border-[#7C8CD6]/50">
+              <p className="text-sm text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed whitespace-pre-line">
+                {truth || '真相尚未揭晓...'}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -218,28 +301,118 @@ TruthCard.displayName = 'TruthCard'
 // 主要组件
 // =============================================================================
 
-function Summary({_config, gameData, onAction}) {
-  const result = gameData?.result || {
-    isWin: true,
-    correctVote: true,
-    culprit: {id: 'p2', name: '苏医生', role: '私人医生'},
-    truth: `这是一场精心策划的谋杀。苏医生几个月来一直在缓慢地给受害者下毒，同时自己对毒药产生了耐受性。
+function Summary({_config, gameData, currentPlayerId, onAction, playerData, isObserverMode = false}) {
+  // 从 gameData.result 获取真实数据
+  const result = gameData?.result || {}
+  
+  // 调试日志
+  console.log('[Summary] gameData:', gameData)
+  console.log('[Summary] result:', result)
+  console.log('[Summary] currentPlayerId:', currentPlayerId)
+  console.log('[Summary] playerData:', playerData)
 
-在那个暴风雨的夜晚，当灯光熄灭时，医生用那把古董拆信刀刺向了受害者——这把武器在这个家族中已经传承了几代。
+  // 处理玩家评分数据
+  const playerScores = useMemo(() => {
+    const scores = result?.scores || []
+    const playerAnswers = result?.playerAnswers || {}
+    const players = gameData?.players || []
 
-密室只是个幻觉。只有管家和苏医生知道的秘密通道提供了完美的逃生路线。被破坏的窗户只是个幌子，意在暗示有外来入侵者。
+    console.log('[Summary] scores:', scores)
+    console.log('[Summary] playerAnswers:', playerAnswers)
+    console.log('[Summary] players:', players)
 
-但医生犯了一个错误：厨房垃圾桶里的毒药瓶。一个不小心的时刻，摧毁了这场完美犯罪。`,
-    players: [
-      {id: 'p1', name: '林侦探', role: '调查员', isSelf: true, voteCorrect: true},
-      {id: 'p2', name: '苏医生', role: '私人医生', isCulprit: true},
-      {id: 'p3', name: '陈管家', role: '管家'},
-      {id: 'p4', name: '赵律师', role: '法律顾问'},
-    ],
-  }
+    // 构建 playerId -> player 映射
+    const playerMap = new Map()
+    players.forEach(p => {
+      playerMap.set(String(p.playerId), p)
+      playerMap.set(Number(p.playerId), p)
+    })
+    
+    // 从 playerData 获取真人玩家信息
+    const realPlayerMap = new Map()
+    if (playerData && Array.isArray(playerData)) {
+      playerData.forEach(p => {
+        if (p.playerRole === 'REAL') {
+          realPlayerMap.set(String(p.playerId), p)
+          realPlayerMap.set(Number(p.playerId), p)
+        }
+      })
+    }
 
-  const selfPlayer = result.players.find(p => p.isSelf)
-  const correctCount = result.players.filter(p => p.voteCorrect).length
+    // 合并评分数据和玩家信息
+    return scores.map(score => {
+      const player = playerMap.get(String(score.playerId)) || playerMap.get(Number(score.playerId)) || {}
+      const realPlayer = realPlayerMap.get(String(score.playerId)) || realPlayerMap.get(Number(score.playerId))
+      
+      // 获取答案 - 尝试多种键格式
+      let answer = ''
+      const playerIdStr = String(score.playerId)
+      const playerIdNum = Number(score.playerId)
+      if (playerAnswers[playerIdStr]) {
+        answer = playerAnswers[playerIdStr]
+      } else if (playerAnswers[playerIdNum]) {
+        answer = playerAnswers[playerIdNum]
+      } else if (typeof playerAnswers === 'object') {
+        // 尝试遍历查找
+        for (const key of Object.keys(playerAnswers)) {
+          if (String(key) === playerIdStr) {
+            answer = playerAnswers[key]
+            break
+          }
+        }
+      }
+      
+      return {
+        playerId: score.playerId,
+        name: player.name || player.characterName || realPlayer?.playerName || `玩家${score.playerId}`,
+        role: player.characterName || player.role || '角色',
+        score: score.score || 0,
+        breakdown: score.breakdown || {},
+        comment: score.comment || '',
+        answer: answer,
+        isRealPlayer: !!realPlayer,
+      }
+    }).sort((a, b) => b.score - a.score) // 按分数降序排列
+  }, [result?.scores, result?.playerAnswers, gameData?.players, playerData])
+  
+  // 获取真人玩家的评分列表（用于左侧展示）
+  const realPlayerScores = useMemo(() => {
+    return playerScores.filter(p => p.isRealPlayer)
+  }, [playerScores])
+
+  // 获取AI玩家的评分列表（观察者模式使用）
+  const aiPlayerScores = useMemo(() => {
+    return playerScores.filter(p => !p.isRealPlayer)
+  }, [playerScores])
+
+  // 获取当前玩家的评分
+  const selfPlayerScore = useMemo(() => {
+    return playerScores.find(p => String(p.playerId) === String(currentPlayerId))
+  }, [playerScores, currentPlayerId])
+
+  // 获取凶手ID（需要从游戏数据中获取）
+  const culpritId = useMemo(() => {
+    // 这里需要根据实际的游戏逻辑获取凶手ID
+    // 暂时返回 null，后续可以从 gameData 中获取
+    return gameData?.culpritId || null
+  }, [gameData])
+
+  // 计算平均分
+  const averageScore = useMemo(() => {
+    if (playerScores.length === 0) return 0
+    const total = playerScores.reduce((sum, p) => sum + (p.score || 0), 0)
+    return Math.round(total / playerScores.length)
+  }, [playerScores])
+
+  // 判断是否获胜（当前玩家投票正确）- 用于显示结果
+  const isWin = useMemo(() => {
+    // 这里需要根据实际的投票结果判断
+    // 暂时根据分数判断
+    return (selfPlayerScore?.score || 0) >= averageScore
+  }, [selfPlayerScore, averageScore])
+  
+  // 调试日志
+  console.log('[Summary] isWin:', isWin, 'selfPlayerScore:', selfPlayerScore, 'averageScore:', averageScore)
 
   const handleReturnHome = () => {
     onAction?.('return_home')
@@ -261,123 +434,183 @@ function Summary({_config, gameData, onAction}) {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="h-full flex flex-col p-8 relative z-10"
+            className="h-full flex flex-col p-6 relative z-10"
         >
-          {/* 标题区 - 左对齐 */}
-          <motion.div variants={itemVariants} className="mb-6">
-            <h2 className="text-2xl font-bold text-[#2D3748] dark:text-[#E8ECF2] tracking-tight">
-              真相揭晓
-            </h2>
-            <p className="text-[#8C96A5] dark:text-[#6B7788] mt-1 text-sm">
-              案件已尘埃落定，回顾这场推理之旅
-            </p>
+          {/* 标题区 */}
+          <motion.div variants={itemVariants} className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-[#2D3748] dark:text-[#E8ECF2] tracking-tight">
+                真相揭晓
+              </h2>
+              <p className="text-[#8C96A5] dark:text-[#6B7788] text-xs">
+                案件已尘埃落定，回顾这场推理之旅
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <GhostButton onClick={handleReturnHome} size="sm">
+                <span className="flex items-center gap-1.5">
+                  <Home className="w-3.5 h-3.5"/>
+                  返回大厅
+                </span>
+              </GhostButton>
+              <GhostButton onClick={handlePlayAgain} size="sm">
+                <span className="flex items-center gap-1.5">
+                  <RotateCcw className="w-3.5 h-3.5"/>
+                  再来一局
+                </span>
+              </GhostButton>
+            </div>
           </motion.div>
 
-          {/* 内容网格 */}
-          <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
-            {/* 左侧：结果展示 + 统计 */}
-            <div className="col-span-5 h-full overflow-y-auto scrollbar-thin pr-2">
-              <div className="space-y-4">
-                {/* 胜负结果卡片 */}
-                <motion.div variants={itemVariants} className="relative">
-                  {/* 卡片光晕 */}
-                  <div
-                      className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#7C8CD6]/20 to-[#A78BFA]/20 blur-lg opacity-50"/>
-
-                  {/* 卡片本体 */}
-                  <div
-                      className="relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden">
-                    {/* 顶部渐变线 */}
-                    <div className="h-1 bg-gradient-to-r from-[#7C8CD6] via-[#A78BFA] to-[#F5A9C9]"/>
-
-                    <div className="p-6 text-center">
-                      {/* 徽章 */}
-                      <div className="flex justify-center mb-4">
-                        <ResultBadge isWin={result.isWin}/>
-                      </div>
-
-                      {/* 结果文字 */}
-                      <h3 className="text-xl font-bold text-[#2D3748] dark:text-[#E8ECF2] mb-2">
-                        {result.isWin ? '胜利！' : '失败'}
-                      </h3>
-                      <p className="text-sm text-[#8C96A5] dark:text-[#6B7788]">
-                        {result.isWin
-                            ? '你成功指认了凶手，正义得到伸张'
-                            : '凶手逃脱了，真相仍隐藏在迷雾中'}
-                    </p>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* 统计信息 */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-[#8C96A5] uppercase tracking-wider">
-                    游戏统计
-                  </h3>
-                  <StatItem
-                      label="凶手"
-                      value={result.culprit.name}
-                      icon={Target}
-                      color="pink"
-                  />
-                  <StatItem
-                      label="正确投票"
-                      value={`${correctCount}/${result.players.length} 人`}
-                      icon={Users}
-                      color="green"
-                  />
-                  <StatItem
-                      label="你的表现"
-                      value={selfPlayer?.voteCorrect ? '推理正确' : '推理错误'}
-                      icon={Crown}
-                      color={selfPlayer?.voteCorrect ? 'green' : 'blue'}
-                  />
+          {/* 内容网格 - 占满剩余空间 */}
+          <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
+            {/* 左侧：真人玩家表现 / 观察者模式：AI玩家表现 */}
+            <div className="col-span-4 h-full flex flex-col gap-4 overflow-hidden">
+              {/* 标题 */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-[#7C8CD6]/10 flex items-center justify-center">
+                  <User className="w-4 h-4 text-[#7C8CD6]"/>
                 </div>
+                <h3 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
+                  {isObserverMode ? 'AI玩家表现' : '真人玩家表现'}
+                </h3>
+              </div>
+              
+              {/* 玩家列表 */}
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-3">
+                {(isObserverMode ? aiPlayerScores : realPlayerScores).length > 0 ? (
+                  (isObserverMode ? aiPlayerScores : realPlayerScores).map((player) => (
+                    <motion.div
+                      key={player.playerId}
+                      variants={itemVariants}
+                      className="relative"
+                    >
+                      <div className={`
+                        relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border overflow-hidden
+                        ${String(player.playerId) === String(currentPlayerId) 
+                          ? 'border-[#5DD9A8]/50' 
+                          : 'border-[#E0E5EE] dark:border-[#363D4D]'}
+                      `}>
+                        {/* 顶部渐变线 */}
+                        <div className={`h-1 bg-gradient-to-r ${String(player.playerId) === String(currentPlayerId) ? 'from-[#5DD9A8] to-[#10b981]' : 'from-[#7C8CD6] to-[#A78BFA]'}`}/>
+                        
+                        <div className="p-3">
+                          {/* 玩家名称和分数 */}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`
+                                w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs
+                                ${String(player.playerId) === String(currentPlayerId) 
+                                  ? 'bg-[#5DD9A8] text-white' 
+                                  : 'bg-[#7C8CD6]/10 text-[#7C8CD6]'}
+                              `}>
+                                {player.name?.charAt(0) || '?'}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-medium text-[#2D3748] dark:text-[#E8ECF2]">
+                                    {player.name || '未知玩家'}
+                                  </span>
+                                  {String(player.playerId) === String(currentPlayerId) && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#5DD9A8]/10 text-[#5DD9A8] border border-[#5DD9A8]/30">
+                                      我
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-[#8C96A5]">{player.role}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-[#F5A9C9]"/>
+                              <span className="text-lg font-bold text-[#2D3748] dark:text-[#E8ECF2]">{player.score}</span>
+                              <span className="text-xs text-[#8C96A5]">分</span>
+                            </div>
+                          </div>
+                          
+                          {/* 评分细分 */}
+                          {player.breakdown && Object.keys(player.breakdown).length > 0 && (
+                            <div className="grid grid-cols-4 gap-1.5 mb-2">
+                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
+                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.motive || 0}</p>
+                                <p className="text-[8px] text-[#8C96A5]">动机</p>
+                              </div>
+                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
+                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.method || 0}</p>
+                                <p className="text-[8px] text-[#8C96A5]">手法</p>
+                              </div>
+                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
+                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.clues || 0}</p>
+                                <p className="text-[8px] text-[#8C96A5]">线索</p>
+                              </div>
+                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
+                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.accuracy || 0}</p>
+                                <p className="text-[8px] text-[#8C96A5]">准确</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* 答案 */}
+                          {player.answer && (
+                            <div className="mb-2 p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+                              <p className="text-[10px] text-[#8C96A5] mb-0.5">投票答案</p>
+                              <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed line-clamp-2">
+                                {player.answer}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* DM评论 */}
+                          {player.comment && (
+                            <div className="flex items-start gap-1.5">
+                              <Sparkles className="w-3 h-3 text-[#7C8CD6] flex-shrink-0 mt-0.5"/>
+                              <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+                                {player.comment}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-[#8C96A5] text-sm">
+                    暂无真人玩家数据
+                  </div>
+                )}
               </div>
             </div>
 
             {/* 右侧：真相 + 玩家排名 */}
-            <div className="col-span-7 h-full flex flex-col">
+            <div className="col-span-8 h-full flex flex-col gap-4 overflow-hidden">
               {/* 真相卡片 */}
-              <div className="mb-4">
-                <TruthCard truth={result.truth}/>
+              <div className="h-40 flex-shrink-0">
+                <TruthCard truth={result?.ending}/>
               </div>
 
               {/* 玩家排名 */}
               <motion.div variants={itemVariants} className="flex-1 flex flex-col min-h-0">
-                <h3 className="text-xs font-medium text-[#8C96A5] uppercase tracking-wider mb-3">
-                  玩家表现
-                </h3>
-                <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {result.players.map((player, index) => (
-                        <PlayerRankItem
-                            key={player.id}
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-medium text-[#8C96A5] uppercase tracking-wider">
+                    {isObserverMode ? 'AI玩家排名' : '玩家表现'}
+                  </h3>
+                  <div className="flex items-center gap-1 text-xs text-[#8C96A5]">
+                    <span>平均分:</span>
+                    <span className="font-bold text-[#7C8CD6]">{averageScore}</span>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto scrollbar-thin pr-1">
+                  <div className="grid grid-cols-2 gap-3">
+                    {(isObserverMode ? aiPlayerScores : playerScores).map((player, index) => (
+                        <PlayerScoreCard
+                            key={player.playerId}
                             player={player}
                             rank={index + 1}
+                            currentPlayerId={currentPlayerId}
+                            culpritId={culpritId}
                         />
                     ))}
                   </div>
                 </div>
-              </motion.div>
-
-              {/* 底部按钮 */}
-              <motion.div
-                  variants={itemVariants}
-                  className="mt-4 flex justify-end gap-3 pt-4 border-t border-[#E0E5EE] dark:border-[#363D4D]"
-              >
-                <GhostButton onClick={handleReturnHome}>
-                <span className="flex items-center gap-2">
-                  <Home className="w-4 h-4"/>
-                  返回大厅
-                </span>
-                </GhostButton>
-                <GhostButton onClick={handlePlayAgain}>
-                <span className="flex items-center gap-2">
-                  <RotateCcw className="w-4 h-4"/>
-                  再来一局
-                </span>
-                </GhostButton>
               </motion.div>
             </div>
           </div>

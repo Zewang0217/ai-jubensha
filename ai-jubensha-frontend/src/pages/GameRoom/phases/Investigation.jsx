@@ -135,7 +135,7 @@ ProgressBar.displayName = 'ProgressBar'
  * @param {boolean} props.isObserverMode - 是否为观察者模式
  * @returns {JSX.Element} 组件元素
  */
-function Investigation({_config, gameData, onComplete, onAction, isObserverMode = false, isAllInvestigationComplete = false, gameId, currentPlayerId}) {
+function Investigation({_config, gameData, onComplete: _onComplete, onAction, isObserverMode = false, isAllInvestigationComplete = false, gameId, currentPlayerId}) {
   const [selectedScene, setSelectedScene] = useState(null)
   const [revealedClues, setRevealedClues] = useState(new Set())
   const [publicClues, setPublicClues] = useState(new Set())
@@ -148,6 +148,9 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
   
   // AI 玩家搜证完毕提示弹窗
   const [showAICompleteModal, setShowAICompleteModal] = useState(false)
+  
+  // 观察者模式：AI 玩家正在搜证的状态
+  const [isWaitingForAI, setIsWaitingForAI] = useState(isObserverMode && !isAllInvestigationComplete)
 
   // 搜证次数限制（非观察者模式下有效）
   const totalChances = gameData?.totalChances ?? 3
@@ -184,6 +187,7 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
   // 真人模式：所有玩家搜证完毕时显示弹窗
   useEffect(() => {
     if (isAllInvestigationComplete) {
+      setIsWaitingForAI(false)
       setShowAICompleteModal(true)
       console.log('[Investigation] 搜证完成，显示弹窗 - isObserverMode:', isObserverMode)
     }
@@ -191,7 +195,9 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
 
   // 调试日志
   console.log('[Investigation] isObserverMode:', isObserverMode)
-  console.log('[Investigation] remainingChances:', remainingChances, 'totalChances:', totalChances)
+  if (!isObserverMode) {
+    console.log('[Investigation] remainingChances:', remainingChances, 'totalChances:', totalChances)
+  }
 
   const scenes = gameData?.scenes || [
     {
@@ -363,11 +369,12 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
    * @returns {void}
    */
   const handleComplete = () => {
+    // 只调用 onAction，由 handleAction 统一处理阶段完成逻辑
+    // 避免同时调用 onComplete 导致重复触发 handlePhaseComplete
     onAction?.('investigation_complete', {
       revealedClues: Array.from(revealedClues),
       totalClues,
     })
-    onComplete?.()
   }
 
   return (
@@ -465,7 +472,28 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
           {/* 主内容区 */}
           <div className="flex-1 min-h-0 flex gap-6">
             {/* 左侧：公开线索列表 */}
-            <motion.nav variants={itemVariants} className="w-60 flex-none hidden md:flex flex-col">
+            <motion.nav variants={itemVariants} className="w-60 flex-none hidden md:flex flex-col gap-3">
+              {/* 观察者模式：AI 玩家搜证中提示 */}
+              {isObserverMode && isWaitingForAI && (
+                  <motion.div
+                      initial={{opacity: 0, y: -10}}
+                      animate={{opacity: 1, y: 0}}
+                      className="p-4 rounded-xl bg-gradient-to-r from-[#7C8CD6]/10 to-[#A78BFA]/10 border border-[#7C8CD6]/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <motion.div
+                          animate={{rotate: 360}}
+                          transition={{duration: 1.5, repeat: Infinity, ease: 'linear'}}
+                          className="w-5 h-5 border-2 border-[#7C8CD6] border-t-transparent rounded-full"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-[#7C8CD6]">AI 玩家正在搜证...</p>
+                        <p className="text-xs text-[#8C96A5] mt-0.5">请稍候，搜证完成后将自动通知</p>
+                      </div>
+                    </div>
+                  </motion.div>
+              )}
+              
               <div
                   className="bg-white/60 dark:bg-[#222631]/60 backdrop-blur-md border border-[#E0E5EE] dark:border-[#363D4D] rounded-xl p-3 flex-1 overflow-hidden flex flex-col">
                 <p className="text-[#8C96A5] dark:text-[#6B7788] text-xs font-medium uppercase tracking-wider mb-3 px-1">
@@ -678,7 +706,8 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
                     )}
 
                     {/* 完成按钮 */}
-                    {(isObserverMode || revealedClues.size === totalClues) ? (
+                    {/* 观察者模式：只有 AI 玩家完成搜证后才显示完成按钮 */}
+                    {(isObserverMode ? isAllInvestigationComplete : (revealedClues.size === totalClues)) ? (
                         <GhostButton onClick={handleComplete}>
                       <span className="flex items-center gap-1 text-[#5DD9A8]">
                         {isObserverMode ? '完成查看' : '完成调查'}

@@ -233,6 +233,17 @@ public class ScriptReaderNode {
                             context = latestContext;
                         }
                         
+                        // 检查游戏阶段是否已经推进（如果阶段已经不是 SCRIPT_READING，说明已经推进）
+                        try {
+                            Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                            if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.SCRIPT_READING) {
+                                log.info("[阶段同步] 检测到游戏阶段已推进到 {}，退出等待", latestGame.getCurrentPhase());
+                                break;
+                            }
+                        } catch (Exception e) {
+                            log.warn("[阶段同步] 检查游戏阶段失败: {}", e.getMessage());
+                        }
+                        
                         // 每30秒输出一次等待日志
                         if (waitCount % 30 == 0) {
                             log.info("[阶段同步] 等待观察者确认剧本阅读，已等待: {}秒", waitCount);
@@ -242,7 +253,17 @@ public class ScriptReaderNode {
                     if (context.isObserverConfirmed()) {
                         log.info("[阶段同步] 观察者已确认剧本阅读，继续工作流");
                     } else {
-                        log.warn("[阶段同步] 等待观察者确认超时，强制继续工作流");
+                        // 再次检查游戏阶段，判断是否因阶段推进而退出
+                        try {
+                            Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                            if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.SCRIPT_READING) {
+                                log.info("[阶段同步] 因阶段已推进退出等待，当前阶段: {}", latestGame.getCurrentPhase());
+                            } else {
+                                log.warn("[阶段同步] 等待观察者确认超时，强制继续工作流");
+                            }
+                        } catch (Exception e) {
+                            log.warn("[阶段同步] 等待观察者确认超时，强制继续工作流");
+                        }
                     }
                 } else {
                     // 有真人玩家模式：等待真人玩家确认
