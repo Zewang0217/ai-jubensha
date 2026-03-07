@@ -106,12 +106,13 @@ public interface WebSocketService {
      * 广播 AI Agent 操作消息（公屏显示）
      *
      * @param gameId     游戏ID
-     * @param actionType 操作类型（INVESTIGATE, REVEAL_CLUE, HIDE_CLUE, SPEAK, VOTE, SYSTEM）
+     * @param actionType 操作类型（INVESTIGATE, REVEAL_CLUE, HIDE_CLUE, VOTE, SYSTEM）
      * @param agentName  AI Agent 角色名
      * @param targetName 目标名称（线索名、场景名等）
      * @param message    显示消息内容
      * @param isPublic   是否公开操作
-     * @param reason     决策理由（AI 选择的原因）
+     * @param reason     决策理由（AI 选择的简短原因）
+     * @param analysis   决策分析（AI 选择的详细分析，可选）
      */
-    void broadcastAgentAction(Long gameId, String actionType, String agentName, String targetName, String message, Boolean isPublic, String reason);
+    void broadcastAgentAction(Long gameId, String actionType, String agentName, String targetName, String message, Boolean isPublic, String reason, String analysis);
 }
