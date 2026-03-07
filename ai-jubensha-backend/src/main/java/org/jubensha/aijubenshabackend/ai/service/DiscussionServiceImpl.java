@@ -611,6 +611,12 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     public Map<String, Object> endDiscussion() {
+        // 防止重复调用
+        if (discussionCompleted) {
+            log.warn("[结束讨论] 讨论已经结束，忽略重复调用");
+            return discussionState;
+        }
+        
         log.info("结束讨论");
         discussionState.put("endTime", LocalDateTime.now());
         discussionState.put("playerAnswers", playerAnswers);

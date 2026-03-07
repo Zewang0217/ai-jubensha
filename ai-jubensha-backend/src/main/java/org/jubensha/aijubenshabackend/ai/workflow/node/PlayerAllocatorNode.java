@@ -153,6 +153,21 @@ public class PlayerAllocatorNode {
                 // 观察者模式：不创建真人玩家，所有角色由AI填充
                 log.info("[观察者模式] 自动分配所有角色给AI玩家");
                 
+                // 清理遗留的真人玩家记录（防止之前游戏遗留的真人玩家影响当前游戏）
+                try {
+                    List<GamePlayer> existingGamePlayers = gamePlayerService.getGamePlayersByGameId(gameId);
+                    for (GamePlayer gp : existingGamePlayers) {
+                        if (gp.getPlayer() != null && gp.getPlayer().getRole() == PlayerRole.REAL) {
+                            log.info("[观察者模式] 清理遗留的真人玩家记录: playerId={}, nickname={}", 
+                                    gp.getPlayer().getId(), gp.getPlayer().getNickname());
+                            gamePlayerService.deleteGamePlayer(gp.getId());
+                        }
+                    }
+                    log.info("[观察者模式] 遗留玩家记录清理完成");
+                } catch (Exception e) {
+                    log.warn("[观察者模式] 清理遗留玩家记录失败: {}", e.getMessage());
+                }
+                
                 // 观察者模式下，需要先将游戏阶段设置为 CHARACTER_ASSIGNMENT
                 // 然后等待观察者确认后才进入 SCRIPT_READING 阶段
                 try {
@@ -189,6 +204,17 @@ public class PlayerAllocatorNode {
                             context = latestContext;
                         }
                         
+                        // 检查游戏阶段是否已经推进（如果阶段已经不是 CHARACTER_ASSIGNMENT，说明已经推进）
+                        try {
+                            Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                            if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.CHARACTER_ASSIGNMENT) {
+                                log.info("[观察者模式] 检测到游戏阶段已推进到 {}，退出等待", latestGame.getCurrentPhase());
+                                break;
+                            }
+                        } catch (Exception e) {
+                            log.warn("[观察者模式] 检查游戏阶段失败: {}", e.getMessage());
+                        }
+                        
                         // 每30秒输出一次等待日志
                         if (waitCount % 30 == 0) {
                             log.info("[观察者模式] 等待观察者确认角色分配阶段，已等待: {}秒", waitCount);
@@ -198,7 +224,17 @@ public class PlayerAllocatorNode {
                     if (context.isObserverConfirmed()) {
                         log.info("[观察者模式] 观察者已确认角色分配阶段，继续工作流");
                     } else {
-                        log.warn("[观察者模式] 等待观察者确认超时，强制继续工作流");
+                        // 再次检查游戏阶段，判断是否因阶段推进而退出
+                        try {
+                            Game latestGame = gameService.getGameById(context.getGameId()).orElse(null);
+                            if (latestGame != null && latestGame.getCurrentPhase() != GamePhase.CHARACTER_ASSIGNMENT) {
+                                log.info("[观察者模式] 因阶段已推进退出等待，当前阶段: {}", latestGame.getCurrentPhase());
+                            } else {
+                                log.warn("[观察者模式] 等待观察者确认超时，强制继续工作流");
+                            }
+                        } catch (Exception e) {
+                            log.warn("[观察者模式] 等待观察者确认超时，强制继续工作流");
+                        }
                     }
                 } catch (Exception e) {
                     log.error("[观察者模式] 角色分配阶段处理失败: {}", e.getMessage());
