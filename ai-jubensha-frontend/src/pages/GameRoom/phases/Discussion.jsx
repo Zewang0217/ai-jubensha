@@ -377,6 +377,7 @@ TabSwitcher.displayName = 'TabSwitcher'
  * @param {boolean} props.isObserverMode - 是否为观察者模式
  * @returns {JSX.Element} Discussion 组件
  */
+// eslint-disable-next-line no-unused-vars
 function Discussion({
   config: _config,
   gameData,
