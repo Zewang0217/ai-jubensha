@@ -253,15 +253,26 @@ public class PlayerAllocatorNode {
 
             // 更新游戏阶段到剧本阅读并广播阶段变化
             try {
-                GamePhase previousPhase = game.getCurrentPhase();
-                game.setCurrentPhase(GamePhase.SCRIPT_READING);
-                gameService.updateGame(gameId, game);
-                log.info("[阶段变化] 游戏阶段已更新为: SCRIPT_READING");
-                
-                // 广播阶段变化通知
-                WebSocketServiceImpl webSocketService = SpringContextUtil.getBean(WebSocketServiceImpl.class);
-                webSocketService.broadcastPhaseChange(gameId, previousPhase, GamePhase.SCRIPT_READING, "进入剧本阅读阶段");
-                log.info("[阶段变化] 已广播阶段变化通知");
+                // 重新获取最新游戏状态
+                var latestGameOpt = gameService.getGameById(gameId);
+                if (latestGameOpt.isPresent()) {
+                    Game latestGame = latestGameOpt.get();
+                    GamePhase previousPhase = latestGame.getCurrentPhase();
+                    
+                    // 检查当前阶段是否已经是 SCRIPT_READING（可能已被 GameController 推进）
+                    if (latestGame.getCurrentPhase() == GamePhase.SCRIPT_READING) {
+                        log.info("[阶段变化] 游戏阶段已是 SCRIPT_READING，跳过重复更新和广播");
+                    } else {
+                        latestGame.setCurrentPhase(GamePhase.SCRIPT_READING);
+                        gameService.updateGame(gameId, latestGame);
+                        log.info("[阶段变化] 游戏阶段已更新为: SCRIPT_READING");
+                        
+                        // 广播阶段变化通知
+                        WebSocketServiceImpl webSocketService = SpringContextUtil.getBean(WebSocketServiceImpl.class);
+                        webSocketService.broadcastPhaseChange(gameId, previousPhase, GamePhase.SCRIPT_READING, "进入剧本阅读阶段");
+                        log.info("[阶段变化] 已广播阶段变化通知");
+                    }
+                }
             } catch (Exception e) {
                 log.error("[阶段变化] 更新游戏阶段失败: {}", e.getMessage());
             }

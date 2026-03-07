@@ -5,9 +5,10 @@
 
 import {memo, useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {AnimatePresence, motion} from 'framer-motion'
-import {Bot, ChevronRight, Eye, FileText, MessageCircle, Send, User, Vote} from 'lucide-react'
+import {Bot, ChevronRight, Eye, FileText, MessageCircle, Send, User, Vote, ScrollText} from 'lucide-react'
 import {PHASE_TYPE} from '../types'
 import GhostButton from '../../../components/ui/GhostButton'
+import AIAnswerModal from '../components/AIAnswerModal'
 
 // =============================================================================
 // 动画配置
@@ -401,10 +402,13 @@ function Discussion({
   const [hoveredPlayer, setHoveredPlayer] = useState(null)
   const [hoveredClue, setHoveredClue] = useState(null)
   const [voteFeedback, setVoteFeedback] = useState(null) // 投票反馈消息
+  const [aiAnswers, setAiAnswers] = useState([]) // AI玩家答案列表（观察者模式）
+  const [isAnswerModalOpen, setIsAnswerModalOpen] = useState(false) // 是否显示答案弹窗
   const messagesEndRef = useRef(null)
   const subscriptionIdRef = useRef(null)
   const personalSubscriptionIdRef = useRef(null) // 个人消息订阅ID
   const phaseSubscriptionIdRef = useRef(null) // 答题阶段订阅ID
+  const answerSubscriptionIdRef = useRef(null) // 玩家答案订阅ID
 
   // 公开线索列表
   const publicClues = gameData?.publicClues || []
@@ -627,6 +631,54 @@ function Discussion({
     }
   }, [subscribe, unsubscribe, isConnected, gameData?.gameId, formatTime])
 
+  // 订阅玩家答案消息（观察者模式）
+  useEffect(() => {
+    if (!subscribe || !isConnected || !gameData?.gameId || !isObserverMode) {
+      console.log('[Discussion] 不满足订阅玩家答案的条件')
+      return
+    }
+
+    const gameId = gameData.gameId
+    const topic = `/topic/game/${gameId}/discussion`
+
+    console.log('[Discussion] 开始订阅玩家答案消息, topic:', topic)
+
+    answerSubscriptionIdRef.current = subscribe(topic, (message) => {
+      console.log('[Discussion] 收到讨论频道消息:', message)
+
+      // 处理玩家答案消息
+      if (message.type === 'PLAYER_ANSWER' || message.messageType === 'PLAYER_ANSWER') {
+        const payload = message.payload || message
+        console.log('[Discussion] 收到玩家答案:', payload)
+
+        setAiAnswers(prev => {
+          // 检查是否已存在该玩家的答案
+          const existingIndex = prev.findIndex(a => a.playerId === payload.playerId)
+          if (existingIndex >= 0) {
+            // 更新已有答案
+            const updated = [...prev]
+            updated[existingIndex] = payload
+            return updated
+          }
+          // 添加新答案
+          return [...prev, payload]
+        })
+
+        // 自动打开弹窗显示AI答案
+        if (payload.isAI) {
+          setIsAnswerModalOpen(true)
+        }
+      }
+    })
+
+    return () => {
+      if (answerSubscriptionIdRef.current && unsubscribe) {
+        console.log('[Discussion] 取消订阅玩家答案消息')
+        unsubscribe(answerSubscriptionIdRef.current)
+      }
+    }
+  }, [subscribe, unsubscribe, isConnected, gameData?.gameId, isObserverMode])
+
   // 滚动到最新消息
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({behavior: 'smooth'})
@@ -707,9 +759,10 @@ function Discussion({
   // 完成讨论阶段
   const handleComplete = useCallback(() => {
     console.log('[Discussion] 完成讨论阶段')
+    // 只调用 onAction，由 handleAction 统一处理阶段完成逻辑
+    // 避免同时调用 onComplete 导致重复触发 handlePhaseComplete
     onAction?.('discussion_complete', {messageCount: messages.length, hasVoted})
-    onComplete?.()
-  }, [onAction, onComplete, messages.length, hasVoted])
+  }, [onAction, messages.length, hasVoted])
 
   return (
       <div className="h-full relative overflow-hidden">
@@ -869,6 +922,21 @@ function Discussion({
                           </>
                         )}
                       </div>
+
+                      {/* AI答案查看按钮（观察者模式） */}
+                      {isObserverMode && aiAnswers.length > 0 && (
+                        <div className="border-t border-[#E0E5EE] dark:border-[#363D4D] bg-white/40 dark:bg-[#222631]/40 p-3">
+                          <button
+                            onClick={() => setIsAnswerModalOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-500/30 transition-all group"
+                          >
+                            <ScrollText className="w-4 h-4 text-blue-400 group-hover:text-blue-300"/>
+                            <span className="text-sm font-medium text-blue-300">
+                              查看AI答题情况 ({aiAnswers.length}/{players.filter(p => !p.isDm && p.playerRole !== 'DM' && p.playerRole !== 'JUDGE').length})
+                            </span>
+                          </button>
+                        </div>
+                      )}
 
                       {/* 投票结果面板 */}
                       {voteResults.length > 0 && (
@@ -1127,6 +1195,14 @@ function Discussion({
             </motion.div>
           </div>
         </motion.div>
+
+        {/* AI答题展示弹窗（观察者模式） */}
+        <AIAnswerModal
+          isOpen={isAnswerModalOpen}
+          onClose={() => setIsAnswerModalOpen(false)}
+          answers={aiAnswers}
+          currentPhase="discussion"
+        />
       </div>
   )
 }

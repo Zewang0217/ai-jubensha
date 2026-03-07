@@ -58,6 +58,7 @@ public class WebSocketMessage {
         VOTE_RESULT,           // 投票结果广播
         PHASE_READY,           // 阶段就绪通知
         INVESTIGATION_COMPLETE, // 搜证完成通知
-        GAME_ENDED             // 游戏结束通知
+        GAME_ENDED,            // 游戏结束通知
+        PLAYER_ANSWER          // 玩家提交答案通知（用于观察者模式展示AI答题）
     }
 }

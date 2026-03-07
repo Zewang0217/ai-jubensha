@@ -301,7 +301,7 @@ TruthCard.displayName = 'TruthCard'
 // 主要组件
 // =============================================================================
 
-function Summary({_config, gameData, currentPlayerId, onAction, playerData}) {
+function Summary({_config, gameData, currentPlayerId, onAction, playerData, isObserverMode = false}) {
   // 从 gameData.result 获取真实数据
   const result = gameData?.result || {}
   
@@ -378,6 +378,11 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData}) {
   // 获取真人玩家的评分列表（用于左侧展示）
   const realPlayerScores = useMemo(() => {
     return playerScores.filter(p => p.isRealPlayer)
+  }, [playerScores])
+
+  // 获取AI玩家的评分列表（观察者模式使用）
+  const aiPlayerScores = useMemo(() => {
+    return playerScores.filter(p => !p.isRealPlayer)
   }, [playerScores])
 
   // 获取当前玩家的评分
@@ -459,22 +464,22 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData}) {
 
           {/* 内容网格 - 占满剩余空间 */}
           <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-            {/* 左侧：真人玩家表现 */}
+            {/* 左侧：真人玩家表现 / 观察者模式：AI玩家表现 */}
             <div className="col-span-4 h-full flex flex-col gap-4 overflow-hidden">
-              {/* 真人玩家表现标题 */}
+              {/* 标题 */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="w-7 h-7 rounded-lg bg-[#7C8CD6]/10 flex items-center justify-center">
                   <User className="w-4 h-4 text-[#7C8CD6]"/>
                 </div>
                 <h3 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
-                  真人玩家表现
+                  {isObserverMode ? 'AI玩家表现' : '真人玩家表现'}
                 </h3>
               </div>
               
-              {/* 真人玩家列表 */}
+              {/* 玩家列表 */}
               <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-3">
-                {realPlayerScores.length > 0 ? (
-                  realPlayerScores.map((player) => (
+                {(isObserverMode ? aiPlayerScores : realPlayerScores).length > 0 ? (
+                  (isObserverMode ? aiPlayerScores : realPlayerScores).map((player) => (
                     <motion.div
                       key={player.playerId}
                       variants={itemVariants}
@@ -586,7 +591,7 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData}) {
               <motion.div variants={itemVariants} className="flex-1 flex flex-col min-h-0">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-medium text-[#8C96A5] uppercase tracking-wider">
-                    玩家表现
+                    {isObserverMode ? 'AI玩家排名' : '玩家表现'}
                   </h3>
                   <div className="flex items-center gap-1 text-xs text-[#8C96A5]">
                     <span>平均分:</span>
@@ -595,7 +600,7 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData}) {
                 </div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-1">
                   <div className="grid grid-cols-2 gap-3">
-                    {playerScores.map((player, index) => (
+                    {(isObserverMode ? aiPlayerScores : playerScores).map((player, index) => (
                         <PlayerScoreCard
                             key={player.playerId}
                             player={player}

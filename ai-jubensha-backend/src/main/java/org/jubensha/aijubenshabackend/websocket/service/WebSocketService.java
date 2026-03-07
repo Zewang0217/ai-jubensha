@@ -90,4 +90,15 @@ public interface WebSocketService {
      * @param resultData 游戏结果数据（scores、ending、playerAnswers等）
      */
     void broadcastGameEnded(Long gameId, String message, Map<String, Object> resultData);
+
+    /**
+     * 广播玩家答案通知（用于观察者模式展示AI答题）
+     *
+     * @param gameId 游戏ID
+     * @param playerId 玩家ID
+     * @param playerName 玩家名称
+     * @param answer 答案内容
+     * @param isAI 是否为AI玩家
+     */
+    void broadcastPlayerAnswer(Long gameId, Long playerId, String playerName, String answer, boolean isAI);
 }

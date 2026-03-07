@@ -135,7 +135,7 @@ ProgressBar.displayName = 'ProgressBar'
  * @param {boolean} props.isObserverMode - 是否为观察者模式
  * @returns {JSX.Element} 组件元素
  */
-function Investigation({_config, gameData, onComplete, onAction, isObserverMode = false, isAllInvestigationComplete = false, gameId, currentPlayerId}) {
+function Investigation({_config, gameData, onComplete: _onComplete, onAction, isObserverMode = false, isAllInvestigationComplete = false, gameId, currentPlayerId}) {
   const [selectedScene, setSelectedScene] = useState(null)
   const [revealedClues, setRevealedClues] = useState(new Set())
   const [publicClues, setPublicClues] = useState(new Set())
@@ -369,11 +369,12 @@ function Investigation({_config, gameData, onComplete, onAction, isObserverMode 
    * @returns {void}
    */
   const handleComplete = () => {
+    // 只调用 onAction，由 handleAction 统一处理阶段完成逻辑
+    // 避免同时调用 onComplete 导致重复触发 handlePhaseComplete
     onAction?.('investigation_complete', {
       revealedClues: Array.from(revealedClues),
       totalClues,
     })
-    onComplete?.()
   }
 
   return (
