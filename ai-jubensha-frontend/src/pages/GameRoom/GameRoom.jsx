@@ -573,16 +573,18 @@ function GameRoom() {
     return false
   }, [isDebugMode, debugSendChatMessage, apiSendChatMessage, currentPlayerId])
 
-  const sendVote = useCallback((characterId) => {
+  const sendVote = useCallback((voteData) => {
     if (isDebugMode) {
-      return debugSendVote?.(characterId)
+      return debugSendVote?.(voteData)
     }
     // 真实模式下发送投票消息
+    // voteData 格式: { type: 'VOTE_SUBMIT', payload: { targetId, playerId, voteMessage } }
     if (apiSendVote && currentPlayerId) {
+      console.log('[GameRoom] 发送投票数据:', voteData)
       return apiSendVote({
-        type: 'VOTE_SUBMIT',
+        type: voteData?.type || 'VOTE_SUBMIT',
         sender: currentPlayerId,
-        payload: {characterId},
+        payload: voteData?.payload || voteData,
       })
     }
     return false

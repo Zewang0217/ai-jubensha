@@ -425,15 +425,24 @@ function Discussion({
 
   // 其他玩家（排除自己、DM和Judge）
   const otherPlayers = useMemo(() => {
-    return players.filter(p => {
+    // 使用 Map 按 playerId 去重
+    const uniquePlayers = new Map()
+    
+    players.forEach(p => {
       // 排除当前玩家
-      if (p.playerId === currentPlayerId || p.isSelf) return false
+      if (p.playerId === currentPlayerId || p.isSelf) return
       // 排除 DM（通过 isDm 字段或 playerRole 判断）
-      if (p.isDm === true || p.playerRole === 'DM') return false
+      if (p.isDm === true || p.playerRole === 'DM') return
       // 排除 Judge（通过 playerRole 判断）
-      if (p.playerRole === 'JUDGE') return false
-      return true
+      if (p.playerRole === 'JUDGE') return
+      
+      // 使用 playerId 去重，只保留第一条记录
+      if (!uniquePlayers.has(p.playerId)) {
+        uniquePlayers.set(p.playerId, p)
+      }
     })
+    
+    return Array.from(uniquePlayers.values())
   }, [players, currentPlayerId])
 
   // 格式化时间
@@ -798,7 +807,9 @@ function Discussion({
                           </div>
                         </div>
                         <p className="text-[#5A6978] dark:text-[#9CA8B8] text-xs leading-relaxed flex-1 overflow-y-auto scrollbar-thin">
-                          这是一条重要的{hoveredClue.type}线索，可能与案件的关键环节有关。仔细观察，或许能发现隐藏的真相。
+                          {hoveredClue?.description || 
+                            `这是一条重要的${hoveredClue?.type || '未知'}线索，可能与案件的关键环节有关。仔细观察，或许能发现隐藏的真相。`
+                          }
                         </p>
                       </motion.div>
                   ) : (
