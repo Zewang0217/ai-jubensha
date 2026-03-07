@@ -1,20 +1,21 @@
 package org.jubensha.aijubenshabackend.websocket.service;
 
 import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
 import org.jubensha.aijubenshabackend.ai.service.RAGService;
+import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
 import org.jubensha.aijubenshabackend.ai.service.util.DMModerator;
 import org.jubensha.aijubenshabackend.ai.service.util.MessageAccumulator;
 import org.jubensha.aijubenshabackend.ai.service.util.ScrollingSummaryManager;
 import org.jubensha.aijubenshabackend.ai.service.util.TurnManager;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
-import org.jubensha.aijubenshabackend.repository.dialogue.DialogueRepository;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
-import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.service.player.PlayerService;
+import org.jubensha.aijubenshabackend.repository.dialogue.DialogueRepository;
+import org.jubensha.aijubenshabackend.service.game.GameService;
 import org.jubensha.aijubenshabackend.websocket.message.WebSocketMessage;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -499,27 +500,5 @@ public class WebSocketServiceImpl implements WebSocketService {
         String destination = "/topic/game/" + gameId + "/discussion";
         messagingTemplate.convertAndSend(destination, wsMessage);
         log.info("[答案广播] 广播玩家答案到游戏 {}: playerId={}, playerName={}, isAI={}", gameId, playerId, playerName, isAI);
-    public void broadcastAgentAction(Long gameId, String actionType, String agentName, String targetName, String message, Boolean isPublic, String reason) {
-        WebSocketMessage wsMessage = new WebSocketMessage();
-        wsMessage.setType(WebSocketMessage.MessageType.AGENT_ACTION);
-
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("actionType", actionType);
-        payload.put("agentName", agentName);
-        payload.put("targetName", targetName);
-        payload.put("message", message);
-        payload.put("isPublic", isPublic);
-        payload.put("reason", reason);
-        payload.put("timestamp", LocalDateTime.now().toString());
-        wsMessage.setPayload(payload);
-
-        // 广播到游戏公屏主题
-        String destination = "/topic/game/" + gameId + "/agent-actions";
-        messagingTemplate.convertAndSend(destination, wsMessage);
-        log.info("广播AI Agent操作到游戏 {}: type={}, agent={}, target={}, message={}, reason={}",
-                gameId, actionType, agentName, targetName, message, reason);
-
-        // 同时发送给所有真人玩家（作为个人消息）
-        sendToGameRealPlayers(gameId, wsMessage);
     }
 }

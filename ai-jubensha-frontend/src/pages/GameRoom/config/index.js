@@ -1,9 +1,9 @@
 /**
- * @fileoverview GameRoom 配置统一导出
- * @description 统一导出所有配置模块
+ * @fileoverview GameRoom 配置导出
+ * @description 统一导出 GameRoom 相关配置
  * @author zewang
  */
 
-export * from './animations'
 export * from './theme'
 export * from './constants'
+export * from './animations'

@@ -1,6 +1,6 @@
 /**
- * @fileoverview Discussion 子组件统一导出
- * @description 统一导出讨论阶段的所有子组件
+ * @fileoverview Discussion 阶段组件导出文件
+ * @description 统一导出 Discussion 阶段的所有子组件
  * @author zewang
  */
 

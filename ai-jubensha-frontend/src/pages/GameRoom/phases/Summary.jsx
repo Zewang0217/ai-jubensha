@@ -301,6 +301,7 @@ TruthCard.displayName = 'TruthCard'
 // 主要组件
 // =============================================================================
 
+// eslint-disable-next-line no-unused-vars
 function Summary({_config, gameData, currentPlayerId, onAction, playerData, isObserverMode = false}) {
   // 从 gameData.result 获取真实数据
   const result = gameData?.result || {}
@@ -381,6 +382,7 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
   }, [playerScores])
 
   // 获取AI玩家的评分列表（观察者模式使用）
+  // eslint-disable-next-line no-unused-vars
   const aiPlayerScores = useMemo(() => {
     return playerScores.filter(p => !p.isRealPlayer)
   }, [playerScores])

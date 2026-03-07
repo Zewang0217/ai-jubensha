@@ -142,7 +142,7 @@ export const adaptGameData = async (gameData, players) => {
                 
                 // 检查是否有未分配到场景的线索
                 const allClues = scenesWithClues.flatMap(s => s.clues)
-                const unassignedClues = []
+                const unassignedClues = []  // 保留变量供将来使用
                 
                 if (allClues.length === 0 && scenes.length > 0) {
                     // 尝试获取所有线索（备用方案）
@@ -157,7 +157,7 @@ export const adaptGameData = async (gameData, players) => {
                                 const cluesResp = await getSceneClues(s.id)
                                 const c = cluesResp?.data || cluesResp || []
                                 allCluesCollected.push(...c.map(cl => ({...cl, _sourceSceneId: s.id})))
-                            } catch (e) {
+                            } catch (_e) {
                                 // 忽略错误
                             }
                         }
@@ -211,6 +211,9 @@ export const adaptGameData = async (gameData, players) => {
         remainingChances: gameData.remainingChances ?? 3,
         totalChances: gameData.totalChances ?? 3,
 
+        // 游戏结果数据（评分、真相等）- 从 WebSocket 消息中获取
+        result: gameData.result || null,
+
         // 剧本信息
         scriptId: scriptId,
         script: script ? {
@@ -225,7 +228,7 @@ export const adaptGameData = async (gameData, players) => {
         } : null,
 
         // 角色列表
-        characters: Array.isArray(characters) ? characters.map((char, index) => ({
+        characters: Array.isArray(characters) ? characters.map((char, _index) => ({
             id: char.id,
             name: char.name,
             description: char.description,
