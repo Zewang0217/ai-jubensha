@@ -214,7 +214,9 @@ const CandidateCard = memo(({player, isSelected, hasVoted, onVote, onHover}) => 
         <h4 className={`font-medium text-sm ${isSelected ? 'text-[#2D3748] dark:text-[#E8ECF2]' : 'text-[#5A6978] dark:text-[#9CA8B8]'}`}>
           {player.name || player.characterName || '未知玩家'}
         </h4>
-        <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">{player.role || player.characterRole || '角色'}</p>
+        <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788] truncate">
+          {player.characterName || player.name || '角色'}
+        </p>
       </div>
 
       {/* 选择状态 */}
@@ -421,9 +423,17 @@ function Discussion({
     return players.find(p => p.playerId === currentPlayerId) || players.find(p => p.isSelf)
   }, [players, currentPlayerId])
 
-  // 其他玩家（排除自己）
+  // 其他玩家（排除自己、DM和Judge）
   const otherPlayers = useMemo(() => {
-    return players.filter(p => p.playerId !== currentPlayerId && !p.isSelf)
+    return players.filter(p => {
+      // 排除当前玩家
+      if (p.playerId === currentPlayerId || p.isSelf) return false
+      // 排除 DM（通过 isDm 字段或 playerRole 判断）
+      if (p.isDm === true || p.playerRole === 'DM') return false
+      // 排除 Judge（通过 playerRole 判断）
+      if (p.playerRole === 'JUDGE') return false
+      return true
+    })
   }, [players, currentPlayerId])
 
   // 格式化时间
@@ -473,7 +483,16 @@ function Discussion({
       // 处理聊天消息
       if (message.type === 'CHAT_MESSAGE' || message.type === 'chat_message') {
         const senderId = message.sender
-        const content = message.payload
+        // payload 可能是字符串或对象
+        let content = ''
+        let senderName = ''
+        
+        if (typeof message.payload === 'string') {
+          content = message.payload
+        } else if (message.payload && typeof message.payload === 'object') {
+          content = message.payload.message || ''
+          senderName = message.payload.playerName || ''
+        }
         
         // 忽略自己发送的消息（已经在本地添加了）
         if (senderId === currentPlayerId) {
@@ -483,7 +502,7 @@ function Discussion({
         
         const newMessage = {
           id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          sender: getPlayerNameById(senderId),
+          sender: senderName || getPlayerNameById(senderId),
           senderId: senderId,
           content: content,
           time: formatTime(new Date()),
@@ -974,9 +993,9 @@ function Discussion({
                             <div className="flex flex-col gap-3">
                               {otherPlayers.map((player) => (
                                 <CandidateCard
-                                  key={player.playerId || player.id}
+                                  key={player.id}
                                   player={player}
-                                  isSelected={selectedTarget === (player.playerId || player.id)}
+                                  isSelected={selectedTarget === player.playerId}
                                   hasVoted={hasVoted}
                                   onVote={(playerId) => setSelectedTarget(playerId)}
                                   onHover={setHoveredPlayer}
@@ -1000,14 +1019,14 @@ function Discussion({
                                 >
                                   <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#E0E5EE] dark:border-[#363D4D]">
                                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#7C8CD6] to-[#A78BFA] flex items-center justify-center text-white font-bold text-lg">
-                                      {hoveredPlayer.name.charAt(0)}
+                                      {(hoveredPlayer?.name || hoveredPlayer?.characterName || '?').charAt(0)}
                                     </div>
                                     <div>
                                       <h4 className="font-bold text-[#2D3748] dark:text-[#E8ECF2]">
-                                        {hoveredPlayer.name}
+                                        {hoveredPlayer?.name || hoveredPlayer?.characterName || '未知玩家'}
                                       </h4>
                                       <p className="text-sm text-[#8C96A5] dark:text-[#6B7788]">
-                                        {hoveredPlayer.role}
+                                        {hoveredPlayer?.characterName || hoveredPlayer?.name || '角色'}
                                       </p>
                                     </div>
                                   </div>
@@ -1015,12 +1034,16 @@ function Discussion({
                                     <p className="text-xs text-[#8C96A5] dark:text-[#6B7788] mb-2 uppercase tracking-wider">
                                       人物简介
                                     </p>
-                                    <p className="text-sm text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
-                                      {hoveredPlayer.isAI
-                                        ? `这是一位由AI控制的角色，在游戏中扮演${hoveredPlayer.role}。仔细观察TA的言行举止，找出破绽。`
-                                        : '这是你自己，作为调查员你需要揭露真相。'
-                                      }
-                                    </p>
+                                    <div className="h-full overflow-y-auto scrollbar-thin pr-1 max-h-40">
+                                      <p className="text-sm text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed whitespace-pre-wrap">
+                                        {hoveredPlayer?.description || hoveredPlayer?.backgroundStory || 
+                                          (hoveredPlayer?.isAI
+                                            ? `这是一位由AI控制的角色，在游戏中扮演${hoveredPlayer?.characterName || hoveredPlayer?.name || '某个角色'}。仔细观察TA的言行举止，找出破绽。`
+                                            : '这是你自己，作为调查员你需要揭露真相。'
+                                          )
+                                        }
+                                      </p>
+                                    </div>
                                   </div>
                                 </motion.div>
                               ) : (
