@@ -602,6 +602,18 @@ public class DiscussionServiceImpl implements DiscussionService {
             messageQueueService.sendAnswerMessage(answer, playerId, dmId);
         }
 
+        // 获取玩家名称
+        String playerName = getCharacterName(playerId);
+
+        // 判断是否为AI玩家（不在realPlayerIds列表中的就是AI玩家）
+        boolean isAI = !realPlayerIds.contains(playerId);
+
+        // 广播玩家答案通知（用于观察者模式展示）
+        if (webSocketService != null && gameId != null) {
+            webSocketService.broadcastPlayerAnswer(gameId, playerId, playerName, answer, isAI);
+            log.info("[答案提交] 已广播玩家 {} 的答案，isAI={}", playerName, isAI);
+        }
+
         // 检测是否所有玩家都已提交答案
         if (playerAnswers.size() == playerIds.size()) {
             log.info("所有玩家都已提交答案，开始评分流程");
@@ -1656,5 +1668,18 @@ public class DiscussionServiceImpl implements DiscussionService {
         discussionRound = 1;
 
         log.info("[停止讨论] 讨论已完全停止，游戏ID: {}", gameId);
+    }
+
+    @Override
+    public Map<Long, String> getPlayerAnswers() {
+        log.info("[获取答案] 获取所有玩家答案，当前已提交答案数量: {}", playerAnswers.size());
+        return new ConcurrentHashMap<>(playerAnswers);
+    }
+
+    @Override
+    public String getPlayerAnswer(Long playerId) {
+        String answer = playerAnswers.get(playerId);
+        log.info("[获取答案] 获取玩家 {} 的答案，是否存在: {}", playerId, answer != null);
+        return answer;
     }
 }
