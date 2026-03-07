@@ -13,12 +13,12 @@ import React, {memo, Suspense, useCallback, useEffect, useMemo, useRef, useState
 import {useNavigate, useParams} from 'react-router-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {AnimatePresence, motion} from 'framer-motion'
-import {getGameById, getGamePlayers, exitGame} from '../../services/api'
+import {exitGame, getGameById, getGamePlayers} from '../../services/api'
 import {adaptGameData, adaptPhase} from '../../services/api/gameDataAdapter'
 import Loading from '../../components/common/Loading'
 import {useWebSocket} from '../../hooks/useWebSocket'
 import {Bug, X} from 'lucide-react'
-import {saveGameState, loadGameState, clearGameState} from '../../utils/gameStateStorage'
+import {clearGameState, loadGameState, saveGameState} from '../../utils/gameStateStorage'
 
 // 阶段系统导入
 import {DEFAULT_PHASE_SEQUENCE, PHASE_CONFIG, PHASE_TYPE, usePhaseManager,} from './phases'
@@ -30,6 +30,7 @@ import {useDebugMode} from './hooks/useDebugMode'
 import GameRoomHeader from './components/GameRoomHeader'
 import GameRoomFooter from './components/GameRoomFooter'
 import ExitConfirmModal from './components/ExitConfirmModal'
+import PublicScreen from './components/PublicScreen'
 
 // =============================================================================
 // 延迟加载阶段组件
@@ -257,6 +258,18 @@ function GameRoom() {
   // 调试模式
   const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [showExitModal, setShowExitModal] = useState(false)
+
+  // AI Agent 公屏消息
+  const [agentActions, setAgentActions] = useState([])
+  const [isPublicScreenExpanded, setIsPublicScreenExpanded] = useState(true)
+
+  // 添加公屏消息
+  const addAgentAction = useCallback((action) => {
+    setAgentActions(prev => [...prev, {
+      ...action,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    }])
+  }, [])
 
   const {
     isDebugMode,
@@ -888,6 +901,43 @@ function GameRoom() {
     }
   }, [isDebugMode, isConnected, id, subscribe, handlePhaseComplete])
 
+  // WebSocket 监听 AI Agent 操作消息（公屏）
+  useEffect(() => {
+    if (isDebugMode || !isConnected || !id) return
+
+    /**
+     * 处理 AI Agent 操作消息
+     * @param {Object} data - 消息数据
+     */
+    const handleAgentAction = (data) => {
+      console.log('[GameRoom] 收到 AI Agent 操作消息:', data)
+
+      // 从消息中提取 payload
+      const payload = data?.payload || data
+
+      if (payload) {
+        addAgentAction({
+          actionType: payload.actionType || 'SYSTEM',
+          agentName: payload.agentName || '系统',
+          targetName: payload.targetName,
+          message: payload.message || '',
+          timestamp: payload.timestamp || new Date().toISOString(),
+          isPublic: payload.isPublic !== false,
+        })
+      }
+    }
+
+    // 订阅 AI Agent 操作主题
+    const agentActionSubscriptionId = subscribe(`/topic/game/${id}/agent-actions`, handleAgentAction)
+    console.log('[GameRoom] 已订阅 AI Agent 操作消息:', `/topic/game/${id}/agent-actions`)
+
+    return () => {
+      if (agentActionSubscriptionId) {
+        console.log('[GameRoom] 取消 AI Agent 操作订阅')
+      }
+    }
+  }, [isDebugMode, isConnected, id, subscribe, addAgentAction])
+
   const handlePhaseSkip = useCallback(() => goToNext(), [goToNext])
   const handlePhaseBack = useCallback(() => goToPrevious(), [goToPrevious])
 
@@ -1188,6 +1238,13 @@ function GameRoom() {
               />
           )}
         </AnimatePresence>
+
+        {/* AI Agent 公屏 */}
+        <PublicScreen
+            actions={agentActions}
+            isExpanded={isPublicScreenExpanded}
+            onToggleExpand={() => setIsPublicScreenExpanded(prev => !prev)}
+        />
       </div>
   )
 }
