@@ -181,6 +181,19 @@ public class DiscussionServiceImpl implements DiscussionService {
         this.playerIds = playerIds;
         this.dmId = dmId;
         this.judgeId = judgeId;
+        
+        // 重置讨论完成状态（单例Service需要在每次开始新讨论时重置状态）
+        this.discussionCompleted = false;
+        this.discussionRound = 1;
+        this.currentThreshold = SPEAK_THRESHOLD;
+        this.currentPhase = null;
+        this.lastAnySpeakTime = null;
+        this.playerAnswers.clear();
+        this.desireScores.clear();
+        this.lastSpeakTimes.clear();
+        this.privateChatInvitations.clear();
+        this.privateChatCounts.clear();
+        this.voteWaitLatches.clear();
 
         // 初始化讨论状态
         discussionState.clear();
@@ -1363,6 +1376,21 @@ public class DiscussionServiceImpl implements DiscussionService {
      */
     private void tick() {
         try {
+            // 从数据库读取游戏状态，验证当前游戏是否仍在讨论阶段
+            // 这是解决多游戏并发问题的关键：单例Service的状态变量会被多个游戏共享
+            // 通过数据库查询确保只处理当前游戏的实际状态
+            org.jubensha.aijubenshabackend.models.entity.Game game = gameService.getGameById(gameId).orElse(null);
+            if (game == null) {
+                log.warn("中央调度器跳过执行：游戏不存在，gameId={}", gameId);
+                return;
+            }
+            
+            // 检查游戏阶段是否为讨论阶段
+            if (game.getCurrentPhase() != GamePhase.DISCUSSION) {
+                log.debug("中央调度器跳过执行：游戏阶段不是讨论阶段，gameId={}, 当前阶段: {}", gameId, game.getCurrentPhase());
+                return;
+            }
+            
             // 检查讨论是否已完成
             if (discussionCompleted) {
                 log.debug("中央调度器跳过执行：讨论已完成={}", discussionCompleted);
