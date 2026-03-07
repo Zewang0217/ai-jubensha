@@ -91,6 +91,7 @@ public interface WebSocketService {
      * @param targetName 目标名称（线索名、场景名等）
      * @param message    显示消息内容
      * @param isPublic   是否公开操作
+     * @param reason     决策理由（AI 选择的原因）
      */
-    void broadcastAgentAction(Long gameId, String actionType, String agentName, String targetName, String message, Boolean isPublic);
+    void broadcastAgentAction(Long gameId, String actionType, String agentName, String targetName, String message, Boolean isPublic, String reason);
 }
