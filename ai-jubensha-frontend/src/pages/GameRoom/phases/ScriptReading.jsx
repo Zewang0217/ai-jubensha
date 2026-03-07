@@ -372,7 +372,7 @@ DM评分响应: {"scores": [{"playerId": "1024", "score": 71, "breakdown": {"mot
  * @param {boolean} props.isObserverMode - 是否为观察者模式
  * @returns {JSX.Element} 剧本阅读组件
  */
-function ScriptReading({config, gameData, playerData, onComplete, onAction, isObserverMode}) {
+function ScriptReading({config: _config, gameData, playerData, onComplete: _onComplete, onAction, isObserverMode}) {
   const [currentChapter, setCurrentChapter] = useState(0)
   const [direction, setDirection] = useState(0)
   const [selectedCharacterId, setSelectedCharacterId] = useState(null)
@@ -535,12 +535,11 @@ function ScriptReading({config, gameData, playerData, onComplete, onAction, isOb
     if (!isLastChapter) {
       handleChapterChange(currentChapter + 1)
     } else {
-      console.log('[ScriptReading] 剧本阅读完成，调用 onAction 和 onComplete')
+      console.log('[ScriptReading] 剧本阅读完成，调用 onAction')
       console.log('[ScriptReading] characterId:', characterId, 'chaptersRead:', chapters.length)
-      // 通知 GameRoom 剧本阅读完成
+      // 只调用 onAction，由 handleAction 统一处理阶段完成逻辑
+      // 避免同时调用 onComplete 导致重复触发 handlePhaseComplete
       onAction?.('script_reading_complete', {characterId, chaptersRead: chapters.length})
-      // 调用 onComplete 触发阶段确认
-      onComplete?.()
     }
   }
 

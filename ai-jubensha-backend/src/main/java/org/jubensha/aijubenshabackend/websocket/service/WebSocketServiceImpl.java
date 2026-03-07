@@ -481,4 +481,24 @@ public class WebSocketServiceImpl implements WebSocketService {
         // 同时发送给所有真人玩家
         sendToGameRealPlayers(gameId, wsMessage);
     }
+
+    @Override
+    public void broadcastPlayerAnswer(Long gameId, Long playerId, String playerName, String answer, boolean isAI) {
+        WebSocketMessage wsMessage = new WebSocketMessage();
+        wsMessage.setMessageType(WebSocketMessage.MessageType.PLAYER_ANSWER);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("playerId", playerId);
+        payload.put("playerName", playerName);
+        payload.put("answer", answer);
+        payload.put("isAI", isAI);
+        payload.put("timestamp", System.currentTimeMillis());
+
+        wsMessage.setPayload(payload);
+
+        // 广播到游戏主频道
+        String destination = "/topic/game/" + gameId + "/discussion";
+        messagingTemplate.convertAndSend(destination, wsMessage);
+        log.info("[答案广播] 广播玩家答案到游戏 {}: playerId={}, playerName={}, isAI={}", gameId, playerId, playerName, isAI);
+    }
 }

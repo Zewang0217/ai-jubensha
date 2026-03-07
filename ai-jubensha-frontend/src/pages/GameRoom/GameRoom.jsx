@@ -844,9 +844,8 @@ function GameRoom() {
       return
     }
 
-    // 角色分配阶段：需要调用 confirmPhase API 通知后端
-    // 注意：之前的代码直接返回，导致后端不知道观察者已确认，这是 bug 的根源
-    console.log('[GameRoom] 角色分配阶段，继续执行阶段确认逻辑...')
+    // 非 script_overview 阶段：需要调用 confirmPhase API 通知后端
+    console.log('[GameRoom] 当前阶段:', currentPhase, '，继续执行阶段确认逻辑...')
 
     // 根据阶段类型执行不同的检查逻辑
     const phaseChecks = {
