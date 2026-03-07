@@ -114,6 +114,15 @@ export const useWebSocket = (baseUrl, gameId) => {
     }, [])
 
     /**
+     * 订阅 AI Agent 操作消息（公屏）
+     * @param {Function} handler - 消息处理器
+     * @returns {string|null} 订阅 ID
+     */
+    const subscribeToAgentActions = useCallback((handler) => {
+        return wsRef.current.subscribeToAgentActions(handler)
+    }, [])
+
+    /**
      * 订阅自定义主题
      * @param {string} destination - 订阅目标
      * @param {Function} handler - 消息处理器
@@ -204,6 +213,7 @@ export const useWebSocket = (baseUrl, gameId) => {
         subscribeToPersonalMessages,
         subscribeToPublicClue,
         subscribeToVoteResult,
+        subscribeToAgentActions,
         subscribe,
         unsubscribe,
         on,
