@@ -3,9 +3,11 @@ package org.jubensha.aijubenshabackend.websocket.service;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.service.DiscussionService;
 import org.jubensha.aijubenshabackend.ai.service.util.DMModerator;
 import org.jubensha.aijubenshabackend.ai.service.util.MessageAccumulator;
+import org.jubensha.aijubenshabackend.ai.service.util.ScrollingSummaryManager;
 import org.jubensha.aijubenshabackend.ai.service.util.TurnManager;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
@@ -73,6 +75,14 @@ public class WebSocketServiceImpl implements WebSocketService {
     @Resource
     @Lazy
     private TurnManager turnManager;
+    
+    @Resource
+    @Lazy
+    private RAGService ragService;
+    
+    @Resource
+    @Lazy
+    private ScrollingSummaryManager scrollingSummaryManager;
 
     @Override
     public void broadcastChatMessage(Long gameId, WebSocketMessage message) {
@@ -146,6 +156,23 @@ public class WebSocketServiceImpl implements WebSocketService {
                 log.warn("[WebSocket] MessageAccumulator为null，无法添加消息到讨论历史");
             }
             
+            // 存储到RAG向量数据库，使AI玩家能够检索真人发言
+            if (ragService != null) {
+                try {
+                    ragService.insertConversationMemory(gameId, senderId, playerName, content);
+                    log.info("[WebSocket] 真人玩家发言已存储到RAG向量数据库，游戏ID: {}, 发送者ID: {}, 玩家名称: {}", gameId, senderId, playerName);
+                    
+                    // 增加消息计数，用于滚动摘要触发
+                    if (scrollingSummaryManager != null) {
+                        scrollingSummaryManager.incrementMessageCount(gameId);
+                    }
+                } catch (Exception e) {
+                    log.error("[WebSocket] 存储真人玩家发言到RAG失败，游戏ID: {}, 发送者ID: {}, 错误: {}", gameId, senderId, e.getMessage(), e);
+                }
+            } else {
+                log.warn("[WebSocket] RAGService为null，无法存储真人玩家发言到向量数据库");
+            }
+            
             // 根据讨论阶段执行不同的处理
             if (TurnManager.PHASE_STATEMENT.equals(currentPhase)) {
                 // 陈述阶段：通知DMModerator真人玩家已发言
@@ -172,10 +199,13 @@ public class WebSocketServiceImpl implements WebSocketService {
         try {
             log.debug("存储讨论消息，游戏ID: {}, 玩家ID: {}, 角色ID: {}", gameId, playerId, characterId);
             
-            // 创建对话记录
+            if (characterId == null) {
+                log.warn("角色ID为空，跳过存储讨论消息到数据库，游戏ID: {}, 玩家ID: {}", gameId, playerId);
+                return;
+            }
+            
             org.jubensha.aijubenshabackend.models.entity.Dialogue dialogue = new org.jubensha.aijubenshabackend.models.entity.Dialogue();
             
-            // 设置游戏信息
             org.jubensha.aijubenshabackend.models.entity.Game game = gameService.getGameById(gameId).orElse(null);
             if (game == null) {
                 log.warn("游戏不存在，游戏ID: {}", gameId);
@@ -183,7 +213,6 @@ public class WebSocketServiceImpl implements WebSocketService {
             }
             dialogue.setGame(game);
             
-            // 设置玩家信息
             org.jubensha.aijubenshabackend.models.entity.Player player = playerService.getPlayerById(playerId).orElse(null);
             if (player == null) {
                 log.warn("玩家不存在，玩家ID: {}", playerId);
@@ -191,19 +220,16 @@ public class WebSocketServiceImpl implements WebSocketService {
             }
             dialogue.setPlayer(player);
             
-            // 设置角色信息
-            if (characterId != null) {
-                org.jubensha.aijubenshabackend.models.entity.Character character = characterService.getCharacterById(characterId).orElse(null);
-                if (character != null) {
-                    dialogue.setCharacter(character);
-                }
+            org.jubensha.aijubenshabackend.models.entity.Character character = characterService.getCharacterById(characterId).orElse(null);
+            if (character == null) {
+                log.warn("角色不存在，角色ID: {}", characterId);
+                return;
             }
+            dialogue.setCharacter(character);
             
-            // 设置消息内容和类型
             dialogue.setContent(content);
             dialogue.setType(org.jubensha.aijubenshabackend.models.enums.DialogueType.CHAT);
             
-            // 保存到数据库
             dialogueRepository.save(dialogue);
             log.info("讨论消息已成功存储到数据库，对话ID: {}", dialogue.getId());
             
