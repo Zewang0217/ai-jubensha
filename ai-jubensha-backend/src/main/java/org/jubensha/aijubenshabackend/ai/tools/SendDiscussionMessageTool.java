@@ -83,7 +83,7 @@ public class SendDiscussionMessageTool extends BaseTool {
             chatPayload.put("timestamp", System.currentTimeMillis());
             
             WebSocketMessage wsMessage = new WebSocketMessage();
-            wsMessage.setType(WebSocketMessage.MessageType.CHAT_MESSAGE);
+            wsMessage.setMessageType(WebSocketMessage.MessageType.CHAT_MESSAGE);
             wsMessage.setSender(playerId);
             wsMessage.setPayload(chatPayload);
             

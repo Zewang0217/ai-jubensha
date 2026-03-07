@@ -11,6 +11,7 @@ import org.jubensha.aijubenshabackend.ai.service.util.MessageAccumulator;
 import org.jubensha.aijubenshabackend.ai.service.util.TurnManager;
 import org.jubensha.aijubenshabackend.models.entity.Character;
 import org.jubensha.aijubenshabackend.models.entity.GamePlayer;
+import org.jubensha.aijubenshabackend.models.enums.GamePhase;
 import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
 import org.jubensha.aijubenshabackend.websocket.message.WebSocketMessage;
@@ -146,7 +147,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     // 最后发言时间
     private final Map<Long, LocalDateTime> lastSpeakTimes = new ConcurrentHashMap<>();
     
-    // 发言阈值（提高阈值降低发言频率）
+    // 发言阈值
     private static final int SPEAK_THRESHOLD = 150;
     
     // 最低发言阈值（动态阈值的下限）
@@ -159,7 +160,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private static final int THRESHOLD_DECAY_AMOUNT = 8;
     
     // 发言冷却时间（秒）- 刚发言过的玩家欲望值增长减半
-    private static final int COOLDOWN_SECONDS = 10;
+    private static final int COOLDOWN_SECONDS = 7;
     
     // 当前动态阈值
     private int currentThreshold = SPEAK_THRESHOLD;
@@ -639,6 +640,21 @@ public class DiscussionServiceImpl implements DiscussionService {
                     log.info("提取到结局叙述: {}", ending);
                     discussionState.put("ending", ending);
                 }
+                // 提取评分数据 - 转换为 List<Map> 格式
+                if (jsonNode != null && jsonNode.has("scores")) {
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    java.util.List<Map<String, Object>> scoresList = mapper.convertValue(
+                        jsonNode.get("scores"), 
+                        new com.fasterxml.jackson.core.type.TypeReference<java.util.List<Map<String, Object>>>() {}
+                    );
+                    discussionState.put("scores", scoresList);
+                    log.info("提取到评分数据: {} 条记录", scoresList != null ? scoresList.size() : 0);
+                }
+                // 提取总结
+                if (jsonNode != null && jsonNode.has("summary")) {
+                    String summary = jsonNode.get("summary").asText();
+                    discussionState.put("summary", summary);
+                }
             } catch (Exception e) {
                 log.warn("解析评分响应失败: {}", e.getMessage());
             }
@@ -656,6 +672,33 @@ public class DiscussionServiceImpl implements DiscussionService {
         // 标记讨论完成
         discussionCompleted = true;
         log.info("讨论已完成，游戏ID: {}", gameId);
+        
+        // 广播阶段切换消息到前端 - 进入真相揭晓阶段
+        try {
+            if (webSocketService != null) {
+                // 使用 GamePhase 枚举广播阶段切换
+                webSocketService.broadcastPhaseChange(gameId, 
+                    GamePhase.DISCUSSION,
+                    GamePhase.SUMMARY,
+                    "讨论结束，进入真相揭晓阶段");
+                log.info("[讨论结束] 已广播阶段切换消息: DISCUSSION -> SUMMARY");
+                
+                // 准备游戏结果数据
+                Map<String, Object> resultData = new HashMap<>();
+                resultData.put("scores", discussionState.get("scores"));
+                resultData.put("ending", discussionState.get("ending"));
+                resultData.put("summary", discussionState.get("summary"));
+                resultData.put("playerAnswers", playerAnswers);
+                
+                // 广播游戏结束通知（包含评分数据）
+                webSocketService.broadcastGameEnded(gameId, "游戏结束，请查看最终评分和真相揭晓", resultData);
+                log.info("[讨论结束] 已广播游戏结束通知，包含评分数据: scores={}, ending={}", 
+                    discussionState.get("scores") != null ? "已包含" : "无",
+                    discussionState.get("ending") != null ? "已包含" : "无");
+            }
+        } catch (Exception e) {
+            log.error("[讨论结束] 广播阶段切换消息失败: {}", e.getMessage(), e);
+        }
 
         // 通知回调
         if (completionCallback != null) {
@@ -721,7 +764,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         // 通过websocket发送给前端
         try {
             WebSocketMessage wsMsg = new WebSocketMessage();
-            wsMsg.setType(MessageType.CHAT_MESSAGE);
+            wsMsg.setMessageType(MessageType.CHAT_MESSAGE);
             wsMsg.setSender(playerId);
             wsMsg.setPayload(processedMessage);
 
@@ -1170,16 +1213,16 @@ public class DiscussionServiceImpl implements DiscussionService {
     private int calculateDesireScore(Long playerId) {
         int score = 0;
         
-        // 被提及 (+30，降低权重)
+        // 被提及 (+50)
         if (checkMentioned(playerId)) {
-            score += 30;
+            score += 50;
         }
         
-        // 话题相关 (+15，降低权重)
+        // 话题相关 (+30)
         int topicScore = calculateTopicRelevance(playerId);
         score += topicScore;
         
-        // 沉默时间补偿 (+1/sec，最高100) - 带发言冷却机制
+        // 沉默时间补偿 (+2/sec，最高120) - 带发言冷却机制
         int silenceScore = calculateSilenceCompensation(playerId);
         score += silenceScore;
         
@@ -1187,8 +1230,8 @@ public class DiscussionServiceImpl implements DiscussionService {
         int personalityScore = getPersonalityFactor(playerId);
         score += personalityScore;
         
-        // 随机波动因子 (-5 到 +10)，降低波动范围
-        int randomFluctuation = (int) (Math.random() * 16) - 5; // -5 到 +10
+        // 随机波动因子 (-10 到 +20)，倾向于正数鼓励发言
+        int randomFluctuation = (int) (Math.random() * 31) - 10; // -10 到 +20
         score += randomFluctuation;
         
         return score;
@@ -1232,13 +1275,13 @@ public class DiscussionServiceImpl implements DiscussionService {
                 if (character != null) {
                     // 这里应该使用EmbeddingService计算话题相关度
                     // 简化实现，返回固定值
-                    return 15;
+                    return 30;
                 }
             }
         } catch (Exception e) {
             log.warn("计算话题相关度失败: {}", e.getMessage());
         }
-        return 10; // 即使获取失败，也给予基础分数
+        return 20; // 即使获取失败，也给予基础分数
     }
     
     /**
@@ -1252,8 +1295,8 @@ public class DiscussionServiceImpl implements DiscussionService {
             Duration duration = Duration.between(lastSpeakTime, LocalDateTime.now());
             long seconds = duration.getSeconds();
             
-            // 每秒钟增加1分，最多增加100分
-            int compensation = Math.min((int) seconds * 1, 100);
+            // 每秒钟增加2分，最多增加120分
+            int compensation = Math.min((int) seconds * 2, 120);
             
             // 发言冷却机制：刚发言过的玩家（COOLDOWN_SECONDS秒内）欲望值增长速度减半
             if (seconds < COOLDOWN_SECONDS) {
@@ -1263,14 +1306,14 @@ public class DiscussionServiceImpl implements DiscussionService {
             
             // 初始状态下，给予基础补偿，确保玩家能够更容易地开始发言
             if (seconds < 5) { // 前5秒
-                compensation = Math.max(compensation, 10); // 给予至少10分的基础补偿
+                compensation = Math.max(compensation, 15); // 给予至少15分的基础补偿
             }
             
             return compensation;
         } catch (Exception e) {
             log.warn("计算沉默时间补偿失败: {}", e.getMessage());
         }
-        return 10; // 异常情况下，给予基础补偿
+        return 15; // 异常情况下，给予基础补偿
     }
     
     /**

@@ -127,4 +127,13 @@ public interface DiscussionService {
      * @param gameId 游戏ID
      */
     void stopDiscussion(Long gameId);
+
+    /**
+     * 处理真人玩家投票
+     * 当真人玩家通过WebSocket投票时调用
+     *
+     * @param playerId 玩家ID
+     * @param answer   答案
+     */
+    void onRealPlayerVoteReceived(Long playerId, String answer);
 }

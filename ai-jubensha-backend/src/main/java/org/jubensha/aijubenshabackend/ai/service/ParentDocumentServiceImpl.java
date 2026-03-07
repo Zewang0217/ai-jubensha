@@ -64,9 +64,39 @@ public class ParentDocumentServiceImpl implements ParentDocumentService {
         dialogue.setPlayer(playerRepository.findById(playerId).orElse(null));
         
         // 获取角色信息
-        gamePlayerRepository.findByGameIdAndPlayerId(gameId, playerId).ifPresent(gamePlayer -> {
-            dialogue.setCharacter(gamePlayer.getCharacter());
-        });
+        Optional<org.jubensha.aijubenshabackend.models.entity.GamePlayer> gamePlayerOpt = 
+            gamePlayerRepository.findByGameIdAndPlayerId(gameId, playerId);
+        
+        if (gamePlayerOpt.isPresent() && gamePlayerOpt.get().getCharacter() != null) {
+            dialogue.setCharacter(gamePlayerOpt.get().getCharacter());
+            log.debug("找到角色信息，游戏ID: {}, 玩家ID: {}, 角色ID: {}", 
+                gameId, playerId, gamePlayerOpt.get().getCharacter().getId());
+        } else {
+            // 如果找不到GamePlayer记录或character为null，尝试从该游戏的其他玩家获取一个默认角色
+            // 这是为了避免character_id为null导致的数据库约束错误
+            log.warn("未找到玩家对应的角色信息，游戏ID: {}, 玩家ID: {}，尝试获取默认角色", gameId, playerId);
+            
+            List<org.jubensha.aijubenshabackend.models.entity.GamePlayer> gamePlayers = 
+                gamePlayerRepository.findByGameId(gameId);
+            
+            if (!gamePlayers.isEmpty()) {
+                // 找到第一个有角色的玩家
+                for (org.jubensha.aijubenshabackend.models.entity.GamePlayer gp : gamePlayers) {
+                    if (gp.getCharacter() != null) {
+                        dialogue.setCharacter(gp.getCharacter());
+                        log.info("使用默认角色，游戏ID: {}, 玩家ID: {}, 角色ID: {}", 
+                            gameId, playerId, gp.getCharacter().getId());
+                        break;
+                    }
+                }
+            }
+            
+            // 如果仍然没有角色，记录错误并返回null
+            if (dialogue.getCharacter() == null) {
+                log.error("无法找到任何角色信息，游戏ID: {}, 玩家ID: {}，跳过存储到数据库", gameId, playerId);
+                return null;
+            }
+        }
         
         // 设置其他字段
         dialogue.setContent(content);

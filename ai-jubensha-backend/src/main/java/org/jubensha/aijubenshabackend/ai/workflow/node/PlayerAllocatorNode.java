@@ -152,6 +152,57 @@ public class PlayerAllocatorNode {
             } else {
                 // 观察者模式：不创建真人玩家，所有角色由AI填充
                 log.info("[观察者模式] 自动分配所有角色给AI玩家");
+                
+                // 观察者模式下，需要先将游戏阶段设置为 CHARACTER_ASSIGNMENT
+                // 然后等待观察者确认后才进入 SCRIPT_READING 阶段
+                try {
+                    GamePhase previousPhase = game.getCurrentPhase();
+                    game.setCurrentPhase(GamePhase.CHARACTER_ASSIGNMENT);
+                    gameService.updateGame(gameId, game);
+                    log.info("[观察者模式] 游戏阶段已更新为: CHARACTER_ASSIGNMENT");
+                    
+                    // 广播阶段变化通知
+                    WebSocketServiceImpl webSocketService = SpringContextUtil.getBean(WebSocketServiceImpl.class);
+                    webSocketService.broadcastPhaseChange(gameId, previousPhase, GamePhase.CHARACTER_ASSIGNMENT, "进入角色分配阶段");
+                    log.info("[观察者模式] 已广播阶段变化通知到 CHARACTER_ASSIGNMENT");
+                    
+                    // 保存上下文到缓存
+                    InvestigationService investigationService = SpringContextUtil.getBean(InvestigationService.class);
+                    
+                    // 初始化观察者确认状态
+                    context.setObserverConfirmed(false);
+                    investigationService.saveWorkflowContext(context.getGameId(), context);
+                    
+                    // 等待观察者确认角色分配阶段
+                    log.info("[观察者模式] 等待观察者确认角色分配阶段...");
+                    int waitCount = 0;
+                    int maxWaitTime = 1800; // 最大等待时间30分钟
+                    int checkInterval = 3; // 检查间隔3秒
+                    
+                    while (!context.isObserverConfirmed() && waitCount < maxWaitTime) {
+                        Thread.sleep(checkInterval * 1000);
+                        waitCount += checkInterval;
+                        
+                        // 从缓存中获取最新的上下文状态
+                        WorkflowContext latestContext = investigationService.getWorkflowContext(context.getGameId());
+                        if (latestContext != null) {
+                            context = latestContext;
+                        }
+                        
+                        // 每30秒输出一次等待日志
+                        if (waitCount % 30 == 0) {
+                            log.info("[观察者模式] 等待观察者确认角色分配阶段，已等待: {}秒", waitCount);
+                        }
+                    }
+                    
+                    if (context.isObserverConfirmed()) {
+                        log.info("[观察者模式] 观察者已确认角色分配阶段，继续工作流");
+                    } else {
+                        log.warn("[观察者模式] 等待观察者确认超时，强制继续工作流");
+                    }
+                } catch (Exception e) {
+                    log.error("[观察者模式] 角色分配阶段处理失败: {}", e.getMessage());
+                }
             }
             
             // AI玩家填充剩余角色
