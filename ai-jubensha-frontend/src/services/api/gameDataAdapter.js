@@ -311,13 +311,16 @@ export const adaptGameData = async (gameData, players) => {
         id: String(clue.id),
         name: clue.name || '',
         description: clue.description || '',
-        type: clue.type || 'OTHER',
-        visibility: clue.visibility || 'PUBLIC',
+        type: typeof clue.type === 'string' ? clue.type : (clue.type?.name || 'OTHER'),
+        visibility: typeof clue.visibility === 'string' ? clue.visibility : (clue.visibility?.name || 'PUBLIC'),
         sceneId: clue.sceneId,
         imageUrl: clue.imageUrl,
         importance: clue.importance,
         playerId: clue.playerId,
+        scene: clue.scene,
     }))
+
+    console.log('[adaptGameData] 公开线索数据:', adaptedData.publicClues)
 
     console.log('[adaptGameData] Adapted data:', adaptedData)
     return adaptedData

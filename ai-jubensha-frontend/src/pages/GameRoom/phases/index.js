@@ -11,7 +11,7 @@ import ScriptOverview from './ScriptOverview'
 import CharacterAssignment from './CharacterAssignment'
 import ScriptReading from './ScriptReading'
 import Investigation from './Investigation'
-import Discussion from './Discussion'
+import Discussion from './Discussion/index.jsx'
 import Summary from './Summary'
 
 import {DEFAULT_PHASE_SEQUENCE, PHASE_ACTION, PHASE_CONFIG, PHASE_TYPE,} from '../types'
