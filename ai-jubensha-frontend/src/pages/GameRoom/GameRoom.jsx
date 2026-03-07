@@ -1068,12 +1068,15 @@ function GameRoom() {
       currentPlayerId,
     }
 
-    // 为Investigation阶段添加搜证完成状态
+    // 为Investigation阶段添加搜证完成状态和WebSocket相关props
     if (currentPhase === PHASE_TYPE.INVESTIGATION) {
       return (
           <PhaseComponent
               {...baseProps}
               isAllInvestigationComplete={isAllInvestigationComplete}
+              isConnected={isConnected}
+              subscribe={subscribe}
+              unsubscribe={unsubscribe}
           />
       )
     }
