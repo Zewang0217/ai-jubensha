@@ -12,6 +12,7 @@ import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
 import org.jubensha.aijubenshabackend.memory.MemoryService;
 import org.jubensha.aijubenshabackend.models.enums.ClueVisibility;
 import org.jubensha.aijubenshabackend.models.enums.GamePhase;
+import org.jubensha.aijubenshabackend.service.character.CharacterService;
 import org.jubensha.aijubenshabackend.service.clue.ClueService;
 import org.jubensha.aijubenshabackend.service.game.GamePlayerService;
 import org.jubensha.aijubenshabackend.service.game.GameService;
@@ -54,6 +55,7 @@ public class InvestigationAgentHandler {
     private MemoryService memoryService;
     private RAGService ragService;
     private WebSocketService webSocketService;
+    private CharacterService characterService;
 
     @Autowired
     public InvestigationAgentHandler(ChatModel chatModel) {
@@ -121,16 +123,42 @@ public class InvestigationAgentHandler {
                 return;
             }
 
+            // 获取角色详细信息（秘密、背景、时间线）
+            String secret = "";
+            String background = "";
+            Long characterId = null;
+            try {
+                var gamePlayerOpt = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
+                if (gamePlayerOpt.isPresent()) {
+                    var gamePlayer = gamePlayerOpt.get();
+                    var character = gamePlayer.getCharacter();
+                    if (character != null) {
+                        characterId = character.getId();
+                        secret = character.getSecret() != null ? character.getSecret() : "";
+                        background = character.getBackgroundStory() != null ? character.getBackgroundStory() : "";
+                        log.info("获取到角色信息: {}, 秘密长度: {}, 背景长度: {}",
+                                characterName, secret.length(), background.length());
+                    }
+                }
+            } catch (Exception e) {
+                log.error("获取角色信息失败: {}", e.getMessage(), e);
+            }
+
             // 准备线索选项字符串列表，格式为 "clueId: clueName"
             List<String> clueOptionStrings = clueOptions.stream()
                     .map(clue -> clue.get("clueId") + ": " + clue.get("clueName"))
                     .collect(Collectors.toList());
-            
+            // 将 List 转成字符串，用换行符连接，让大模型看得更清楚
+            String clueOptionsText = String.join("\n", clueOptionStrings);
+
+            // 调用 Agent，直接喂给它所有必要的信息
             String result = playerAgent.investigate(
                     gameId.toString(),
                     playerId.toString(),
                     characterName,
-                    clueOptionStrings,
+                    secret,         // 注入秘密
+                    background,     // 注入背景
+                    clueOptionsText,// 直接传入线索列表文本
                     maxChances
             );
 
@@ -356,6 +384,9 @@ public class InvestigationAgentHandler {
         }
         if (webSocketService == null) {
             webSocketService = SpringContextUtil.getBean(WebSocketService.class);
+        }
+        if (characterService == null) {
+            characterService = SpringContextUtil.getBean(CharacterService.class);
         }
     }
 

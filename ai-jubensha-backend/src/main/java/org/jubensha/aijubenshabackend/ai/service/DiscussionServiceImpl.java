@@ -1419,26 +1419,29 @@ public class DiscussionServiceImpl implements DiscussionService {
                 log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 当前阈值: {}", 
                         getCharacterName(nextSpeakerId), currentScores.get(nextSpeakerId), currentThreshold);
                 
-                // 执行发言（移除发言锁定，根据用户建议）
-                // 注意：AI会通过SendDiscussionMessageTool工具自己发送消息，不需要在这里再调用sendDiscussionMessage
+                // 执行发言
                 executorService.submit(() -> {
                     try {
                         log.info("[中央调度器] 开始处理玩家 {} 的发言", getCharacterName(nextSpeakerId));
-                        // 生成讨论内容（AI会通过工具自己发送消息）
+                        // 生成讨论内容
                         String discussionContent = executeThinkingAndGenerateResponse(
                                 nextSpeakerId, "分析当前讨论并生成回应"
                         );
                         
-                        // 只有当AI没有通过工具发送消息时，才使用备用方案
-                        if (discussionContent == null || discussionContent.isEmpty()) {
+                        // 手动发送讨论消息
+                        if (discussionContent != null && !discussionContent.isEmpty()) {
+                            log.info("[中央调度器] 玩家 {} 生成发言内容，长度: {}", getCharacterName(nextSpeakerId), discussionContent.length());
+                            sendDiscussionMessage(nextSpeakerId, discussionContent);
+                        } else {
                             log.warn("[中央调度器] 玩家 {} 未能生成发言内容，尝试备用方案", getCharacterName(nextSpeakerId));
-                            // 备用方案：使用讨论推理管理器（也会通过工具发送消息）
+                            // 备用方案：使用讨论推理管理器
                             String backupContent = discussionReasoningManager.processReasoningAndDiscussion(gameId, nextSpeakerId);
-                            if (backupContent.isEmpty()) {
+                            if (backupContent != null && !backupContent.isEmpty()) {
+                                log.info("[中央调度器] 玩家 {} 备用方案生成发言内容，长度: {}", getCharacterName(nextSpeakerId), backupContent.length());
+                                sendDiscussionMessage(nextSpeakerId, backupContent);
+                            } else {
                                 log.warn("[中央调度器] 玩家 {} 备用方案也未能生成发言内容", getCharacterName(nextSpeakerId));
                             }
-                        } else {
-                            log.info("[中央调度器] 玩家 {} 发言已通过工具发送，内容长度: {}", getCharacterName(nextSpeakerId), discussionContent.length());
                         }
                     } catch (Exception e) {
                         log.error("[中央调度器] 处理AI玩家发言失败: {}", e.getMessage(), e);

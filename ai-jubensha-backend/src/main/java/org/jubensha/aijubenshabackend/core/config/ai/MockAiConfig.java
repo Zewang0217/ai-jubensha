@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import java.util.concurrent.atomic.AtomicLong;
 import org.mockito.Mockito;
 import org.springframework.context.annotation.Bean;
@@ -293,11 +295,15 @@ public class MockAiConfig {
 
         // investigate - 搜证决策（搜证阶段核心）
         Mockito.when(mockPlayerAgent.investigate(anyString(), anyString(), anyString(),
-            anyList(), anyInt()))
+            anyString(), anyString(), anyString(), anyInt()))
             .thenAnswer(invocation -> {
-                @SuppressWarnings("unchecked")
-                List<String> sceneIds = invocation.getArgument(3);
-                int maxChances = invocation.getArgument(4);
+                String clueOptions = invocation.getArgument(5);
+                int maxChances = invocation.getArgument(6);
+                // 从线索选项文本中解析出线索ID列表
+                List<String> sceneIds = Arrays.stream(clueOptions.split("\n"))
+                    .map(line -> line.split(":")[0].trim())
+                    .filter(id -> !id.isEmpty())
+                    .collect(Collectors.toList());
                 int selectCount = Math.min(2, Math.min(maxChances, sceneIds.size()));
                 List<String> selectedIds = new ArrayList<>(sceneIds);
                 Collections.shuffle(selectedIds);

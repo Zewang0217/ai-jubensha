@@ -5,16 +5,19 @@ import cn.hutool.json.JSONObject;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
-import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.tools.permission.AgentType;
 import org.jubensha.aijubenshabackend.ai.tools.permission.ToolPermissionLevel;
+import org.jubensha.aijubenshabackend.models.entity.Dialogue;
+import org.jubensha.aijubenshabackend.repository.dialogue.DialogueRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.text.SimpleDateFormat;
+import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 获取讨论历史工具
@@ -51,7 +54,7 @@ import java.util.Map;
 public class GetDiscussionHistoryTool extends BaseTool {
 
     @Autowired
-    private RAGService ragService;
+    private DialogueRepository dialogueRepository;
 
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
 
@@ -83,41 +86,29 @@ public class GetDiscussionHistoryTool extends BaseTool {
 
             log.debug("获取讨论历史，游戏ID: {}, 限制: {}", gameId, limit);
 
-            // 调用RAGService获取讨论历史
-            // 提供默认查询文本，避免空字符串导致向量生成失败
-            String query = "获取讨论历史"; // 默认查询文本
-            List<Map<String, Object>> history = ragService.searchConversationMemory(gameId, null, query, limit);
+            // 使用 DialogueRepository 获取按时间倒序排列的讨论历史
+            Pageable pageable = PageRequest.of(0, limit);
+            List<Dialogue> dialogues = dialogueRepository.findByGameIdOrderByTimestampDesc(gameId, pageable);
 
             // 构建结果
             StringBuilder result = new StringBuilder();
-            result.append("📋 讨论历史（最近").append(history.size()).append("条）:\n\n");
-            
-            for (Map<String, Object> message : history) {
-                String playerName = (String) message.getOrDefault("player_name", "未知玩家");
-                String content = (String) message.getOrDefault("content", "");
+            result.append("📋 讨论历史（最近").append(dialogues.size()).append("条）:\n\n");
+
+            for (Dialogue dialogue : dialogues) {
+                String playerName = dialogue.getPlayer() != null ? dialogue.getPlayer().getNickname() : "未知玩家";
+                String content = dialogue.getContent();
                 long timestampMillis = System.currentTimeMillis();
-                
-                // 处理 timestamp 字段，支持 LocalDateTime 和 Long 类型
-                Object timestampObj = message.get("timestamp");
-                if (timestampObj != null) {
-                    if (timestampObj instanceof java.time.LocalDateTime) {
-                        // 处理 LocalDateTime 类型
-                        java.time.LocalDateTime localDateTime = (java.time.LocalDateTime) timestampObj;
-                        timestampMillis = localDateTime.toInstant(java.time.ZoneOffset.of("+8")).toEpochMilli();
-                    } else if (timestampObj instanceof Long) {
-                        // 处理 Long 类型
-                        timestampMillis = (Long) timestampObj;
-                    } else if (timestampObj instanceof Number) {
-                        // 处理其他数字类型
-                        timestampMillis = ((Number) timestampObj).longValue();
-                    }
+
+                // 处理 timestamp 字段
+                if (dialogue.getTimestamp() != null) {
+                    timestampMillis = dialogue.getTimestamp().toInstant(ZoneOffset.of("+8")).toEpochMilli();
                 }
-                
+
                 String timeStr = dateFormat.format(new Date(timestampMillis));
                 result.append(String.format("[%s] %s: %s\n", timeStr, playerName, content));
             }
 
-            if (history.isEmpty()) {
+            if (dialogues.isEmpty()) {
                 result.append("暂无讨论历史记录\n");
             }
 
