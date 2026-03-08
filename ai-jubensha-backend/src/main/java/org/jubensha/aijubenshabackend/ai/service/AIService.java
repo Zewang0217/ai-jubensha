@@ -226,15 +226,70 @@ public class AIService {
             log.error("获取角色信息失败: {}", e.getMessage(), e);
         }
 
+        // 构建包含角色信息的系统消息
+        final org.jubensha.aijubenshabackend.models.entity.Character finalCharacter = character;
+        String systemMessage = buildPlayerAgentSystemMessage(finalCharacter, playerId);
+
         return AiServices.builder(PlayerAgent.class)
                 .chatModel(chatModel)
                 .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
                 .tools(playerAgentToolManager.getAvailableTools())
+                .systemMessageProvider(memoryId -> systemMessage)
                 .hallucinatedToolNameStrategy(toolExecutionRequest ->
                         ToolExecutionResultMessage.from(toolExecutionRequest,
                                 "Error: there is no tool called " + toolExecutionRequest.name()))
-                .maxSequentialToolsInvocations(8) // 增加最大工具调用次数
+                .maxSequentialToolsInvocations(20) // 增加最大工具调用次数
                 .build();
+    }
+
+    /**
+     * 构建Player Agent的系统消息，包含角色信息
+     * @param character 角色信息
+     * @param playerId 玩家ID
+     * @return 系统消息
+     */
+    private String buildPlayerAgentSystemMessage(org.jubensha.aijubenshabackend.models.entity.Character character, Long playerId) {
+        StringBuilder sb = new StringBuilder();
+        
+        sb.append("你是一个剧本杀游戏中的AI玩家。\n\n");
+        
+        // 核心身份信息 - 这是最重要的
+        if (character != null) {
+            sb.append("【你的身份】\n");
+            sb.append("你的角色名称是：").append(character.getName()).append("\n");
+            sb.append("你必须是").append(character.getName()).append("这个角色，不能是其他任何人。\n");
+            sb.append("在所有发言中，你都必须以").append(character.getName()).append("的身份说话。\n\n");
+            
+            sb.append("【角色背景】\n");
+            if (character.getBackgroundStory() != null && !character.getBackgroundStory().isEmpty()) {
+                sb.append(character.getBackgroundStory()).append("\n\n");
+            } else {
+                sb.append("暂无背景故事\n\n");
+            }
+            
+            sb.append("【角色秘密】\n");
+            if (character.getSecret() != null && !character.getSecret().isEmpty()) {
+                sb.append(character.getSecret()).append("\n\n");
+            } else {
+                sb.append("暂无秘密信息\n\n");
+            }
+            
+            sb.append("【角色时间线】\n");
+            if (character.getTimeline() != null && !character.getTimeline().isEmpty()) {
+                sb.append(character.getTimeline()).append("\n\n");
+            } else {
+                sb.append("暂无时间线信息\n\n");
+            }
+        }
+        
+        sb.append("【重要规则】\n");
+        sb.append("1. 你必须始终保持角色一致性，你是").append(character != null ? character.getName() : "某个角色").append("\n");
+        sb.append("2. 不要说\"我是AI\"、\"我是AI助手\"等话，你是剧本杀中的角色\n");
+        sb.append("3. 不要虚构你没有的信息，使用工具获取真实信息\n");
+        sb.append("4. 在发言历史中看到自己角色的发言时，那是你之前说的话，要保持连贯性\n");
+        sb.append("5. 工具使用优先：在进行推理和决策前，务必通过调用工具获取相关信息\n");
+        
+        return sb.toString();
     }
 
     /**
@@ -259,9 +314,14 @@ public class AIService {
             log.error("获取角色信息失败: {}", e.getMessage(), e);
         }
 
+        // 构建包含角色信息的系统消息
+        final org.jubensha.aijubenshabackend.models.entity.Character finalCharacter = character;
+        String systemMessage = buildPlayerAgentSystemMessage(finalCharacter, playerId);
+
         return AiServices.builder(PlayerAgent.class)
                 .chatModel(chatModel)
                 .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
+                .systemMessageProvider(memoryId -> systemMessage)
                 // 不添加任何工具，避免在答题阶段调用工具
                 .build();
     }
@@ -284,10 +344,63 @@ public class AIService {
 
     /**
      * 获取Player Agent
+     * 如果Agent不存在，尝试从数据库重新创建
      */
     public PlayerAgent getPlayerAgent(Long playerId) {
         String cacheKey = "player:" + playerId;
-        return (PlayerAgent) agentCache.getIfPresent(cacheKey);
+        PlayerAgent agent = (PlayerAgent) agentCache.getIfPresent(cacheKey);
+
+        if (agent == null) {
+            log.warn("Player Agent不存在，尝试重新创建，玩家ID: {}", playerId);
+
+            // 尝试从数据库获取角色信息并重新创建Agent
+            try {
+                Optional<Player> playerOpt = playerService.getPlayerById(playerId);
+                if (playerOpt.isPresent()) {
+                    Player player = playerOpt.get();
+                    // 查找该玩家关联的游戏和角色
+                    org.jubensha.aijubenshabackend.service.game.GamePlayerService gamePlayerService =
+                            SpringContextUtil.getBean(org.jubensha.aijubenshabackend.service.game.GamePlayerService.class);
+
+                    // 这里需要gameId，但getPlayerAgent方法没有传入，所以先返回null
+                    // 实际重建应该在调用方处理
+                    log.warn("无法自动重建Player Agent，缺少gameId信息，玩家ID: {}", playerId);
+                }
+            } catch (Exception e) {
+                log.error("尝试重建Player Agent失败，玩家ID: {}", playerId, e);
+            }
+        }
+
+        return agent;
+    }
+
+    /**
+     * 获取或创建Player Agent
+     * 如果Agent不存在，使用提供的gameId和characterId重新创建
+     */
+    public PlayerAgent getOrCreatePlayerAgent(Long playerId, Long gameId, Long characterId) {
+        String cacheKey = "player:" + playerId;
+        PlayerAgent agent = (PlayerAgent) agentCache.getIfPresent(cacheKey);
+
+        if (agent == null) {
+            log.info("Player Agent不存在，重新创建，玩家ID: {}, 游戏ID: {}, 角色ID: {}", playerId, gameId, characterId);
+
+            try {
+                // 重新创建Agent
+                createPlayerAgent(playerId, characterId);
+                agent = (PlayerAgent) agentCache.getIfPresent(cacheKey);
+
+                if (agent != null) {
+                    log.info("Player Agent重新创建成功，玩家ID: {}", playerId);
+                } else {
+                    log.error("Player Agent重新创建失败，玩家ID: {}", playerId);
+                }
+            } catch (Exception e) {
+                log.error("重新创建Player Agent失败，玩家ID: {}", playerId, e);
+            }
+        }
+
+        return agent;
     }
 
     /**

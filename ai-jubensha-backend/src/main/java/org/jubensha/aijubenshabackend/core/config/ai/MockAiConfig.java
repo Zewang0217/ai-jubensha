@@ -246,12 +246,13 @@ public class MockAiConfig {
             });
 
         // reasonAndDiscuss - 推理讨论（核心方法）
-        Mockito.when(mockPlayerAgent.reasonAndDiscuss(anyString(), anyString(), anyString()))
+        Mockito.when(mockPlayerAgent.reasonAndDiscuss(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
             .thenAnswer(invocation -> {
+                String characterName = invocation.getArgument(2);
                 long count = responseCounter.incrementAndGet();
                 return String.format(
-                    "{\"content\": \"【Mock推理讨论%d】根据目前的讨论，我认为有几个疑点需要关注：第一，毒药的来源；第二，每个人案发时的行踪；第三，修改遗嘱的动机。\"}",
-                    count
+                    "{\"content\": \"【Mock推理讨论%d】作为%s，根据目前的讨论，我认为有几个疑点需要关注：第一，毒药的来源；第二，每个人案发时的行踪；第三，修改遗嘱的动机。\"}",
+                    count, characterName != null ? characterName : "角色"
                 );
             });
 

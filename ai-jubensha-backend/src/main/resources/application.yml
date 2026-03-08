@@ -1,7 +1,7 @@
 # 应用配置
 spring:
   profiles:
-    active: dev, mock-ai # mock-ai开启时, 使用模拟ai而不是真实ai
+    active: dev # mock-ai开启时, 使用模拟ai而不是真实ai
   jackson:
     deserialization:
       read-enums-using-to-string: true
