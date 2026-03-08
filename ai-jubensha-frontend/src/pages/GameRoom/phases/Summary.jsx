@@ -3,9 +3,9 @@
  * @description 真相揭晓阶段，采用玻璃态卡片设计，与 CharacterAssignment 风格保持一致
  */
 
-import {memo, useMemo} from 'react'
-import {motion} from 'framer-motion'
-import {Crown, Home, RotateCcw, Sparkles, Star, Target, Trophy, User, XCircle} from 'lucide-react'
+import {memo, useMemo, useState} from 'react'
+import {motion, AnimatePresence} from 'framer-motion'
+import {ChevronDown, ChevronUp, Crown, Home, RotateCcw, Sparkles, Star, Target, Trophy, User, XCircle, FileText} from 'lucide-react'
 import {PHASE_TYPE} from '../types'
 import GhostButton from '../../../components/ui/GhostButton'
 import PhaseBackgroundDecor from '../../../components/common/PhaseBackgroundDecor'
@@ -57,203 +57,243 @@ const ResultBadge = memo(({isWin}) => (
 ResultBadge.displayName = 'ResultBadge'
 
 // =============================================================================
-// 玩家评分卡片 - 显示答案+得分+评论
+// 玩家评分详情展开卡片
 // =============================================================================
 
-const PlayerScoreCard = memo(({player, rank, currentPlayerId, culpritId}) => {
-  const isSelf = String(player.playerId) === String(currentPlayerId)
-  const isCulprit = String(player.playerId) === String(culpritId)
-  const isTop3 = rank <= 3
-
+const PlayerScoreDetailCard = memo(({player, isExpanded, onToggle}) => {
+  const isCulprit = player.isCulprit
+  
   return (
-      <motion.div variants={itemVariants} className="relative group">
-        {/* 悬停高光 */}
-        <div
-            className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-[#7C8CD6]/5 to-transparent"/>
+    <motion.div 
+      variants={itemVariants} 
+      className="relative group"
+      onClick={onToggle}
+    >
+      {/* 悬停高光 */}
+      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-[#7C8CD6]/5 to-transparent"/>
 
-        {/* 卡片本体 */}
-        <div className={`
-        relative flex flex-col p-4 rounded-xl border transition-all backdrop-blur-sm
+      {/* 卡片本体 */}
+      <div className={`
+        relative flex flex-col p-3 rounded-xl border transition-all backdrop-blur-sm cursor-pointer
         ${isCulprit
             ? 'bg-[#F5A9C9]/10 border-[#F5A9C9]/30'
-            : isSelf
-                ? 'bg-[#5DD9A8]/10 border-[#5DD9A8]/30'
-                : 'bg-white/60 dark:bg-[#222631]/60 border-[#E0E5EE] dark:border-[#363D4D] hover:border-[#7C8CD6] dark:hover:border-[#5E6B8A]'
+            : 'bg-white/60 dark:bg-[#222631]/60 border-[#E0E5EE] dark:border-[#363D4D] hover:border-[#7C8CD6] dark:hover:border-[#5E6B8A]'
         }
       `}>
-          {/* 第一行：排名、头像、名称、标签 */}
-          <div className="flex items-center gap-3 mb-3">
-            {/* 排名 */}
-            <div className={`
-            w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs
-            ${isTop3
+        {/* 第一行：排名、头像、名称、分数、展开按钮 */}
+        <div className="flex items-center gap-2">
+          {/* 排名 */}
+          <div className={`
+            w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs
+            ${player.rank <= 3
                 ? 'bg-gradient-to-br from-[#7C8CD6] to-[#A78BFA] text-white'
                 : 'bg-[#EEF1F6] dark:bg-[#2A2F3C] text-[#8C96A5]'
             }
           `}>
-              {rank}
-            </div>
-
-            {/* 头像 */}
-            <div
-                className={`
-              w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm
-              ${isCulprit
-                  ? 'bg-[#F5A9C9] text-white'
-                  : isSelf
-                      ? 'bg-[#5DD9A8] text-white'
-                      : 'bg-[#EEF1F6] dark:bg-[#2A2F3C] text-[#8C96A5]'
-              }
-          `}
-            >
-              {player.name?.charAt(0) || '?'}
-            </div>
-
-            {/* 信息 */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-[#2D3748] dark:text-[#E8ECF2] truncate">
-                  {player.name || '未知玩家'}
-                </span>
-                {isSelf && (
-                    <span
-                        className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#7C8CD6]/10 text-[#7C8CD6] border border-[#7C8CD6]/30">
-                  我
-                </span>
-                )}
-              </div>
-              <span className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">{player.role || '角色'}</span>
-            </div>
-
-            {/* 得分 */}
-            <div className="flex items-center gap-1.5">
-              <Star className="w-4 h-4 text-[#F5A9C9]"/>
-              <span className="text-lg font-bold text-[#2D3748] dark:text-[#E8ECF2]">{player.score || 0}</span>
-              <span className="text-xs text-[#8C96A5]">分</span>
-            </div>
-
-            {/* 标签 */}
-            {isCulprit && (
-                <span className="text-[10px] px-2 py-1 rounded-full bg-[#F5A9C9] text-white font-medium">
-              凶手
-            </span>
-            )}
+            {player.rank}
           </div>
 
-          {/* 第二行：答案 */}
-          {player.answer && (
-              <div className="mb-2 p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
-                <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788] mb-1">投票答案</p>
-                <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed line-clamp-2">
-                  {player.answer}
-                </p>
-              </div>
-          )}
+          {/* 头像 */}
+          <div className={`
+            w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm
+            ${isCulprit
+                ? 'bg-[#F5A9C9] text-white'
+                : 'bg-[#EEF1F6] dark:bg-[#2A2F3C] text-[#8C96A5]'
+            }
+          `}>
+            {player.name?.charAt(0) || '?'}
+          </div>
 
-          {/* 第三行：评论 */}
-          {player.comment && (
-              <div className="flex items-start gap-2">
-                <div className="w-5 h-5 rounded-md bg-[#7C8CD6]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Sparkles className="w-3 h-3 text-[#7C8CD6]"/>
-                </div>
-                <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
-                  {player.comment}
-                </p>
-              </div>
-          )}
+          {/* 信息 */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-medium text-[#2D3748] dark:text-[#E8ECF2] truncate">
+                {player.name || '未知玩家'}
+              </span>
+              {isCulprit && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F5A9C9] text-white font-medium">
+                  凶手
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">{player.role || '角色'}</span>
+          </div>
+
+          {/* 得分 */}
+          <div className="flex items-center gap-1">
+            <Star className="w-3.5 h-3.5 text-[#F5A9C9]"/>
+            <span className="text-base font-bold text-[#2D3748] dark:text-[#E8ECF2]">{player.score || 0}</span>
+          </div>
+
+          {/* 展开按钮 */}
+          <div className="w-6 h-6 rounded-lg bg-[#EEF1F6] dark:bg-[#2A2F3C] flex items-center justify-center">
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4 text-[#8C96A5]"/>
+            ) : (
+              <ChevronDown className="w-4 h-4 text-[#8C96A5]"/>
+            )}
+          </div>
         </div>
-      </motion.div>
+
+        {/* 展开详情 */}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{height: 0, opacity: 0}}
+              animate={{height: 'auto', opacity: 1}}
+              exit={{height: 0, opacity: 0}}
+              transition={{duration: 0.2}}
+              className="overflow-hidden"
+            >
+              <div className="pt-3 mt-3 border-t border-[#E0E5EE]/50 dark:border-[#363D4D]/50 space-y-3">
+                {/* 评分细分 */}
+                {player.breakdown && Object.keys(player.breakdown).length > 0 && (
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
+                      <p className="text-base font-bold text-[#7C8CD6]">{player.breakdown.motive || 0}</p>
+                      <p className="text-[10px] text-[#8C96A5]">动机</p>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
+                      <p className="text-base font-bold text-[#7C8CD6]">{player.breakdown.method || 0}</p>
+                      <p className="text-[10px] text-[#8C96A5]">手法</p>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
+                      <p className="text-base font-bold text-[#7C8CD6]">{player.breakdown.clues || 0}</p>
+                      <p className="text-[10px] text-[#8C96A5]">线索</p>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
+                      <p className="text-base font-bold text-[#7C8CD6]">{player.breakdown.accuracy || 0}</p>
+                      <p className="text-[10px] text-[#8C96A5]">准确</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 答案 */}
+                {player.answer && (
+                  <div className="p-2.5 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#8C96A5]"/>
+                      <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">玩家答案</p>
+                    </div>
+                    <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+                      {player.answer}
+                    </p>
+                  </div>
+                )}
+
+                {/* 评论 */}
+                {player.comment && (
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-[#7C8CD6]/5 border border-[#7C8CD6]/20">
+                    <Sparkles className="w-3.5 h-3.5 text-[#7C8CD6] flex-shrink-0 mt-0.5"/>
+                    <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+                      {player.comment}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   )
 })
 
-PlayerScoreCard.displayName = 'PlayerScoreCard'
+PlayerScoreDetailCard.displayName = 'PlayerScoreDetailCard'
 
 // =============================================================================
-// 个人表现卡片
+// 真人玩家表现卡片（左侧详细展示）
 // =============================================================================
 
-const PersonalStatsCard = memo(({player}) => {
+const RealPlayerDetailCard = memo(({player, isCurrentPlayer}) => {
   if (!player) return null
 
   return (
-      <motion.div variants={itemVariants} className="relative">
-        {/* 卡片本体 */}
-        <div
-            className="relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden">
-          {/* 顶部渐变线 */}
-          <div className="h-1 bg-gradient-to-r from-[#5DD9A8] via-[#7C8CD6] to-[#A78BFA]"/>
-
-          <div className="p-4">
-            {/* 标题 */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-[#5DD9A8]/10 flex items-center justify-center">
-                <User className="w-4 h-4 text-[#5DD9A8]"/>
-              </div>
-              <h3 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
-                你的表现
-              </h3>
+    <motion.div variants={itemVariants} className="relative">
+      <div className={`
+        relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border overflow-hidden
+        ${isCurrentPlayer ? 'border-[#5DD9A8]/50' : 'border-[#E0E5EE] dark:border-[#363D4D]'}
+      `}>
+        {/* 顶部渐变线 */}
+        <div className={`h-1 bg-gradient-to-r ${isCurrentPlayer ? 'from-[#5DD9A8] to-[#10b981]' : 'from-[#7C8CD6] to-[#A78BFA]'}`}/>
+        
+        <div className="p-4">
+          {/* 标题 */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isCurrentPlayer ? 'bg-[#5DD9A8]/10' : 'bg-[#7C8CD6]/10'}`}>
+              <User className={`w-4 h-4 ${isCurrentPlayer ? 'text-[#5DD9A8]' : 'text-[#7C8CD6]'}`}/>
             </div>
-
-            {/* 得分 */}
-            <div className="flex items-center justify-center mb-4">
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  <Star className="w-6 h-6 text-[#F5A9C9]"/>
-                  <span className="text-3xl font-bold text-[#2D3748] dark:text-[#E8ECF2]">{player.score || 0}</span>
-                  <span className="text-sm text-[#8C96A5]">分</span>
-                </div>
-                <p className="text-xs text-[#8C96A5]">综合评分</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
+                  {player.name || '未知玩家'}
+                </h3>
+                {isCurrentPlayer && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#5DD9A8]/10 text-[#5DD9A8] border border-[#5DD9A8]/30">
+                    我
+                  </span>
+                )}
               </div>
+              <span className="text-[10px] text-[#8C96A5]">{player.role}</span>
             </div>
-
-            {/* 评分细分 */}
-            {player.breakdown && (
-                <div className="grid grid-cols-4 gap-2 mb-4">
-                  <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
-                    <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.motive || 0}</p>
-                    <p className="text-[10px] text-[#8C96A5]">动机</p>
-                  </div>
-                  <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
-                    <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.method || 0}</p>
-                    <p className="text-[10px] text-[#8C96A5]">手法</p>
-                  </div>
-                  <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
-                    <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.clues || 0}</p>
-                    <p className="text-[10px] text-[#8C96A5]">线索</p>
-                  </div>
-                  <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40">
-                    <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.accuracy || 0}</p>
-                    <p className="text-[10px] text-[#8C96A5]">准确</p>
-                  </div>
-                </div>
-            )}
-
-            {/* 答案 */}
-            {player.answer && (
-                <div className="mb-3 p-3 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
-                  <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788] mb-1">你的答案</p>
-                  <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
-                    {player.answer}
-                  </p>
-                </div>
-            )}
-
-            {/* 评论 */}
-            {player.comment && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-[#7C8CD6]/5 border border-[#7C8CD6]/20">
-                  <Sparkles className="w-4 h-4 text-[#7C8CD6] flex-shrink-0 mt-0.5"/>
-                  <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
-                    {player.comment}
-                  </p>
-                </div>
-            )}
+            <div className="flex items-center gap-1">
+              <Star className="w-5 h-5 text-[#F5A9C9]"/>
+              <span className="text-2xl font-bold text-[#2D3748] dark:text-[#E8ECF2]">{player.score || 0}</span>
+              <span className="text-xs text-[#8C96A5]">分</span>
+            </div>
           </div>
+
+          {/* 评分细分 */}
+          {player.breakdown && Object.keys(player.breakdown).length > 0 && (
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+                <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.motive || 0}</p>
+                <p className="text-[10px] text-[#8C96A5]">动机</p>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+                <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.method || 0}</p>
+                <p className="text-[10px] text-[#8C96A5]">手法</p>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+                <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.clues || 0}</p>
+                <p className="text-[10px] text-[#8C96A5]">线索</p>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+                <p className="text-lg font-bold text-[#7C8CD6]">{player.breakdown.accuracy || 0}</p>
+                <p className="text-[10px] text-[#8C96A5]">准确</p>
+              </div>
+            </div>
+          )}
+
+          {/* 答案 */}
+          {player.answer && (
+            <div className="mb-3 p-3 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
+              <div className="flex items-center gap-1.5 mb-2">
+                <FileText className="w-3.5 h-3.5 text-[#8C96A5]"/>
+                <p className="text-[10px] text-[#8C96A5] dark:text-[#6B7788]">投票答案</p>
+              </div>
+              <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed max-h-24 overflow-y-auto scrollbar-thin">
+                {player.answer}
+              </p>
+            </div>
+          )}
+
+          {/* DM评语 */}
+          {player.comment && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-[#7C8CD6]/5 border border-[#7C8CD6]/20">
+              <Sparkles className="w-4 h-4 text-[#7C8CD6] flex-shrink-0 mt-0.5"/>
+              <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+                {player.comment}
+              </p>
+            </div>
+          )}
         </div>
-      </motion.div>
+      </div>
+    </motion.div>
   )
 })
 
-PersonalStatsCard.displayName = 'PersonalStatsCard'
+RealPlayerDetailCard.displayName = 'RealPlayerDetailCard'
 
 // =============================================================================
 // 真相卡片 - 玻璃态设计
@@ -262,12 +302,10 @@ PersonalStatsCard.displayName = 'PersonalStatsCard'
 const TruthCard = memo(({truth}) => (
     <motion.div variants={itemVariants} className="relative h-full">
       {/* 卡片光晕 */}
-      <div
-          className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#7C8CD6]/20 to-[#A78BFA]/20 blur-lg opacity-50"/>
+      <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-[#7C8CD6]/20 to-[#A78BFA]/20 blur-lg opacity-50"/>
 
       {/* 卡片本体 */}
-      <div
-          className="relative h-full bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden flex flex-col">
+      <div className="relative h-full bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden flex flex-col">
         {/* 顶部渐变线 */}
         <div className="h-1 bg-gradient-to-r from-[#7C8CD6] via-[#A78BFA] to-[#F5A9C9]"/>
 
@@ -298,6 +336,44 @@ const TruthCard = memo(({truth}) => (
 TruthCard.displayName = 'TruthCard'
 
 // =============================================================================
+// 总结卡片
+// =============================================================================
+
+const SummaryCard = memo(({summary}) => {
+  if (!summary) return null
+  
+  return (
+    <motion.div variants={itemVariants} className="relative">
+      <div className="relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border border-[#E0E5EE] dark:border-[#363D4D] overflow-hidden">
+        {/* 顶部渐变线 */}
+        <div className="h-1 bg-gradient-to-r from-[#5DD9A8] via-[#7C8CD6] to-[#A78BFA]"/>
+        
+        <div className="p-4">
+          {/* 标题 */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg bg-[#5DD9A8]/10 flex items-center justify-center">
+              <Crown className="w-4 h-4 text-[#5DD9A8]"/>
+            </div>
+            <h3 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
+              DM总结
+            </h3>
+          </div>
+          
+          {/* 总结内容 */}
+          <div className="relative pl-4 border-l-2 border-[#5DD9A8]/50">
+            <p className="text-sm text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
+              {summary}
+            </p>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+})
+
+SummaryCard.displayName = 'SummaryCard'
+
+// =============================================================================
 // 主要组件
 // =============================================================================
 
@@ -305,6 +381,9 @@ TruthCard.displayName = 'TruthCard'
 function Summary({_config, gameData, currentPlayerId, onAction, playerData, isObserverMode = false}) {
   // 从 gameData.result 获取真实数据
   const result = gameData?.result || {}
+  
+  // 展开状态管理
+  const [expandedPlayerId, setExpandedPlayerId] = useState(null)
   
   // 调试日志
   console.log('[Summary] gameData:', gameData)
@@ -341,7 +420,7 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
     }
 
     // 合并评分数据和玩家信息
-    return scores.map(score => {
+    const processedScores = scores.map((score, index) => {
       const player = playerMap.get(String(score.playerId)) || playerMap.get(Number(score.playerId)) || {}
       const realPlayer = realPlayerMap.get(String(score.playerId)) || realPlayerMap.get(Number(score.playerId))
       
@@ -372,9 +451,17 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
         comment: score.comment || '',
         answer: answer,
         isRealPlayer: !!realPlayer,
+        isCulprit: String(score.playerId) === String(result?.culprit?.id),
+        rank: index + 1
       }
     }).sort((a, b) => b.score - a.score) // 按分数降序排列
-  }, [result?.scores, result?.playerAnswers, gameData?.players, playerData])
+    
+    // 重新设置排名
+    return processedScores.map((score, index) => ({
+      ...score,
+      rank: index + 1
+    }))
+  }, [result?.scores, result?.playerAnswers, gameData?.players, playerData, result?.culprit?.id])
   
   // 获取真人玩家的评分列表（用于左侧展示）
   const realPlayerScores = useMemo(() => {
@@ -382,7 +469,6 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
   }, [playerScores])
 
   // 获取AI玩家的评分列表（观察者模式使用）
-  // eslint-disable-next-line no-unused-vars
   const aiPlayerScores = useMemo(() => {
     return playerScores.filter(p => !p.isRealPlayer)
   }, [playerScores])
@@ -391,13 +477,6 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
   const selfPlayerScore = useMemo(() => {
     return playerScores.find(p => String(p.playerId) === String(currentPlayerId))
   }, [playerScores, currentPlayerId])
-
-  // 获取凶手ID（需要从游戏数据中获取）
-  const culpritId = useMemo(() => {
-    // 这里需要根据实际的游戏逻辑获取凶手ID
-    // 暂时返回 null，后续可以从 gameData 中获取
-    return gameData?.culpritId || null
-  }, [gameData])
 
   // 计算平均分
   const averageScore = useMemo(() => {
@@ -422,6 +501,10 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
 
   const handlePlayAgain = () => {
     onAction?.('play_again')
+  }
+
+  const handleToggleExpand = (playerId) => {
+    setExpandedPlayerId(expandedPlayerId === playerId ? null : playerId)
   }
 
   return (
@@ -466,7 +549,7 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
 
           {/* 内容网格 - 占满剩余空间 */}
           <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-            {/* 左侧：真人玩家表现 / 观察者模式：AI玩家表现 */}
+            {/* 左侧：真人玩家表现 */}
             <div className="col-span-4 h-full flex flex-col gap-4 overflow-hidden">
               {/* 标题 */}
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -474,105 +557,20 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
                   <User className="w-4 h-4 text-[#7C8CD6]"/>
                 </div>
                 <h3 className="text-sm font-semibold text-[#2D3748] dark:text-[#E8ECF2]">
-                  {isObserverMode ? 'AI玩家表现' : '真人玩家表现'}
+                  真人玩家表现
                 </h3>
+                <span className="text-xs text-[#8C96A5]">({realPlayerScores.length}人)</span>
               </div>
               
-              {/* 玩家列表 */}
+              {/* 真人玩家列表 */}
               <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-3">
-                {(isObserverMode ? aiPlayerScores : realPlayerScores).length > 0 ? (
-                  (isObserverMode ? aiPlayerScores : realPlayerScores).map((player) => (
-                    <motion.div
+                {realPlayerScores.length > 0 ? (
+                  realPlayerScores.map((player) => (
+                    <RealPlayerDetailCard
                       key={player.playerId}
-                      variants={itemVariants}
-                      className="relative"
-                    >
-                      <div className={`
-                        relative bg-white/80 dark:bg-[#222631]/80 backdrop-blur-xl rounded-xl border overflow-hidden
-                        ${String(player.playerId) === String(currentPlayerId) 
-                          ? 'border-[#5DD9A8]/50' 
-                          : 'border-[#E0E5EE] dark:border-[#363D4D]'}
-                      `}>
-                        {/* 顶部渐变线 */}
-                        <div className={`h-1 bg-gradient-to-r ${String(player.playerId) === String(currentPlayerId) ? 'from-[#5DD9A8] to-[#10b981]' : 'from-[#7C8CD6] to-[#A78BFA]'}`}/>
-                        
-                        <div className="p-3">
-                          {/* 玩家名称和分数 */}
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className={`
-                                w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs
-                                ${String(player.playerId) === String(currentPlayerId) 
-                                  ? 'bg-[#5DD9A8] text-white' 
-                                  : 'bg-[#7C8CD6]/10 text-[#7C8CD6]'}
-                              `}>
-                                {player.name?.charAt(0) || '?'}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-sm font-medium text-[#2D3748] dark:text-[#E8ECF2]">
-                                    {player.name || '未知玩家'}
-                                  </span>
-                                  {String(player.playerId) === String(currentPlayerId) && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#5DD9A8]/10 text-[#5DD9A8] border border-[#5DD9A8]/30">
-                                      我
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-[10px] text-[#8C96A5]">{player.role}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-[#F5A9C9]"/>
-                              <span className="text-lg font-bold text-[#2D3748] dark:text-[#E8ECF2]">{player.score}</span>
-                              <span className="text-xs text-[#8C96A5]">分</span>
-                            </div>
-                          </div>
-                          
-                          {/* 评分细分 */}
-                          {player.breakdown && Object.keys(player.breakdown).length > 0 && (
-                            <div className="grid grid-cols-4 gap-1.5 mb-2">
-                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
-                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.motive || 0}</p>
-                                <p className="text-[8px] text-[#8C96A5]">动机</p>
-                              </div>
-                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
-                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.method || 0}</p>
-                                <p className="text-[8px] text-[#8C96A5]">手法</p>
-                              </div>
-                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
-                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.clues || 0}</p>
-                                <p className="text-[8px] text-[#8C96A5]">线索</p>
-                              </div>
-                              <div className="text-center p-1.5 rounded bg-white/40 dark:bg-[#1A1D26]/40">
-                                <p className="text-sm font-bold text-[#7C8CD6]">{player.breakdown.accuracy || 0}</p>
-                                <p className="text-[8px] text-[#8C96A5]">准确</p>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* 答案 */}
-                          {player.answer && (
-                            <div className="mb-2 p-2 rounded-lg bg-white/40 dark:bg-[#1A1D26]/40 border border-[#E0E5EE]/50 dark:border-[#363D4D]/50">
-                              <p className="text-[10px] text-[#8C96A5] mb-0.5">投票答案</p>
-                              <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed line-clamp-2">
-                                {player.answer}
-                              </p>
-                            </div>
-                          )}
-                          
-                          {/* DM评论 */}
-                          {player.comment && (
-                            <div className="flex items-start gap-1.5">
-                              <Sparkles className="w-3 h-3 text-[#7C8CD6] flex-shrink-0 mt-0.5"/>
-                              <p className="text-xs text-[#5A6978] dark:text-[#9CA8B8] leading-relaxed">
-                                {player.comment}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
+                      player={player}
+                      isCurrentPlayer={String(player.playerId) === String(currentPlayerId)}
+                    />
                   ))
                 ) : (
                   <div className="flex-1 flex items-center justify-center text-[#8C96A5] text-sm">
@@ -582,7 +580,7 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
               </div>
             </div>
 
-            {/* 右侧：真相 + 玩家排名 */}
+            {/* 右侧：真相 + 玩家排名 + 总结 */}
             <div className="col-span-8 h-full flex flex-col gap-4 overflow-hidden">
               {/* 真相卡片 */}
               <div className="h-40 flex-shrink-0">
@@ -593,7 +591,7 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
               <motion.div variants={itemVariants} className="flex-1 flex flex-col min-h-0">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-medium text-[#8C96A5] uppercase tracking-wider">
-                    {isObserverMode ? 'AI玩家排名' : '玩家表现'}
+                    全部玩家排名
                   </h3>
                   <div className="flex items-center gap-1 text-xs text-[#8C96A5]">
                     <span>平均分:</span>
@@ -602,18 +600,24 @@ function Summary({_config, gameData, currentPlayerId, onAction, playerData, isOb
                 </div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-1">
                   <div className="grid grid-cols-2 gap-3">
-                    {(isObserverMode ? aiPlayerScores : playerScores).map((player, index) => (
-                        <PlayerScoreCard
+                    {playerScores.map((player) => (
+                        <PlayerScoreDetailCard
                             key={player.playerId}
                             player={player}
-                            rank={index + 1}
-                            currentPlayerId={currentPlayerId}
-                            culpritId={culpritId}
+                            isExpanded={expandedPlayerId === player.playerId}
+                            onToggle={() => handleToggleExpand(player.playerId)}
                         />
                     ))}
                   </div>
                 </div>
               </motion.div>
+              
+              {/* DM总结 */}
+              {result?.summary && (
+                <div className="flex-shrink-0">
+                  <SummaryCard summary={result.summary}/>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
