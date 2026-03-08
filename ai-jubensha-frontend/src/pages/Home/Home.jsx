@@ -10,29 +10,30 @@
  * - 流畅的动画效果
  */
 
-import {useState, useEffect, useMemo} from 'react'
+import {useEffect, useState} from 'react'
 import {Link} from 'react-router-dom'
-import {motion, AnimatePresence} from 'framer-motion'
+import {motion} from 'framer-motion'
 import {
-    Sparkles,
-    Play,
     BookOpen,
-    Users,
     Bot,
-    Search,
-    MessageCircle,
-    Vote,
-    Trophy,
     Brain,
-    Database,
-    Zap,
-    Cpu,
     ChevronRight,
-    Star,
-    Quote,
-    Share2,
+    Clock,
+    Cpu,
+    Database,
     Github,
-    Twitter
+    MessageCircle,
+    Play,
+    Quote,
+    Search,
+    Share2,
+    Sparkles,
+    Star,
+    Trophy,
+    Twitter,
+    Users,
+    Vote,
+    Zap
 } from 'lucide-react'
 
 /**
@@ -169,28 +170,32 @@ function Home() {
             genre: '民国悬疑',
             players: '5-7人',
             duration: '120分钟',
-            difficulty: '★★★★☆'
+            difficulty: '★★★★☆',
+            imageUrl: '/covers/华灯初上·血染百乐门_20260308_002130_6b5b216d.png'
         },
         {
             title: '迷雾庄园的秘密',
             genre: '现代推理',
             players: '4-6人',
             duration: '90分钟',
-            difficulty: '★★★☆☆'
+            difficulty: '★★★☆☆',
+            imageUrl: '/covers/时隙学院.png'
         },
         {
-            title: '时空裂隙',
+            title: '时隙学院',
             genre: '科幻悬疑',
             players: '6-8人',
             duration: '150分钟',
-            difficulty: '★★★★★'
+            difficulty: '★★★★★',
+            imageUrl: '/covers/时隙回廊：圣约学院的悖论密室_20260306_162524_4d9b2fc0.png'
         },
         {
             title: '古刹惊魂',
             genre: '古风探案',
             players: '5-7人',
             duration: '100分钟',
-            difficulty: '★★★☆☆'
+            difficulty: '★★★☆☆',
+            imageUrl: '/covers/古刹惊魂_20260308_131424_d468c34b.png'
         }
     ]
 
@@ -712,19 +717,40 @@ function ScriptShowcase({scripts}) {
                             whileHover={{y: -8}}
                             className="group relative cursor-pointer"
                         >
-                            {/* 优雅的浅色卡片方案 */}
-                            <div className="relative h-64 rounded-2xl overflow-hidden bg-white/60 backdrop-blur-[10px] p-6 flex flex-col justify-end border border-[#2563EB]/10 group-hover:border-[#08D9D6]/50 transition-all duration-300 group-hover:shadow-[0_4px_20px_0_rgba(8,217,214,0.3)]">
+                            {/* 带图片背景的卡片 */}
+                            <div
+                                className="relative h-72 rounded-2xl overflow-hidden border border-[#2563EB]/10 group-hover:border-[#08D9D6]/50 transition-all duration-300 group-hover:shadow-[0_4px_20px_0_rgba(8,217,214,0.3)]">
+                                {/* 背景图片 */}
+                                <div className="absolute inset-0">
+                                    <img
+                                        src={script.imageUrl}
+                                        alt={script.title}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                    {/* 渐变遮罩 - 底部渐变使文字可读 */}
+                                    <div
+                                        className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent"/>
+                                    {/* 悬浮时的光晕效果 */}
+                                    <div
+                                        className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/10 to-[#08D9D6]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
+                                </div>
                                 {/* 顶部微光效果 - 悬浮时显示蓝青渐变线条 */}
-                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
-                                {/* 背景装饰 - 悬浮时显示渐变光晕 */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/5 to-[#08D9D6]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"/>
-                                {/* 卡片内容 */}
-                                <div className="relative">
-                                    <h3 className="text-xl font-bold mb-2 text-[#0F172A] group-hover:text-[#2563EB] transition-colors duration-300">{script.title}</h3>
-                                    <p className="text-sm text-[#64748B] mb-3 group-hover:text-[#475569] transition-colors duration-300">{script.genre}</p>
-                                    <div className="flex items-center gap-4 text-sm text-[#64748B] group-hover:text-[#0F172A] transition-colors duration-300">
-                                        <span>{script.players}</span>
-                                        <span>{script.duration}</span>
+                                <div
+                                    className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#2563EB] to-[#08D9D6] opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"/>
+                                {/* 卡片内容 - 位于底部 */}
+                                <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
+                                    <h3 className="text-xl font-bold mb-2 text-white group-hover:text-[#08D9D6] transition-colors duration-300">{script.title}</h3>
+                                    <p className="text-sm text-slate-300 mb-3 group-hover:text-white transition-colors duration-300">{script.genre}</p>
+                                    <div
+                                        className="flex items-center gap-4 text-sm text-slate-400 group-hover:text-slate-200 transition-colors duration-300">
+                                        <span className="flex items-center gap-1">
+                                            <Users className="w-3.5 h-3.5"/>
+                                            {script.players}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <Clock className="w-3.5 h-3.5"/>
+                                            {script.duration}
+                                        </span>
                                         <span className="text-amber-400">{script.difficulty}</span>
                                     </div>
                                 </div>
