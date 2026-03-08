@@ -13,6 +13,8 @@ const Scene = lazy(() => import('../pages/Scene/Scene'))
 const Settings = lazy(() => import('../pages/Settings/Settings'))
 const ScriptCharacters = lazy(() => import('../pages/ScriptCharacters/ScriptCharacters'))
 const NotFound = lazy(() => import('../pages/Error/NotFound'))
+// 真相揭晓预览页面 - 用于调试和预览
+const SummaryPreview = lazy(() => import('../pages/SummaryPreview/SummaryPreview'))
 
 function AppRouter() {
     return (
@@ -30,6 +32,8 @@ function AppRouter() {
                     </Route>
                     {/* GameRoom 独立路由，不使用 MainLayout（无 Header/Footer） */}
                     <Route path="game/:id" element={<GameRoom/>}/>
+                    {/* 真相揭晓预览页面 - 独立路由，可直接访问 */}
+                    <Route path="summary-preview" element={<SummaryPreview/>}/>
                     <Route path="/404" element={<NotFound/>}/>
                     <Route path="*" element={<Navigate to="/404" replace/>}/>
                 </Routes>
