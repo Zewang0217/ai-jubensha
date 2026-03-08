@@ -50,7 +50,7 @@ const PhaseComponents = {
 // =============================================================================
 
 const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'http://localhost:8080'
-const DEFAULT_DEBUG_MODE = false // 默认关闭调试模式，使用真实数据
+const DEFAULT_DEBUG_MODE = true // 默认关闭调试模式，使用真实数据
 
 const TRANSITION_CONFIG = {
   initial: {opacity: 0, y: 8},

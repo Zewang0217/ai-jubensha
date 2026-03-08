@@ -265,16 +265,16 @@ public class RAGServiceImpl implements RAGService {
             filter = "player_id == " + playerId;
         }
 
-        // 动态调整TopK值（搜索更多子文档以确保找到足够的父文档）
-        int dynamicTopK = getDynamicTopK("conversation", topK * 3);
+        // 动态调整TopK值
+        int dynamicTopK = getDynamicTopK("conversation", topK);
 
-        // 构建向量搜索请求，包含parent_id字段
+        // 构建向量搜索请求（不包含parent_id字段，兼容旧schema）
         SearchReq searchReq = buildSearchRequest(
                 collectionName,
                 queryEmbedding,
                 filter,
                 dynamicTopK,
-                List.of("id", "player_id", "player_name", "content", "timestamp", "parent_id"),
+                List.of("id", "player_id", "player_name", "content", "timestamp"),
                 "conversation",
                 query.length()
         );
@@ -288,38 +288,28 @@ public class RAGServiceImpl implements RAGService {
             return new ArrayList<>();
         }
 
-        // 处理搜索结果，提取父文档ID
-        Set<Long> parentIds = new HashSet<>();
+        // 处理搜索结果（简化处理，直接返回搜索结果）
+        List<Map<String, Object>> finalResults = new ArrayList<>();
         if (!searchResp.getSearchResults().isEmpty()) {
             for (var result : searchResp.getSearchResults().get(0)) {
-                Object parentIdObj = result.getEntity().get("parent_id");
-                if (parentIdObj != null) {
-                    Long parentId = parentIdObj instanceof Long ? (Long) parentIdObj : Long.valueOf(parentIdObj.toString());
-                    parentIds.add(parentId);
-                }
+                Map<String, Object> memory = new HashMap<>();
+                memory.put("id", result.getEntity().get("id"));
+                memory.put("player_id", result.getEntity().get("player_id"));
+                memory.put("player_name", result.getEntity().get("player_name"));
+                memory.put("content", result.getEntity().get("content"));
+                memory.put("timestamp", result.getEntity().get("timestamp"));
+                // 转换L2距离为相似度分数
+                double distance = result.getScore();
+                double scaleFactor = 0.1;
+                double similarityScore = Math.exp(-distance * scaleFactor);
+                memory.put("score", similarityScore);
+                finalResults.add(memory);
             }
         }
 
-        if (parentIds.isEmpty()) {
-            log.debug("未找到相关的父文档");
+        if (finalResults.isEmpty()) {
+            log.debug("未找到相关的对话记忆");
             return new ArrayList<>();
-        }
-
-        // 获取完整父文档
-        List<Map<String, Object>> parentDocs = parentDocumentService.getParentDocuments(new ArrayList<>(parentIds));
-
-        // 计算父文档与查询的相似度
-        List<Map<String, Object>> finalResults = new ArrayList<>();
-        for (Map<String, Object> parentDoc : parentDocs) {
-            String content = (String) parentDoc.get("content");
-            if (content != null) {
-                List<Float> parentEmbedding = embeddingService.generateEmbedding(content);
-                if (parentEmbedding != null && !parentEmbedding.isEmpty()) {
-                    double similarity = calculateCosineSimilarity(parentEmbedding, queryEmbedding);
-                    parentDoc.put("score", similarity);
-                    finalResults.add(parentDoc);
-                }
-            }
         }
 
         // 排序并限制结果数量

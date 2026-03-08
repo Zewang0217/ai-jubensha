@@ -9,6 +9,9 @@ import java.util.List;
 /**
  * Player Agent接口
  * 采用工具驱动的推理方案，AI通过调用工具获取所需信息
+ * 
+ * 注意：角色信息（名称、背景、秘密、时间线）通过 systemMessageProvider 动态注入，
+ * 确保每次创建 Agent 时都能获取到正确的角色信息
  *
  * @author Zewang
  * @version 2.0
@@ -16,64 +19,79 @@ import java.util.List;
  * @since 2026
  */
 @SystemMessage("""
-你是一个剧本杀游戏中的AI玩家。请遵循以下原则：
+你是剧本杀游戏中的玩家。
 
-1. 工具使用优先：在进行推理和决策前，务必通过调用工具获取相关信息
-2. 信息获取顺序：
-   - 获取讨论历史了解当前情况
+【核心规则】
+1. 角色一致性：你必须始终保持角色一致性，以你被分配的角色身份发言
+2. 只在信息不足且必要时使用工具：如果已有信息充分，直接回答，不要调用工具
+3. 信息获取顺序(如果信息不足再做补充)：
    - 获取角色线索和时间线掌握背景
    - 获取其他玩家状态了解动态
-3. 推理基于事实：所有推理必须基于通过工具获取的信息
-4. 角色一致性：保持与角色设定一致的言行
-5. 工具调用格式：使用JSON格式调用工具，包含必要参数
+4. 推理基于事实：所有推理必须基于通过工具获取的信息
+5. 不要说"我是AI"、"我是AI助手"等话，你是剧本杀中的角色
+6. 不要使用
+
+【重要提示】
+讨论历史已通过上下文提供给你，你不需要调用工具获取讨论历史，直接基于提供的上下文进行发言即可。
 
 可用工具：
-- getDiscussionHistory：获取讨论历史
 - getClue：获取角色线索
 - getTimeline：获取角色时间线
 - getSecret：获取角色秘密
 - getPlayerStatus：获取玩家状态
 - sendDiscussionMessage：发送讨论消息
 - sendPrivateChatRequest：发送单聊请求
-
-示例工具调用：
-{
-  "toolcall": {
-    "thought": "需要了解最近的讨论情况",
-    "name": "getDiscussionHistory",
-    "params": {
-      "gameId": "1",
-      "limit": 20
-    }
-  }
-}
 """)
 public interface PlayerAgent {
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请分析当前游戏状态，通过调用工具获取必要信息，然后生成下一步的发言内容。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请分析当前游戏状态，如果信息不足可调用工具获取补充信息，然后生成下一步的发言内容。")
     String speak(@V("gameId") String gameId, @V("playerId") String playerId);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请分析当前讨论情况，通过调用工具获取相关线索，然后对该线索做出合理回应。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请分析当前讨论情况，如果信息不足可调用工具获取相关线索，然后对该线索做出合理回应。")
     String respondToClue(@V("gameId") String gameId, @V("playerId") String playerId);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请基于已有信息生成讨论内容，如信息不足可调用工具补充，然后针对该话题生成详细的讨论内容。")
     String discuss(@V("gameId") String gameId, @V("playerId") String playerId, @V("topic") String topic);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请通过调用工具分析所有玩家的表现和线索，然后做出投票决定。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请基于已有信息分析所有玩家的表现和线索，如信息不足可调用工具补充，然后做出投票决定。")
     String vote(@V("gameId") String gameId, @V("playerId") String playerId);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n目标玩家ID：{{targetPlayerId}}\n请通过调用工具了解目标玩家的情况，然后生成合适的单聊消息。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n目标玩家ID：{{targetPlayerId}}\n请基于已有信息了解目标玩家的情况，如信息不足可调用工具补充，然后生成合适的单聊消息。")
     String privateChat(@V("gameId") String gameId, @V("playerId") String playerId, @V("targetPlayerId") String targetPlayerId);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n问题：{{question}}\n请通过调用工具获取相关信息，然后回答这个问题。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n问题：{{question}}\n请基于已有信息回答问题，如信息不足可调用工具补充。")
     String answerQuestion(@V("gameId") String gameId, @V("playerId") String playerId, @V("question") String question);
 
-    @UserMessage("{{phase}}")
-    String reasonAndDiscuss(@V("gameId") String gameId, @V("playerId") String playerId, @V("phase") String phase);
+    @UserMessage("""
+        游戏ID：{{gameId}}
+        玩家ID：{{playerId}}
+        角色名称：{{characterName}}
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。")
+        【角色信息】
+        背景故事：{{backgroundStory}}
+        角色秘密：{{secret}}
+        角色时间线：{{timeline}}
+
+        【游戏上下文】
+        {{phase}}
+
+        请作为{{characterName}}角色，基于以上角色信息和游戏上下文，生成自然、真实的发言。
+        请直接开始发言，不需要任何开场白，保持语言流畅自然，符合角色性格特点。
+        备注：如果在发言历史中看见同样角色的发言，请记住，那就是你的发言。
+        """)
+    String reasonAndDiscuss(
+        @V("gameId") String gameId,
+        @V("playerId") String playerId,
+        @V("characterName") String characterName,
+        @V("backgroundStory") String backgroundStory,
+        @V("secret") String secret,
+        @V("timeline") String timeline,
+        @V("phase") String phase
+    );
+
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请基于已有信息生成讨论内容，如信息不足可调用工具补充，然后针对该话题生成详细的讨论内容。")
     String analyzeTopic(@V("gameId") String gameId, @V("playerId") String playerId, @V("topic") String topic);
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请通过调用工具分析当前讨论情况和其他玩家状态，决定是否需要发起单聊，并选择合适的目标玩家。")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请基于已有信息分析当前讨论情况和其他玩家状态，如信息不足可调用工具补充，决定是否需要发起单聊，并选择合适的目标玩家。")
     String decidePrivateChat(String gameId, String playerId);
 
     @UserMessage("""
@@ -88,10 +106,7 @@ public interface PlayerAgent {
 角色秘密：{{secret}}
 角色时间线：{{timeline}}
 
-请作为{{characterName}}角色，基于以上角色信息，通过调用工具获取以下信息：
-1. 讨论历史，了解当前游戏进展
-2. 你的角色线索，掌握关键信息（使用剧本ID：{{scriptId}}）
-3. 其他玩家状态，掌握全局情况
+请作为{{characterName}}角色，基于以上角色信息生成陈述。如信息不足可调用工具获取角色线索和其他玩家状态。
 
 请以自然、流畅的语言风格，像真人一样进行陈述，内容包括：
 - 你的自我介绍和背景
@@ -149,7 +164,7 @@ public interface PlayerAgent {
         @V("scriptContent") String scriptContent
     );
 
-    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n\n【角色信息】\n角色名称：{{characterName}}\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。\n讨论内容要符合你作为{{characterName}}的角色设定，基于你的背景故事、秘密和时间线。备注:如果在发言历史中看见同样角色的发言,请记住,那就是你的发言.")
+    @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n\n【角色信息】\n角色名称：{{characterName}}\n背景故事：{{backgroundStory}}\n角色秘密：{{secret}}\n角色时间线：{{timeline}}\n\n请基于已有信息生成讨论内容，如信息不足可调用工具补充，然后针对该话题生成详细的讨论内容。\n讨论内容要符合你作为{{characterName}}的角色设定，基于你的背景故事、秘密和时间线。备注:如果在发言历史中看见同样角色的发言,请记住,那就是你的发言.")
     String discussWithCharacterInfo(
         @V("gameId") String gameId,
         @V("playerId") String playerId,
@@ -164,12 +179,23 @@ public interface PlayerAgent {
 游戏ID：{{gameId}}
 玩家ID：{{playerId}}
 角色名称：{{characterName}}
-线索ID列表: {{sceneIds}}
 最大搜证次数：{{maxChances}}
 
-请作为{{characterName}}角色，分析当前游戏状态，决定在哪些场景进行搜证，并生成搜证计划。
+【角色信息】
+背景故事：{{background}}
+角色秘密：{{secret}}
 
-请严格返回以下JSON格式的搜证请求：
+【可选线索列表】
+{{clueOptions}}
+
+请作为{{characterName}}角色，基于以上角色信息，从可选线索列表中选择{{maxChances}}个最值得搜证的线索。
+
+搜证策略建议：
+1. 优先选择可能涉及你秘密或对你有利的线索
+2. 优先选择对推理案情有重要作用的线索
+3. 避免选择可能暴露你秘密的线索（除非必要）
+
+请严格返回以下JSON格式：
 {
   "investigationRequests": [
     {
@@ -179,13 +205,12 @@ public interface PlayerAgent {
   ]
 }
 
-其中：
-- investigationRequests：搜证请求列表，长度不超过maxChances
-- clueId：线索ID，必须是提供的线索选项列表中对应线索的ID部分
-
-请基于你的角色背景、秘密和时间线，以及当前游戏进展，做出合理的搜证决策，选择最可能包含关键线索的选项。
+注意：
+- investigationRequests 数组长度不超过 {{maxChances}}
+- clueId 必须是可选线索列表中提供的线索ID
+- 无需解释，直接返回JSON
 """)
-    String investigate(@V("gameId") String gameId, @V("playerId") String playerId, @V("characterName") String characterName, @V("sceneIds") List<String> sceneIds, @V("maxChances") int maxChances);
+    String investigate(@V("gameId") String gameId, @V("playerId") String playerId, @V("characterName") String characterName, @V("secret") String secret, @V("background") String background, @V("clueOptions") String clueOptions, @V("maxChances") int maxChances);
 
     @UserMessage("""
 游戏ID：{{gameId}}
@@ -194,7 +219,7 @@ public interface PlayerAgent {
 线索ID：{{clueId}}
 线索内容：{{clueContent}}
 
-请作为角色{{characterName}}，详细分析该线索的内容，然后决定是否将其公开。
+请作为角色{{characterName}}，简单分析该线索的内容，然后决定是否将其公开。
 
 分析线索时请考虑以下方面：
 1. 线索内容分析：线索具体描述了什么，包含哪些关键信息
@@ -202,7 +227,7 @@ public interface PlayerAgent {
 3. 线索与你的关系：线索是否涉及你的秘密、罪行或隐藏的身份
 4. 线索与其他玩家的关系：线索是否指向其他玩家，或可能影响其他玩家的嫌疑
 5. 公开线索的利弊：公开后对你、对案件进展、对其他玩家的影响
-6. 当前游戏情境：通过工具获取当前讨论情况和游戏阶段，评估是否需要公开线索
+6. 当前游戏情境：评估当前讨论情况和游戏阶段，判断是否需要公开线索
 
 决策逻辑：
 - 如果线索对案件非常重要，且不涉及你的秘密，应选择公开
@@ -212,7 +237,7 @@ public interface PlayerAgent {
 - 考虑当前游戏阶段和讨论情况，确保决策符合游戏进展需要
 - 为了更好的完成推理与合作,如果该线索不影响玩家,建议进行公开
 
-请先通过调用工具获取必要的信息（如讨论历史、游戏阶段等），然后基于完整信息做出决策。
+请基于已有信息做出决策，如信息不足可调用工具补充。
 
 最终决策结果必须严格以JSON格式返回，包含以下字段：
 {
@@ -230,19 +255,16 @@ public interface PlayerAgent {
 玩家ID：{{playerId}}
 角色名称：{{characterName}}
 
-请作为{{characterName}}角色，通过调用工具获取以下信息：
-1. 讨论历史，了解当前游戏进展和其他玩家的观点
-2. 你的角色线索，掌握关键信息
-3. 其他玩家状态，了解全局情况
+请作为{{characterName}}角色，基于已有信息分析整个案件，如信息不足可调用工具补充。
 
-基于以上信息，分析整个案件，包括：
+分析内容包括：
 - 凶手身份
 - 作案动机
 - 作案手法
 - 关键线索分析
 - 对其他玩家的怀疑理由
 
-请生成一个全面、详细的案件答案，确保答案基于通过工具获取的真实信息，而不是虚构内容。
+请生成一个全面、详细的案件答案，确保答案基于真实信息，而不是虚构内容。
 
 请直接开始你的答案，不需要任何开场白或引言。
 """)

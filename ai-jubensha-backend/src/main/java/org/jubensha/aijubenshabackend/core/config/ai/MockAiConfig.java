@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import java.util.concurrent.atomic.AtomicLong;
 import org.mockito.Mockito;
 import org.springframework.context.annotation.Bean;
@@ -246,12 +248,13 @@ public class MockAiConfig {
             });
 
         // reasonAndDiscuss - 推理讨论（核心方法）
-        Mockito.when(mockPlayerAgent.reasonAndDiscuss(anyString(), anyString(), anyString()))
+        Mockito.when(mockPlayerAgent.reasonAndDiscuss(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
             .thenAnswer(invocation -> {
+                String characterName = invocation.getArgument(2);
                 long count = responseCounter.incrementAndGet();
                 return String.format(
-                    "{\"content\": \"【Mock推理讨论%d】根据目前的讨论，我认为有几个疑点需要关注：第一，毒药的来源；第二，每个人案发时的行踪；第三，修改遗嘱的动机。\"}",
-                    count
+                    "{\"content\": \"【Mock推理讨论%d】作为%s，根据目前的讨论，我认为有几个疑点需要关注：第一，毒药的来源；第二，每个人案发时的行踪；第三，修改遗嘱的动机。\"}",
+                    count, characterName != null ? characterName : "角色"
                 );
             });
 
@@ -292,11 +295,15 @@ public class MockAiConfig {
 
         // investigate - 搜证决策（搜证阶段核心）
         Mockito.when(mockPlayerAgent.investigate(anyString(), anyString(), anyString(),
-            anyList(), anyInt()))
+            anyString(), anyString(), anyString(), anyInt()))
             .thenAnswer(invocation -> {
-                @SuppressWarnings("unchecked")
-                List<String> sceneIds = invocation.getArgument(3);
-                int maxChances = invocation.getArgument(4);
+                String clueOptions = invocation.getArgument(5);
+                int maxChances = invocation.getArgument(6);
+                // 从线索选项文本中解析出线索ID列表
+                List<String> sceneIds = Arrays.stream(clueOptions.split("\n"))
+                    .map(line -> line.split(":")[0].trim())
+                    .filter(id -> !id.isEmpty())
+                    .collect(Collectors.toList());
                 int selectCount = Math.min(2, Math.min(maxChances, sceneIds.size()));
                 List<String> selectedIds = new ArrayList<>(sceneIds);
                 Collections.shuffle(selectedIds);
