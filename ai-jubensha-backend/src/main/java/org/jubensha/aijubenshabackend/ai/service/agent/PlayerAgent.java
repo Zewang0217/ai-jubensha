@@ -9,6 +9,9 @@ import java.util.List;
 /**
  * Player Agent接口
  * 采用工具驱动的推理方案，AI通过调用工具获取所需信息
+ * 
+ * 注意：角色信息（名称、背景、秘密、时间线）通过 systemMessageProvider 动态注入，
+ * 确保每次创建 Agent 时都能获取到正确的角色信息
  *
  * @author Zewang
  * @version 2.0
@@ -16,16 +19,17 @@ import java.util.List;
  * @since 2026
  */
 @SystemMessage("""
-你是一个剧本杀游戏中的AI玩家。请遵循以下原则：
+你是剧本杀游戏中的玩家。
 
-1. 工具使用优先：在进行推理和决策前，务必通过调用工具获取相关信息
-2. 信息获取顺序：
+【核心规则】
+1. 角色一致性：你必须始终保持角色一致性，以你被分配的角色身份发言
+2. 工具使用优先：在进行推理和决策前，如果觉得信息不足,可以调用工具来重试信息;如果信息充分,直接回答.
+3. 信息获取顺序：
    - 获取讨论历史了解当前情况
    - 获取角色线索和时间线掌握背景
    - 获取其他玩家状态了解动态
-3. 推理基于事实：所有推理必须基于通过工具获取的信息
-4. 角色一致性：保持与角色设定一致的言行
-5. 工具调用格式：使用JSON格式调用工具，包含必要参数
+4. 推理基于事实：所有推理必须基于通过工具获取的信息
+5. 不要说"我是AI"、"我是AI助手"等话，你是剧本杀中的角色
 
 可用工具：
 - getDiscussionHistory：获取讨论历史
@@ -35,18 +39,6 @@ import java.util.List;
 - getPlayerStatus：获取玩家状态
 - sendDiscussionMessage：发送讨论消息
 - sendPrivateChatRequest：发送单聊请求
-
-示例工具调用：
-{
-  "toolcall": {
-    "thought": "需要了解最近的讨论情况",
-    "name": "getDiscussionHistory",
-    "params": {
-      "gameId": "1",
-      "limit": 20
-    }
-  }
-}
 """)
 public interface PlayerAgent {
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n请分析当前游戏状态，通过调用工具获取必要信息，然后生成下一步的发言内容。")
@@ -67,8 +59,32 @@ public interface PlayerAgent {
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n问题：{{question}}\n请通过调用工具获取相关信息，然后回答这个问题。")
     String answerQuestion(@V("gameId") String gameId, @V("playerId") String playerId, @V("question") String question);
 
-    @UserMessage("{{phase}}")
-    String reasonAndDiscuss(@V("gameId") String gameId, @V("playerId") String playerId, @V("phase") String phase);
+    @UserMessage("""
+        游戏ID：{{gameId}}
+        玩家ID：{{playerId}}
+        角色名称：{{characterName}}
+
+        【角色信息】
+        背景故事：{{backgroundStory}}
+        角色秘密：{{secret}}
+        角色时间线：{{timeline}}
+
+        【游戏上下文】
+        {{phase}}
+
+        请作为{{characterName}}角色，基于以上角色信息和游戏上下文，生成自然、真实的发言。
+        请直接开始发言，不需要任何开场白，保持语言流畅自然，符合角色性格特点。
+        备注：如果在发言历史中看见同样角色的发言，请记住，那就是你的发言。
+        """)
+    String reasonAndDiscuss(
+        @V("gameId") String gameId,
+        @V("playerId") String playerId,
+        @V("characterName") String characterName,
+        @V("backgroundStory") String backgroundStory,
+        @V("secret") String secret,
+        @V("timeline") String timeline,
+        @V("phase") String phase
+    );
 
     @UserMessage("游戏ID：{{gameId}}\n玩家ID：{{playerId}}\n讨论话题：{{topic}}\n请通过调用工具获取相关信息，然后针对该话题生成详细的讨论内容。")
     String analyzeTopic(@V("gameId") String gameId, @V("playerId") String playerId, @V("topic") String topic);

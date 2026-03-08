@@ -44,9 +44,12 @@ public class SendDiscussionMessageTool extends BaseTool {
 
     @Autowired
     private org.jubensha.aijubenshabackend.ai.service.util.ScrollingSummaryManager scrollingSummaryManager;
-    
+
     @Autowired
     private WebSocketService webSocketService;
+
+    @Autowired
+    private org.jubensha.aijubenshabackend.service.game.GamePlayerService gamePlayerService;
 
     @Override
     public String getToolName() {
@@ -66,30 +69,29 @@ public class SendDiscussionMessageTool extends BaseTool {
             Long playerId = arguments.getLong("playerId");
             List<Long> recipientIds = arguments.getBeanList("recipientIds", Long.class);
 
-            Optional<Player> playerOpt = playerService.getPlayerById(playerId);
-            Player player = playerOpt.orElseThrow(() -> new RuntimeException("玩家不存在"));
-            String playerName = player.getNickname();
+            // 获取角色名称而不是玩家昵称
+            String characterName = getCharacterName(gameId, playerId);
 
-            String processedMessage = processMessage(message, playerName);
+            String processedMessage = processMessage(message, characterName);
 
-            log.info("[陈述阶段] AI玩家 {} ({}) 陈述内容: {}", playerId, playerName, processedMessage.substring(0, Math.min(50, processedMessage.length())) + "...");
+            log.info("[陈述阶段] AI玩家 {} ({}) 陈述内容: {}", playerId, characterName, processedMessage.substring(0, Math.min(50, processedMessage.length())) + "...");
 
             messageQueueService.sendDiscussionMessage(processedMessage, recipientIds);
 
             Map<String, Object> chatPayload = new HashMap<>();
             chatPayload.put("playerId", playerId);
-            chatPayload.put("playerName", playerName);
+            chatPayload.put("playerName", characterName);
             chatPayload.put("message", processedMessage);
             chatPayload.put("timestamp", System.currentTimeMillis());
-            
+
             WebSocketMessage wsMessage = new WebSocketMessage();
             wsMessage.setMessageType(WebSocketMessage.MessageType.CHAT_MESSAGE);
             wsMessage.setSender(playerId);
             wsMessage.setPayload(chatPayload);
-            
+
             webSocketService.broadcastChatMessage(gameId, wsMessage);
 
-            ragService.insertConversationMemory(gameId, playerId, playerName, processedMessage);
+            ragService.insertConversationMemory(gameId, playerId, characterName, processedMessage);
 
             scrollingSummaryManager.incrementMessageCount(gameId);
 
@@ -98,6 +100,31 @@ public class SendDiscussionMessageTool extends BaseTool {
             log.error("发送讨论消息失败: {}, 消息:{}", e.getMessage(), arguments.getStr("message"), e);
             return "发送讨论消息失败: " + e.getMessage();
         }
+    }
+
+    /**
+     * 获取角色名称
+     * @param gameId 游戏ID
+     * @param playerId 玩家ID
+     * @return 角色名称，如果获取失败则返回玩家昵称
+     */
+    private String getCharacterName(Long gameId, Long playerId) {
+        try {
+            var gamePlayerOpt = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
+            if (gamePlayerOpt.isPresent()) {
+                var gamePlayer = gamePlayerOpt.get();
+                var character = gamePlayer.getCharacter();
+                if (character != null && character.getName() != null && !character.getName().isEmpty()) {
+                    return character.getName();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("获取角色名称失败，使用玩家昵称作为回退，游戏ID: {}, 玩家ID: {}", gameId, playerId, e);
+        }
+
+        // 回退到玩家昵称
+        Optional<Player> playerOpt = playerService.getPlayerById(playerId);
+        return playerOpt.map(Player::getNickname).orElse("未知玩家");
     }
 
     @Tool("发送讨论消息")

@@ -346,10 +346,10 @@ public class ScriptReaderNode {
             if (character.getId().equals(characterId)) {
                 // 暂时不向向量数据库存储任何信息
                 // 时间线将通过提示词提供，线索只在搜证环节存储
-                log.info("[暂时不存储] 为AI玩家 {} 处理角色 {} 的信息", playerId, character.getName());
-                log.info("[暂时不存储] 时间线长度: {}, 秘密长度: {}", 
-                        character.getTimeline() != null ? character.getTimeline().length() : 0, 
-                        character.getSecret() != null ? character.getSecret().length() : 0);
+//                log.info("[暂时不存储] 为AI玩家 {} 处理角色 {} 的信息", playerId, character.getName());
+//                log.info("[暂时不存储] 时间线长度: {}, 秘密长度: {}",
+//                        character.getTimeline() != null ? character.getTimeline().length() : 0,
+//                        character.getSecret() != null ? character.getSecret().length() : 0);
                 break;
             }
         }
