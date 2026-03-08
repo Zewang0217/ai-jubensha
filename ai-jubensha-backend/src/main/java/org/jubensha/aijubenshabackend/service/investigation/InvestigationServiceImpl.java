@@ -282,8 +282,8 @@ public class InvestigationServiceImpl implements InvestigationService {
             return null;
         }
         WorkflowContext context = workflowContextCache.get(gameId);
-        log.info("[缓存操作] 获取工作流上下文，游戏ID: {}, 存在: {}, 缓存大小: {}, 缓存中的keys: {}", 
-                 gameId, context != null, workflowContextCache.size(), workflowContextCache.keySet());
+//        log.info("[缓存操作] 获取工作流上下文，游戏ID: {}, 存在: {}, 缓存大小: {}, 缓存中的keys: {}",
+//                 gameId, context != null, workflowContextCache.size(), workflowContextCache.keySet());
         return context;
     }
 
