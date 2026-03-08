@@ -139,4 +139,4 @@ tmp/
 .idea
 AGENTS.md
 
-reports/
+reports/src/main/resources/application.yml
