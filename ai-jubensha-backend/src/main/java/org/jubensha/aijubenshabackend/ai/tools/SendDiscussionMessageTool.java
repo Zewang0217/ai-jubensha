@@ -127,7 +127,7 @@ public class SendDiscussionMessageTool extends BaseTool {
         return playerOpt.map(Player::getNickname).orElse("未知玩家");
     }
 
-    @Tool("发送讨论消息")
+//    @Tool("发送讨论消息")
     public String executeSendDiscussionMessage(@P("消息内容") String message, @P("游戏ID") Long gameId, @P("玩家ID") Long playerId, @P("接收者ID列表") List<Long> recipientIds) {
         JSONObject arguments = new JSONObject();
         arguments.put("message", message);

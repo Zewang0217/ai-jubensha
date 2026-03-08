@@ -65,7 +65,7 @@ public class SendPrivateChatRequestTool extends BaseTool {
      * 工具执行方法
      * 供AI直接调用
      */
-    @Tool("发送单聊请求")
+//    @Tool("发送单聊请求")
     public String executeSendPrivateChatRequest(@P("发送者ID") Long senderId, @P("接收者ID") Long receiverId, @P("邀请消息") String message) {
         // 创建参数对象
         JSONObject arguments = new JSONObject();
