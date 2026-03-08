@@ -135,19 +135,19 @@ public class DiscussionServiceImpl implements DiscussionService {
     private final Map<Long, LocalDateTime> lastSpeakTimes = new ConcurrentHashMap<>();
     
     // 发言阈值
-    private static final int SPEAK_THRESHOLD = 150;
+    private static final int SPEAK_THRESHOLD = 230;
     
     // 最低发言阈值（动态阈值的下限）
-    private static final int MIN_THRESHOLD = 80;
+    private static final int MIN_THRESHOLD = 120;
     
     // 阈值衰减间隔（秒）- 每隔这么多秒无人发言，阈值降低
-    private static final int THRESHOLD_DECAY_INTERVAL = 8;
+    private static final int THRESHOLD_DECAY_INTERVAL = 5;
     
     // 每次阈值衰减的数值
-    private static final int THRESHOLD_DECAY_AMOUNT = 8;
+    private static final int THRESHOLD_DECAY_AMOUNT = 10;
     
     // 发言冷却时间（秒）- 刚发言过的玩家欲望值增长减半
-    private static final int COOLDOWN_SECONDS = 7;
+    private static final int COOLDOWN_SECONDS = 10;
     
     // 当前动态阈值
     private int currentThreshold = SPEAK_THRESHOLD;
@@ -301,26 +301,25 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
 
         // 启动AI玩家的陈述推理
+        // 注意：AI会通过SendDiscussionMessageTool工具自己发送消息，不需要在这里再调用sendDiscussionMessage
         for (Long playerId : playerIds) {
             executorService.submit(() -> {
                 try {
-                    // 执行思考并生成陈述
+                    // 执行思考并生成陈述（AI会通过工具自己发送消息）
                     String statement = executeThinkingAndGenerateResponse(
                             playerId, "请生成一个针对当前案件的陈述"
                     );
 
-                    // 发送陈述消息
-                    if (statement != null && !statement.isEmpty()) {
-                        String characterName = getCharacterName(playerId);
-                        log.info("AI玩家陈述，玩家ID: {}, 角色: {}, 内容: {}", playerId, characterName, statement);
-                        sendDiscussionMessage(playerId, statement);
-                    } else {
-                        // 备用方案：使用讨论推理管理器
+                    // 只有当AI没有通过工具发送消息时，才使用备用方案
+                    // 如果statement不为空但AI已经通过工具发送了消息，这里不需要再发送
+                    if (statement == null || statement.isEmpty()) {
+                        // 备用方案：使用讨论推理管理器（也会通过工具发送消息）
                         String backupStatement = discussionReasoningManager.processReasoningAndDiscussion(gameId, playerId);
-                        if (!backupStatement.isEmpty()) {
-                            log.info("AI玩家陈述（备用方案），玩家ID: {}, 内容: {}", playerId, backupStatement);
-                            sendDiscussionMessage(playerId, backupStatement);
+                        if (backupStatement.isEmpty()) {
+                            log.warn("AI玩家陈述生成失败，玩家ID: {}", playerId);
                         }
+                    } else {
+                        log.info("AI玩家陈述已通过工具发送，玩家ID: {}, 内容长度: {}", playerId, statement.length());
                     }
                 } catch (Exception e) {
                     log.error("处理AI玩家陈述失败: {}", e.getMessage(), e);
@@ -397,8 +396,12 @@ public class DiscussionServiceImpl implements DiscussionService {
         for (Long playerId : playerIds) {
             executorService.submit(() -> {
                 try {
-                    // 获取Player Agent
-                    PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
+                    // 获取角色信息
+                    Character character = getCharacter(playerId);
+                    Long characterId = character != null ? character.getId() : null;
+                    
+                    // 获取或创建Player Agent
+                    PlayerAgent playerAgent = aiService.getOrCreatePlayerAgent(playerId, gameId, characterId);
                     if (playerAgent != null) {
                         // 使用AIMindService获取思考结果
                         String thinkingResult = aiMindService.getComprehensiveThinkingResult(
@@ -981,17 +984,19 @@ public class DiscussionServiceImpl implements DiscussionService {
         try {
             log.info("[发言生成] 开始为玩家 {} 生成发言，任务: {}", getCharacterName(playerId), thinkingTask);
             
-            // 获取Player Agent
-            PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
-            if (playerAgent == null) {
-                log.warn("[发言生成] 无法获取玩家 {} 的PlayerAgent", getCharacterName(playerId));
-                return null;
-            }
-            
             // 获取角色信息
             Character character = getCharacter(playerId);
             if (character == null) {
                 log.warn("[发言生成] 无法获取玩家 {} 的角色信息", getCharacterName(playerId));
+                return null;
+            }
+            
+            Long characterId = character.getId();
+            
+            // 获取或创建Player Agent
+            PlayerAgent playerAgent = aiService.getOrCreatePlayerAgent(playerId, gameId, characterId);
+            if (playerAgent == null) {
+                log.warn("[发言生成] 无法获取或创建玩家 {} 的PlayerAgent", getCharacterName(playerId));
                 return null;
             }
             
@@ -1382,21 +1387,6 @@ public class DiscussionServiceImpl implements DiscussionService {
      */
     private void tick() {
         try {
-            // 从数据库读取游戏状态，验证当前游戏是否仍在讨论阶段
-            // 这是解决多游戏并发问题的关键：单例Service的状态变量会被多个游戏共享
-            // 通过数据库查询确保只处理当前游戏的实际状态
-            org.jubensha.aijubenshabackend.models.entity.Game game = gameService.getGameById(gameId).orElse(null);
-            if (game == null) {
-                log.warn("中央调度器跳过执行：游戏不存在，gameId={}", gameId);
-                return;
-            }
-            
-            // 检查游戏阶段是否为讨论阶段
-            if (game.getCurrentPhase() != GamePhase.DISCUSSION) {
-                log.debug("中央调度器跳过执行：游戏阶段不是讨论阶段，gameId={}, 当前阶段: {}", gameId, game.getCurrentPhase());
-                return;
-            }
-            
             // 检查讨论是否已完成
             if (discussionCompleted) {
                 log.debug("中央调度器跳过执行：讨论已完成={}", discussionCompleted);
@@ -1435,7 +1425,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                 log.info("[中央调度器] 选择玩家 {} 发言，欲望值: {}, 当前阈值: {}", 
                         getCharacterName(nextSpeakerId), currentScores.get(nextSpeakerId), currentThreshold);
                 
-                // 执行发言（移除发言锁定，根据用户建议）
+                // 执行发言
                 executorService.submit(() -> {
                     try {
                         log.info("[中央调度器] 开始处理玩家 {} 的发言", getCharacterName(nextSpeakerId));
@@ -1444,7 +1434,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                                 nextSpeakerId, "分析当前讨论并生成回应"
                         );
                         
-                        // 发送讨论消息
+                        // 手动发送讨论消息
                         if (discussionContent != null && !discussionContent.isEmpty()) {
                             log.info("[中央调度器] 玩家 {} 生成发言内容，长度: {}", getCharacterName(nextSpeakerId), discussionContent.length());
                             sendDiscussionMessage(nextSpeakerId, discussionContent);
@@ -1452,8 +1442,8 @@ public class DiscussionServiceImpl implements DiscussionService {
                             log.warn("[中央调度器] 玩家 {} 未能生成发言内容，尝试备用方案", getCharacterName(nextSpeakerId));
                             // 备用方案：使用讨论推理管理器
                             String backupContent = discussionReasoningManager.processReasoningAndDiscussion(gameId, nextSpeakerId);
-                            if (!backupContent.isEmpty()) {
-                                log.info("[中央调度器] 玩家 {} 使用备用方案生成发言内容，长度: {}", getCharacterName(nextSpeakerId), backupContent.length());
+                            if (backupContent != null && !backupContent.isEmpty()) {
+                                log.info("[中央调度器] 玩家 {} 备用方案生成发言内容，长度: {}", getCharacterName(nextSpeakerId), backupContent.length());
                                 sendDiscussionMessage(nextSpeakerId, backupContent);
                             } else {
                                 log.warn("[中央调度器] 玩家 {} 备用方案也未能生成发言内容", getCharacterName(nextSpeakerId));

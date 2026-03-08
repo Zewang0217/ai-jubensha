@@ -87,7 +87,7 @@ public class WebSocketServiceImpl implements WebSocketService {
     public void broadcastChatMessage(Long gameId, WebSocketMessage message) {
         String destination = "/topic/game/" + gameId + "/chat";
         messagingTemplate.convertAndSend(destination, message);
-        log.debug("广播聊天消息到游戏 {}: {}", gameId, message);
+//        log.debug("广播聊天消息到游戏 {}: {}", gameId, message);
         
         // 处理真人玩家发言
         handleRealPlayerMessage(gameId, message);

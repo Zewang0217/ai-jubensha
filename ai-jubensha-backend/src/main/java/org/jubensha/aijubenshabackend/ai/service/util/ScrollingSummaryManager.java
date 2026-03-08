@@ -3,18 +3,23 @@ package org.jubensha.aijubenshabackend.ai.service.util;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
-import org.jubensha.aijubenshabackend.ai.service.RAGService;
 import org.jubensha.aijubenshabackend.ai.service.agent.JudgeAgent;
 import org.jubensha.aijubenshabackend.core.util.SpringContextUtil;
+import org.jubensha.aijubenshabackend.models.entity.Dialogue;
+import org.jubensha.aijubenshabackend.repository.dialogue.DialogueRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 滚动摘要管理器
@@ -31,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 public class ScrollingSummaryManager {
 
     @Autowired
-    private RAGService ragService;
+    private DialogueRepository dialogueRepository;
 
     /**
      * 摘要生成阈值，当发言达到此数量时生成摘要
@@ -119,18 +124,48 @@ public class ScrollingSummaryManager {
      */
     private String generatePlotSnapshot(Long gameId) {
         try {
-            // 获取最近的讨论记录
-            String query = "获取完整的讨论历史";
-            List<Map<String, Object>> discussionHistory = ragService.searchConversationMemory(gameId, null, query, SUMMARY_THRESHOLD);
+            // 生成缓存键
+            String cacheKey = "plot_snapshot:" + gameId;
 
-            if (discussionHistory.isEmpty()) {
-                log.debug("讨论历史为空，游戏ID: {}", gameId);
-                return "";
+            // 获取之前的旧摘要（滚雪球式摘要的核心）
+            String oldSummary = summaryCache.getIfPresent(cacheKey);
+            if (oldSummary != null) {
+                log.debug("获取到旧摘要，将用于生成滚动摘要，游戏ID: {}", gameId);
             }
 
-            // 构建讨论历史文本
+            // 使用 DialogueRepository 获取最近的讨论记录（按时间倒序）
+            Pageable pageable = PageRequest.of(0, SUMMARY_THRESHOLD);
+            List<Dialogue> dialogues = dialogueRepository.findByGameIdOrderByTimestampDesc(gameId, pageable);
+
+            if (dialogues.isEmpty()) {
+                log.debug("讨论历史为空，游戏ID: {}", gameId);
+                // 如果没有新对话但有旧摘要，返回旧摘要
+                return oldSummary != null ? oldSummary : "";
+            }
+
+            // 将 Dialogue 实体转换为 Map 格式（保持与原有代码兼容）
+            List<Map<String, Object>> discussionHistory = dialogues.stream()
+                    .map(dialogue -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("player_name", dialogue.getPlayer() != null ? dialogue.getPlayer().getNickname() : "未知玩家");
+                        map.put("content", dialogue.getContent());
+                        map.put("timestamp", dialogue.getTimestamp());
+                        return map;
+                    })
+                    .collect(Collectors.toList());
+
+            // 构建讨论历史文本（滚雪球式摘要Prompt）
             StringBuilder historyBuilder = new StringBuilder();
-            historyBuilder.append("请将以下讨论内容总结为一段50-100字的剧情快照，包含关键信息和讨论趋势：\n\n");
+            historyBuilder.append("你是一个剧本杀法官。请根据【前情提要】和【最新讨论内容】，更新并输出一段100字以内的全局剧情快照：\n\n");
+
+            // 如果有旧摘要，将其加入Prompt
+            if (oldSummary != null && !oldSummary.isEmpty()) {
+                // 清理旧摘要中的格式标记，只保留纯内容
+                String cleanedOldSummary = oldSummary.replace("\n【前情提要（长期记忆）】\n", "").replace("\n", "").trim();
+                historyBuilder.append("【前情提要】：\n").append(cleanedOldSummary).append("\n\n");
+            }
+
+            historyBuilder.append("【最新讨论内容】：\n");
 
             for (Map<String, Object> message : discussionHistory) {
                 String playerName = (String) message.getOrDefault("player_name", "未知玩家");
@@ -143,8 +178,9 @@ public class ScrollingSummaryManager {
             JudgeAgent judgeAgent = aiService.getJudgeAgent(2L);
             if (judgeAgent == null) {
                 log.error("Judge Agent ID为2不存在");
-                // 回退到简单摘要
-                return generateFallbackSummary(discussionHistory);
+                // 回退到简单摘要，同时保留旧摘要
+                String newFallbackSummary = generateFallbackSummary(discussionHistory, oldSummary);
+                return newFallbackSummary;
             }
 
             String summary = judgeAgent.summarizeDiscussion(historyBuilder.toString());
@@ -155,11 +191,15 @@ public class ScrollingSummaryManager {
                 return "\n【前情提要（长期记忆）】\n" + summary + "\n";
             }
 
-            return "";
+            // 如果生成失败但有旧摘要，返回旧摘要
+            return oldSummary != null ? oldSummary : "";
 
         } catch (Exception e) {
             log.error("生成剧情快照失败: {}", e.getMessage(), e);
-            return "";
+            // 异常时尝试返回旧摘要
+            String cacheKey = "plot_snapshot:" + gameId;
+            String oldSummary = summaryCache.getIfPresent(cacheKey);
+            return oldSummary != null ? oldSummary : "";
         }
     }
 
@@ -167,12 +207,23 @@ public class ScrollingSummaryManager {
      * 生成回退摘要（当Judge Agent不可用时）
      *
      * @param discussionHistory 讨论历史
+     * @param oldSummary 旧摘要（可为null）
      * @return 回退摘要
      */
-    private String generateFallbackSummary(List<Map<String, Object>> discussionHistory) {
+    private String generateFallbackSummary(List<Map<String, Object>> discussionHistory, String oldSummary) {
         try {
-            // 简单的摘要生成逻辑
             StringBuilder summaryBuilder = new StringBuilder();
+
+            // 如果有旧摘要，先添加旧摘要的简化版本
+            if (oldSummary != null && !oldSummary.isEmpty()) {
+                String cleanedOld = oldSummary.replace("\n【前情提要（长期记忆）】\n", "").replace("\n", "").trim();
+                if (cleanedOld.length() > 50) {
+                    cleanedOld = cleanedOld.substring(0, 50) + "...";
+                }
+                summaryBuilder.append(cleanedOld).append(" ");
+            }
+
+            // 添加新消息摘要
             int count = 0;
             for (Map<String, Object> message : discussionHistory) {
                 String playerName = (String) message.getOrDefault("player_name", "未知玩家");
@@ -180,19 +231,53 @@ public class ScrollingSummaryManager {
                 if (!content.isEmpty()) {
                     summaryBuilder.append(playerName).append("说：").append(content).append("。");
                     count++;
-                    if (count >= 5) { // 最多包含5条消息
+                    if (count >= 3) { // 最多包含3条消息（因为有旧摘要）
                         break;
                     }
                 }
             }
+
             String summary = summaryBuilder.toString();
-            if (summary.length() > 100) {
-                summary = summary.substring(0, 100) + "...";
+            if (summary.length() > 150) {
+                summary = summary.substring(0, 150) + "...";
             }
             return "\n【前情提要（长期记忆）】\n" + summary + "\n";
         } catch (Exception e) {
             log.error("生成回退摘要失败: {}", e.getMessage(), e);
-            return "";
+            return oldSummary != null ? oldSummary : "";
+        }
+    }
+
+    /**
+     * 合并旧摘要和新摘要
+     *
+     * @param oldSummary 旧摘要
+     * @param newSummary 新摘要
+     * @return 合并后的摘要
+     */
+    private String mergeSummaries(String oldSummary, String newSummary) {
+        try {
+            // 清理格式标记
+            String cleanedOld = oldSummary.replace("\n【前情提要（长期记忆）】\n", "").replace("\n", "").trim();
+            String cleanedNew = newSummary.replace("\n【前情提要（长期记忆）】\n", "").replace("\n", "").trim();
+
+            // 如果旧摘要已经很长，只保留后半部分
+            if (cleanedOld.length() > 100) {
+                cleanedOld = cleanedOld.substring(cleanedOld.length() - 100);
+            }
+
+            // 合并摘要
+            String merged = cleanedOld + " " + cleanedNew;
+
+            // 限制总长度
+            if (merged.length() > 150) {
+                merged = merged.substring(0, 150) + "...";
+            }
+
+            return "\n【前情提要（长期记忆）】\n" + merged + "\n";
+        } catch (Exception e) {
+            log.error("合并摘要失败: {}", e.getMessage());
+            return newSummary; // 失败时返回新摘要
         }
     }
 

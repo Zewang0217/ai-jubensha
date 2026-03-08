@@ -72,6 +72,9 @@ public class DiscussionReasoningManager {
     @Autowired
     private ScrollingSummaryManager scrollingSummaryManager;
 
+    @Autowired
+    private org.jubensha.aijubenshabackend.repository.dialogue.DialogueRepository dialogueRepository;
+
     /**
      * 线程池，用于并行处理推理任务
      */
@@ -133,27 +136,31 @@ public class DiscussionReasoningManager {
             // 获取当前讨论阶段
             String currentPhase = turnManager.getCurrentPhase(gameId);
 
-            // 获取Player Agent
-            PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
-            if (playerAgent == null) {
-                log.error("Player Agent不存在，玩家ID: {}", playerId);
-                return "无法获取AI玩家实例";
-            }
-
-            // 获取剧本ID
+            // 获取角色信息
+            String characterName = "";
+            String backgroundStory = "";
+            String secret = "";
+            String timeline = "";
             Long scriptId = null;
+            Long characterId = null;
             try {
                 var gamePlayerOpt = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
                 if (gamePlayerOpt.isPresent()) {
                     var gamePlayer = gamePlayerOpt.get();
                     var character = gamePlayer.getCharacter();
                     if (character != null) {
+                        characterId = character.getId();
                         scriptId = character.getScriptId();
-                        log.debug("获取到剧本ID: {}，通过玩家 {} 的角色 {}", scriptId, playerId, character.getName());
+                        characterName = character.getName() != null ? character.getName() : "";
+                        backgroundStory = character.getBackgroundStory() != null ? character.getBackgroundStory() : "";
+                        secret = character.getSecret() != null ? character.getSecret() : "";
+                        timeline = character.getTimeline() != null ? character.getTimeline() : "";
+                        log.debug("获取到角色信息: {}, 背景故事长度: {}, 秘密长度: {}",
+                                characterName, backgroundStory.length(), secret.length());
                     }
                 }
             } catch (Exception e) {
-                log.error("获取剧本ID失败: {}", e.getMessage(), e);
+                log.error("获取角色信息失败: {}", e.getMessage(), e);
             }
 
             // 查询公开线索
@@ -185,6 +192,13 @@ public class DiscussionReasoningManager {
             // 获取近期讨论（滑动窗口）
             String recentDiscussion = getRecentDiscussion(gameId);
 
+            // 获取或创建Player Agent（如果Agent不存在，自动重新创建）
+            PlayerAgent playerAgent = aiService.getOrCreatePlayerAgent(playerId, gameId, characterId);
+            if (playerAgent == null) {
+                log.error("Player Agent获取或创建失败，玩家ID: {}", playerId);
+                return "无法获取AI玩家实例";
+            }
+
             // 构建完整的提示词，添加最终指令
             String prompt = "请根据以下上下文，结合你的剧本进行发言：\n" +
                            "如果觉得信息不够，可以调用工具获取更多信息。\n" +
@@ -194,10 +208,14 @@ public class DiscussionReasoningManager {
                            currentPhase + publicClues + plotSnapshot + "\n" +
                            recentDiscussion;
 
-            // 调用推理方法生成讨论内容（传递完整的提示词）
+            // 调用推理方法生成讨论内容（传递角色信息和游戏上下文）
             String result = playerAgent.reasonAndDiscuss(
                     gameId.toString(),
                     playerId.toString(),
+                    characterName,
+                    backgroundStory,
+                    secret,
+                    timeline,
                     prompt
             );
 
@@ -260,10 +278,20 @@ public class DiscussionReasoningManager {
 
             log.info("分析讨论话题，游戏ID: {}, 玩家ID: {}, 话题: {}", gameId, playerId, topic);
 
-            // 获取Player Agent
-            PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
+            // 获取角色ID
+            Long characterId = null;
+            var gamePlayerOpt = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
+            if (gamePlayerOpt.isPresent()) {
+                var character = gamePlayerOpt.get().getCharacter();
+                if (character != null) {
+                    characterId = character.getId();
+                }
+            }
+
+            // 获取或创建Player Agent
+            PlayerAgent playerAgent = aiService.getOrCreatePlayerAgent(playerId, gameId, characterId);
             if (playerAgent == null) {
-                log.error("Player Agent不存在，玩家ID: {}", playerId);
+                log.error("无法获取或创建Player Agent，玩家ID: {}", playerId);
                 return "无法获取AI玩家实例";
             }
 
@@ -346,10 +374,20 @@ public class DiscussionReasoningManager {
                 return "当前阶段或次数限制不允许发起单聊";
             }
 
-            // 获取Player Agent
-            PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
+            // 获取角色ID
+            Long characterId = null;
+            var gamePlayerOptForChat = gamePlayerService.getGamePlayerByGameIdAndPlayerId(gameId, playerId);
+            if (gamePlayerOptForChat.isPresent()) {
+                var characterForChat = gamePlayerOptForChat.get().getCharacter();
+                if (characterForChat != null) {
+                    characterId = characterForChat.getId();
+                }
+            }
+
+            // 获取或创建Player Agent
+            PlayerAgent playerAgent = aiService.getOrCreatePlayerAgent(playerId, gameId, characterId);
             if (playerAgent == null) {
-                log.error("Player Agent不存在，玩家ID: {}", playerId);
+                log.error("无法获取或创建Player Agent，玩家ID: {}", playerId);
                 return "无法获取AI玩家实例";
             }
 
@@ -427,6 +465,7 @@ public class DiscussionReasoningManager {
 
     /**
      * 获取近期讨论内容（滑动窗口）
+     * 直接从数据库查询，不再使用RAG向量搜索
      *
      * @param gameId 游戏ID
      * @return 近期讨论内容
@@ -443,38 +482,48 @@ public class DiscussionReasoningManager {
                 return cachedDiscussion;
             }
 
-            // 从数据库获取最近的聊天记录
-            String query = "获取最近的讨论历史";
-            List<Map<String, Object>> recentMessages = ragService.searchConversationMemory(gameId, null, query, SLIDING_WINDOW_SIZE);
+            // 直接从数据库获取最近的聊天记录（按时间倒序）
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, SLIDING_WINDOW_SIZE);
+            List<org.jubensha.aijubenshabackend.models.entity.Dialogue> dialogues =
+                    dialogueRepository.findByGameIdOrderByTimestampDesc(gameId, pageable);
 
-            // 按时间顺序排序（从早到晚）
-            recentMessages.sort((a, b) -> {
-                long timestampA = getTimestamp(a);
-                long timestampB = getTimestamp(b);
-                return Long.compare(timestampA, timestampB);
+            // 按时间顺序排序（从早到晚，因为数据库返回的是倒序）
+            dialogues.sort((a, b) -> {
+                if (a.getTimestamp() == null || b.getTimestamp() == null) {
+                    return Long.compare(a.getId(), b.getId());
+                }
+                return a.getTimestamp().compareTo(b.getTimestamp());
             });
 
             // 构建近期讨论文本
             StringBuilder discussionBuilder = new StringBuilder();
             discussionBuilder.append("\n【近期讨论（短期记忆）】\n");
-            
-            for (Map<String, Object> message : recentMessages) {
-                String playerName = (String) message.getOrDefault("player_name", "未知玩家");
-                String content = (String) message.getOrDefault("content", "");
-                
-                discussionBuilder.append(String.format("%s: %s\n", playerName, content));
+
+            for (org.jubensha.aijubenshabackend.models.entity.Dialogue dialogue : dialogues) {
+                // 优先使用角色名称，如果没有则使用玩家昵称
+                String playerName = "未知玩家";
+                if (dialogue.getCharacter() != null && dialogue.getCharacter().getName() != null) {
+                    playerName = dialogue.getCharacter().getName();
+                } else if (dialogue.getPlayer() != null && dialogue.getPlayer().getNickname() != null) {
+                    playerName = dialogue.getPlayer().getNickname();
+                }
+                String content = dialogue.getContent() != null ? dialogue.getContent() : "";
+
+                if (!content.isEmpty()) {
+                    discussionBuilder.append(String.format("%s: %s\n", playerName, content));
+                }
             }
 
-            if (recentMessages.isEmpty()) {
+            if (dialogues.isEmpty()) {
                 discussionBuilder.append("暂无近期讨论记录\n");
             }
 
             String recentDiscussion = discussionBuilder.toString();
-            
+
             // 缓存近期讨论
             discussionHistoryCache.put(cacheKey, recentDiscussion);
-            
-            log.debug("获取到 {} 条近期讨论记录，游戏ID: {}", recentMessages.size(), gameId);
+
+            log.debug("从数据库获取到 {} 条近期讨论记录，游戏ID: {}", dialogues.size(), gameId);
             return recentDiscussion;
 
         } catch (Exception e) {
