@@ -213,6 +213,15 @@ function Investigation({
   
   // 观察者模式：订阅 AI 搜证决策消息
   useEffect(() => {
+    // 调试日志：显示所有订阅条件
+    console.log('[Investigation] AI搜证决策订阅条件检查:', {
+      isObserverMode,
+      isConnected,
+      gameId,
+      hasSubscribe: !!subscribe,
+      hasUnsubscribe: !!unsubscribe
+    })
+    
     // 仅在观察者模式下订阅
     if (!isObserverMode || !isConnected || !gameId || !subscribe || !unsubscribe) {
       console.log('[Investigation] 跳过AI搜证决策订阅 - isObserverMode:', isObserverMode, 'isConnected:', isConnected, 'subscribe:', !!subscribe, 'unsubscribe:', !!unsubscribe)
@@ -227,6 +236,7 @@ function Investigation({
      */
     const handleAIAgentAction = (data) => {
       console.log('[Investigation] 收到AI搜证决策消息:', data)
+      console.log('[Investigation] 消息结构:', JSON.stringify(data, null, 2))
       
       const actionType = data?.payload?.actionType || data?.actionType
       const agentName = data?.payload?.agentName || data?.agentName
@@ -234,6 +244,8 @@ function Investigation({
       const message = data?.payload?.message || data?.message
       const isPublic = data?.payload?.isPublic ?? data?.isPublic
       const reason = data?.payload?.reason || data?.reason
+      
+      console.log('[Investigation] 解析后的消息:', { actionType, agentName, targetName, message, isPublic, reason })
       
       // 添加到消息列表
       const newMessage = {
@@ -247,12 +259,15 @@ function Investigation({
         timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       }
       
+      console.log('[Investigation] 新消息对象:', newMessage)
+      
       setAiActionMessages(prev => {
         // 最多保留10条消息
         const newMessages = [...prev, newMessage]
         if (newMessages.length > 10) {
           newMessages.shift()
         }
+        console.log('[Investigation] 更新后的消息列表长度:', newMessages.length)
         return newMessages
       })
       
@@ -276,6 +291,9 @@ function Investigation({
 
   // 调试日志
   console.log('[Investigation] isObserverMode:', isObserverMode)
+  console.log('[Investigation] aiActionMessages:', aiActionMessages)
+  console.log('[Investigation] aiActionMessages.length:', aiActionMessages.length)
+  console.log('[Investigation] 横幅显示条件:', { isObserverMode, messageCount: aiActionMessages.length, shouldShow: isObserverMode && aiActionMessages.length > 0 })
   if (!isObserverMode) {
     console.log('[Investigation] remainingChances:', remainingChances, 'totalChances:', totalChances)
   }
