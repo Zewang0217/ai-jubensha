@@ -1,0 +1,151 @@
+# 应用配置
+spring:
+  profiles:
+    active: dev # mock-ai开启时, 使用模拟ai而不是真实ai
+  jackson:
+    deserialization:
+      read-enums-using-to-string: true
+  # 配置枚举反序列化时忽略大小写
+  application:
+    name: ai-jubensha-backend
+  # 添加以下配置来解决LocalDateTime序列化问题
+  serialization:
+    write-dates-as-timestamps: false
+  date-format: yyyy-MM-dd HH:mm:ss
+  # 确保时间类型被正确处理
+  default-property-inclusion: non_null
+  # 数据库配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/ai_jubensha?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.zaxxer.hikari.HikariDataSource
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    database-platform: org.hibernate.dialect.MySQLDialect
+    properties:
+      hibernate:
+        format_sql: false
+
+  # Redis配置
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+      database: 0
+
+  # RabbitMQ配置
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: jubensha
+    password: jubensha123
+    virtual-host: /
+
+  # Elasticsearch配置
+  elasticsearch:
+    uris: http://localhost:9200
+    username: ""
+    password: ""
+
+  # WebSocket配置
+  websocket:
+    path: /ws
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # 安全配置
+  security:
+    enabled: false
+
+  # 排除RedisEmbeddingStoreAutoConfiguration
+  autoconfigure:
+    exclude: dev.langchain4j.community.store.embedding.redis.spring.RedisEmbeddingStoreAutoConfiguration
+
+
+# 服务器配置
+server:
+  port: 8080
+
+# Milvus配置
+milvus:
+  host: localhost
+  port: 19530
+  token: root:Milvus
+  collections:
+    conversation-prefix: "conversation_"
+    global-memory: "global_memory"
+  embedding-dimension: 1024
+  metric-type: L2
+  index-type: HNSW
+  index-params:
+    hnsw:
+      M: 16
+      efConstruction: 200
+    ivf:
+      nlist: 1024
+
+# 日志配置
+logging:
+  level:
+    root: info
+    org.jubensha: debug
+    # Hibernate SQL 相关日志控制
+    org.hibernate.SQL: off
+    org.hibernate.type.descriptor.sql.BasicBinder: off
+    org.hibernate.engine.jdbc.spi.SqlStatementLogger: off
+    org.hibernate.engine.QueryParameters: off
+    # 完全关闭 Hibernate 日志（如果需要更严格控制）
+    org.hibernate: warn
+  pattern:
+    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(%-5level){logback-color} %clr(%logger{36}){cyan} - %msg%n"
+  file:
+    name: logs/latest.log
+
+# 系统配置
+system:
+  version: 1.0.0
+  default-language: zh-CN
+
+# AI配置
+ai:
+  model: deepseek-chat  # Updated to use the correct model name for DeepSeek
+  api-key: "YOUR-API-KEY"
+  base-url: "https://api.deepseek.com"
+  embedding-base-url: "https://api.siliconflow.cn/v1"
+  embedding-model: "BAAI/bge-large-zh-v1.5"  # Using SiliconFlow embedding model
+  embedding-api-key: "YOUR-API-KEY"
+  reranking-model: "BAAI/bge-reranker-v2-m3"  # Using SiliconFlow reranking model
+  reranking-base-url: "https://api.siliconflow.cn/v1"
+  reranking-api-key: "YOUR-API-KEY"
+  # 图像生成配置
+  image-generation-model: "Kwai-Kolors/Kolors"
+  image-generation-base-url: "https://api.siliconflow.cn/v1"
+  image-generation-api-key: "YOUR-API-KEY"
+
+pexels:
+  api-key: YOUR-API-KEY
+
+# 图片存储配置
+image:
+  storage:
+    path: ./uploads/images/covers
+    url-prefix: /api/images/covers
+    default-cover: /images/default-cover.jpg
+
+# 游戏配置
+game:
+  max-players-per-game: 8
+  default-game-duration: 120
+  search-phase-duration: 30
+  discussion-phase-duration: 60
