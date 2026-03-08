@@ -141,7 +141,14 @@ public class DMModerator {
                 }
 
                 // 宣布讨论开始
-                String discussionInfo = String.format("游戏ID: %d, 玩家数量: %d, 剧本ID: %d", gameId, playerIds.size(), scriptId);
+                String discussionInfo = String.format(
+                    "剧本：《时隙学苑》\n" +
+                    "场景：时隙学苑钟楼，一场神秘的案件\n" +
+                    "玩家数量：%d人\n" +
+                    "背景：在这个被时间遗忘的学苑中，时痕教授离奇死亡。各位都是嫌疑人...\n" +
+                    "任务：引导玩家进入讨论环节，宣布讨论开始。",
+                    playerIds.size()
+                );
                 String startMessage = dmAgent.startDiscussion(discussionInfo);
 
                 // 发送讨论开始消息
@@ -291,7 +298,7 @@ public class DMModerator {
                     // AI玩家：自动生成陈述
                     log.info("[陈述阶段] AI玩家 {} ({}) 开始生成陈述", playerId, characterName);
                     
-                    PlayerAgent playerAgent = aiService.getPlayerAgent(playerId);
+                    PlayerAgent playerAgent = aiService.getOrCreatePlayerAgent(playerId, gameId, characterId);
                     if (playerAgent != null && character != null) {
                         String statement = generateAIStatement(playerAgent, gameId, playerId, character, scriptId);
                         
