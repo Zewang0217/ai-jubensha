@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI剧本杀 — 当 AI 遇见沉浸式推理游戏</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --base: #1e1e2e;
+      --mantle: #181825;
+      --crust: #11111b;
+      --text: #cdd6f4;
+      --subtext: #a6adc8;
+      --mauve: #cba6f7;
+      --blue: #89b4fa;
+      --red: #f38ba8;
+      --yellow: #f9e2af;
+      --green: #a6e3a1;
+      --surface0: #313244;
+      --surface1: #45475a;
+      --teal: #94e2d5;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--crust);
+      color: var(--text);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* ── Background ─────────────────────────────── */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-image:
+        linear-gradient(var(--surface0) 1px, transparent 1px),
+        linear-gradient(90deg, var(--surface0) 1px, transparent 1px);
+      background-size: 60px 60px;
+      animation: gridDrift 20s linear infinite;
+      opacity: 0.25;
+    }
+
+    @keyframes gridDrift {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(60px); }
+    }
+
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      z-index: 0;
+      animation: orbFloat 10s ease-in-out infinite;
+    }
+    .orb1 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(203,166,247,0.12), transparent);
+      top: -150px; right: -150px;
+    }
+    .orb2 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(137,180,250,0.1), transparent);
+      bottom: -100px; left: -100px;
+      animation-delay: -5s;
+    }
+    .orb3 {
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(148,226,213,0.08), transparent);
+      top: 40%; right: 20%;
+      animation-delay: -2s;
+    }
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(30px, -40px); }
+    }
+
+    /* ── Slide System ─────────────────────────────── */
+    .slides {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 48px 64px;
+      opacity: 0;
+      transform: translateX(80px);
+      transition: all 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: all;
+    }
+
+    .slide.prev {
+      transform: translateX(-80px);
+    }
+
+    /* ── Card ────────────────────────────────────── */
+    .card {
+      background: rgba(30, 30, 46, 0.65);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(203, 166, 247, 0.12);
+      border-radius: 24px;
+      padding: 52px 64px;
+      max-width: 1180px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(203,166,247,0.4), rgba(137,180,250,0.4), transparent);
+    }
+
+    .slide-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--mauve);
+      letter-spacing: 0.12em;
+      margin-bottom: 14px;
+      opacity: 0.7;
+    }
+
+    /* ── Typography ──────────────────────────────── */
+    .slide-title {
+      font-size: clamp(2.2rem, 4.5vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, var(--mauve), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .slide-title .sub {
+      display: block;
+      font-size: 0.55em;
+      letter-spacing: 0.04em;
+      background: linear-gradient(135deg, var(--blue), var(--teal));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-top: 6px;
+    }
+
+    .divider {
+      width: 56px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--mauve), var(--blue));
+      border-radius: 2px;
+      margin: 16px 0 28px;
+    }
+
+    .slide-body {
+      font-size: 1.05rem;
+      color: var(--text);
+      line-height: 1.85;
+    }
+
+    .slide-body p { margin-bottom: 14px; }
+    .slide-body p:last-child { margin-bottom: 0; }
+
+    .highlight { color: var(--mauve); font-weight: 600; }
+    .highlight-blue { color: var(--blue); font-weight: 600; }
+    .highlight-red { color: var(--red); font-weight: 600; }
+    .highlight-yellow { color: var(--yellow); font-weight: 600; }
+    .highlight-green { color: var(--green); font-weight: 600; }
+    .highlight-teal { color: var(--teal); font-weight: 600; }
+
+    /* ── Tags ────────────────────────────────────── */
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      padding: 5px 14px;
+      border-radius: 100px;
+      background: rgba(203, 166, 247, 0.1);
+      border: 1px solid rgba(203, 166, 247, 0.22);
+      color: var(--mauve);
+      transition: all 0.3s ease;
+    }
+
+    .tag:hover {
+      background: rgba(203, 166, 247, 0.18);
+      transform: translateY(-2px);
+    }
+
+    .tag.blue {
+      background: rgba(137, 180, 250, 0.1);
+      border-color: rgba(137, 180, 250, 0.22);
+      color: var(--blue);
+    }
+
+    .tag.red {
+      background: rgba(243, 139, 168, 0.1);
+      border-color: rgba(243, 139, 168, 0.22);
+      color: var(--red);
+    }
+
+    .tag.yellow {
+      background: rgba(249, 226, 175, 0.1);
+      border-color: rgba(249, 226, 175, 0.22);
+      color: var(--yellow);
+    }
+
+    .tag.teal {
+      background: rgba(148, 226, 213, 0.1);
+      border-color: rgba(148, 226, 213, 0.22);
+      color: var(--teal);
+    }
+
+    .tag.green {
+      background: rgba(166, 227, 161, 0.1);
+      border-color: rgba(166, 227, 161, 0.22);
+      color: var(--green);
+    }
+
+    /* ── Agent Diagram ────────────────────────────── */
+    .agent-hub {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin: 28px 0 8px;
+      flex-wrap: wrap;
+    }
+
+    .agent-center {
+      background: rgba(24, 24, 37, 0.9);
+      border: 1px solid rgba(203, 166, 247, 0.3);
+      border-radius: 20px;
+      padding: 20px 28px;
+      text-align: center;
+      min-width: 160px;
+      position: relative;
+    }
+
+    .agent-center::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(203,166,247,0.2), rgba(137,180,250,0.2));
+      z-index: -1;
+      filter: blur(8px);
+    }
+
+    .agent-center .hub-icon { font-size: 2rem; margin-bottom: 8px; }
+    .agent-center .hub-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--mauve);
+    }
+    .agent-center .hub-sub { font-size: 0.75rem; color: var(--subtext); margin-top: 4px; }
+
+    .agent-node {
+      background: rgba(24, 24, 37, 0.8);
+      border: 1px solid rgba(203, 166, 247, 0.15);
+      border-radius: 16px;
+      padding: 16px 20px;
+      text-align: center;
+      min-width: 130px;
+      transition: all 0.3s ease;
+    }
+
+    .agent-node:hover {
+      border-color: var(--mauve);
+      transform: translateY(-3px);
+      box-shadow: 0 0 20px rgba(203, 166, 247, 0.12);
+    }
+
+    .agent-node .node-icon { font-size: 1.5rem; margin-bottom: 8px; }
+    .agent-node .node-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+    .agent-node .node-desc { font-size: 0.72rem; color: var(--subtext); }
+
+    .node-dm .node-title { color: var(--mauve); }
+    .node-player .node-title { color: var(--blue); }
+    .node-judge .node-title { color: var(--yellow); }
+    .node-summary .node-title { color: var(--green); }
+
+    .agent-arrow {
+      font-size: 1.4rem;
+      color: var(--mauve);
+      opacity: 0.35;
+      padding: 0 4px;
+    }
+
+    /* ── Feature Grid ─────────────────────────────── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+      gap: 22px;
+      margin-top: 26px;
+    }
+
+    .feature-item {
+      background: rgba(24, 24, 37, 0.6);
+      border: 1px solid rgba(203, 166, 247, 0.08);
+      border-radius: 16px;
+      padding: 26px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .feature-item:hover {
+      border-color: rgba(203, 166, 247, 0.28);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(203, 166, 247, 0.08);
+    }
+
+    .feature-icon { font-size: 1.7rem; margin-bottom: 12px; }
+    .feature-name { font-weight: 700; font-size: 1rem; margin-bottom: 8px; color: var(--mauve); }
+    .feature-desc { font-size: 0.88rem; color: var(--subtext); line-height: 1.65; }
+
+    /* ── Memory Chain ────────────────────────────── */
+    .memory-chain {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .memory-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      background: rgba(24, 24, 37, 0.5);
+      border: 1px solid rgba(203, 166, 247, 0.08);
+      border-radius: 14px;
+      padding: 16px 20px;
+    }
+
+    .memory-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .memory-content { font-size: 0.9rem; color: var(--text); line-height: 1.6; }
+    .memory-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      padding: 2px 10px;
+      border-radius: 100px;
+      flex-shrink: 0;
+    }
+    .badge-short { background: rgba(137,180,250,0.12); color: var(--blue); border: 1px solid rgba(137,180,250,0.2); }
+    .badge-mid { background: rgba(203,166,247,0.12); color: var(--mauve); border: 1px solid rgba(203,166,247,0.2); }
+    .badge-long { background: rgba(166,227,161,0.12); color: var(--green); border: 1px solid rgba(166,227,161,0.2); }
+
+    /* ── Game Flow ───────────────────────────────── */
+    .flow-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .flow-step {
+      background: rgba(24, 24, 37, 0.8);
+      border: 1px solid rgba(203, 166, 247, 0.15);
+      border-radius: 14px;
+      padding: 16px 18px;
+      text-align: center;
+      min-width: 120px;
+      transition: all 0.3s ease;
+    }
+
+    .flow-step:hover {
+      border-color: var(--mauve);
+      transform: translateY(-3px);
+    }
+
+    .flow-step .step-icon { font-size: 1.4rem; margin-bottom: 6px; }
+    .flow-step .step-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--mauve);
+      margin-bottom: 3px;
+    }
+    .flow-step .step-desc { font-size: 0.72rem; color: var(--subtext); }
+
+    .flow-arrow {
+      font-size: 1.3rem;
+      color: var(--mauve);
+      opacity: 0.35;
+      padding: 0 4px;
+    }
+
+    /* ── Tech Stack Grid ─────────────────────────── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px;
+      margin-top: 24px;
+    }
+
+    .tech-item {
+      background: rgba(24, 24, 37, 0.6);
+      border: 1px solid rgba(203, 166, 247, 0.08);
+      border-radius: 14px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .tech-item:hover {
+      border-color: rgba(203, 166, 247, 0.2);
+      transform: translateY(-3px);
+    }
+
+    .tech-icon { font-size: 1.6rem; margin-bottom: 10px; }
+    .tech-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; color: var(--mauve); }
+    .tech-desc { font-size: 0.82rem; color: var(--subtext); line-height: 1.5; }
+
+    /* ── Comparison / Scenario ────────────────────── */
+    .scenario-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+      margin-top: 24px;
+    }
+
+    .scenario-card {
+      background: rgba(24, 24, 37, 0.6);
+      border: 1px solid rgba(203, 166, 247, 0.08);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+    }
+
+    .scenario-card:hover {
+      border-color: rgba(203, 166, 247, 0.2);
+      transform: translateY(-3px);
+    }
+
+    .scenario-emoji { font-size: 1.8rem; margin-bottom: 12px; }
+    .scenario-title { font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+    .scenario-desc { font-size: 0.88rem; color: var(--subtext); line-height: 1.65; }
+
+    /* ── Stats Row ──────────────────────────────── */
+    .stats-row {
+      display: flex;
+      gap: 36px;
+      margin-top: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .stat-item { text-align: center; }
+    .stat-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--mauve);
+    }
+    .stat-label { font-size: 0.82rem; color: var(--subtext); margin-top: 4px; }
+
+    /* ── Cover Slide ──────────────────────────────── */
+    .cover-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(203, 166, 247, 0.1);
+      border: 1px solid rgba(203, 166, 247, 0.25);
+      border-radius: 100px;
+      padding: 8px 20px;
+      font-size: 0.88rem;
+      color: var(--mauve);
+      margin-bottom: 28px;
+    }
+
+    .cover-badge .dot {
+      width: 8px; height: 8px;
+      background: var(--mauve);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .cover-title {
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      line-height: 1.05;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .cover-title .zh {
+      display: block;
+      background: linear-gradient(135deg, var(--mauve), var(--blue), var(--teal));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-size: 0.65em;
+      letter-spacing: 0.06em;
+    }
+
+    .cover-desc {
+      font-size: 1.1rem;
+      color: var(--subtext);
+      text-align: center;
+      max-width: 560px;
+      line-height: 1.75;
+      margin: 0 auto 36px;
+    }
+
+    .cover-links {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .cover-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .cover-link.primary {
+      background: linear-gradient(135deg, var(--mauve), var(--blue));
+      color: var(--crust);
+    }
+
+    .cover-link.primary:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 10px 36px rgba(203, 166, 247, 0.3);
+    }
+
+    .cover-link.secondary {
+      background: rgba(203, 166, 247, 0.1);
+      border: 1px solid rgba(203, 166, 247, 0.25);
+      color: var(--mauve);
+    }
+
+    .cover-link.secondary:hover {
+      background: rgba(203, 166, 247, 0.18);
+      transform: translateY(-3px);
+    }
+
+    /* ── Nav Bar ──────────────────────────────────── */
+    .nav-bar {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      z-index: 100;
+      background: rgba(30, 30, 46, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(203, 166, 247, 0.15);
+      border-radius: 100px;
+      padding: 11px 22px;
+    }
+
+    .nav-btn {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(203, 166, 247, 0.2);
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .nav-btn:hover {
+      background: rgba(203, 166, 247, 0.15);
+      border-color: var(--mauve);
+      color: var(--mauve);
+    }
+
+    .nav-dots { display: flex; gap: 7px; }
+
+    .nav-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--surface1);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .nav-dot.active {
+      background: var(--mauve);
+      width: 22px;
+      border-radius: 4px;
+    }
+
+    .nav-counter {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--subtext);
+    }
+
+    .scroll-hint {
+      position: fixed;
+      bottom: 96px;
+      right: 36px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--surface1);
+      writing-mode: vertical-rl;
+      letter-spacing: 0.1em;
+      z-index: 100;
+      animation: scrollHint 2.5s ease-in-out infinite;
+    }
+
+    @keyframes scrollHint {
+      0%, 100% { opacity: 0.3; transform: translateY(0); }
+      50% { opacity: 0.65; transform: translateY(-5px); }
+    }
+
+    /* ── Responsive ───────────────────────────────── */
+    @media (max-width: 768px) {
+      .slide { padding: 28px 20px; }
+      .card { padding: 28px 22px; }
+      .agent-hub { gap: 10px; }
+      .agent-arrow { display: none; }
+      .flow-row { gap: 10px; }
+      .flow-arrow { display: none; }
+      .nav-bar { bottom: 14px; padding: 9px 16px; }
+      .scroll-hint { display: none; }
+      .cover-title { font-size: 2.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="glow-orb orb1"></div>
+<div class="glow-orb orb2"></div>
+<div class="glow-orb orb3"></div>
+
+<div class="slides" id="slides">
+
+  <!-- ═══ SLIDE 0 — Cover ═══ -->
+  <div class="slide active" id="slide-0">
+    <div class="card" style="text-align:center;">
+      <div class="cover-badge">
+        <span class="dot"></span>
+        Multi-Agent &middot; LangChain4j &middot; LangGraph4j &middot; RAG
+      </div>
+      <h1 class="cover-title">
+        AI剧本杀
+        <span class="zh">当 AI 遇见沉浸式推理游戏</span>
+      </h1>
+      <p class="cover-desc">
+        不再需要凑齐一群朋友。<br>
+        AI 玩家会撒谎、会推理、会伪装——<br>
+        每一局都是独一无二的悬疑故事。
+      </p>
+      <div class="cover-links">
+        <a class="cover-link primary" href="https://github.com/Zewang0217/ai-jubensha" target="_blank">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <span class="cover-link secondary">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          @Zewang0217
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 1 — Concept ═══ -->
+  <div class="slide" id="slide-1">
+    <div class="card">
+      <div class="slide-number">01 / CONCEPT</div>
+      <h2 class="slide-title">What is AI剧本杀?</h2>
+      <div class="divider"></div>
+      <div class="slide-body">
+        <p>
+          <span class="highlight">剧本杀</span>——一种沉浸式推理游戏，玩家扮演不同角色，在主持人（DM）的引导下通过搜证、讨论、推理找出凶手。
+          而 <span class="highlight-blue">AI剧本杀</span> 用大语言模型替代了所有 NPC，让单人也能体验完整的推理乐趣。
+        </p>
+        <p>
+          你不再需要等待朋友有空。AI 会扮演<span class="highlight">狡猾的嫌疑人</span>、
+          <span class="highlight-yellow">神秘的证人</span>，甚至<span class="highlight-red">真正的凶手</span>——
+          它们有自己的秘密，会撒谎，会转移话题，会在关键时刻突然反咬你一口。
+        </p>
+      </div>
+      <div class="tags">
+        <span class="tag">Multi-Agent</span>
+        <span class="tag blue">Immersive Gaming</span>
+        <span class="tag yellow">Murder Mystery</span>
+        <span class="tag teal">LLM-powered</span>
+        <span class="tag green">1 to N Mode</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 2 — Agent System ═══ -->
+  <div class="slide" id="slide-2">
+    <div class="card">
+      <div class="slide-number">02 / AGENTS</div>
+      <h2 class="slide-title">多 Agent 协作系统</h2>
+      <div class="divider"></div>
+      <div class="slide-body">
+        <p>四种 Agent 各司其职，模拟真实的剧本杀体验：</p>
+      </div>
+      <div class="agent-hub">
+        <div class="agent-node node-dm">
+          <div class="node-icon">🎭</div>
+          <div class="node-title">DM Agent</div>
+          <div class="node-desc">主持人</div>
+        </div>
+        <span class="agent-arrow">&harr;</span>
+        <div class="agent-center">
+          <div class="hub-icon">🧠</div>
+          <div class="hub-title">Multi-Agent</div>
+          <div class="hub-sub">协作推理</div>
+        </div>
+        <span class="agent-arrow">&harr;</span>
+        <div class="agent-node node-player">
+          <div class="node-icon">🎪</div>
+          <div class="node-title">Player Agent</div>
+          <div class="node-desc">AI 玩家</div>
+        </div>
+      </div>
+      <div class="agent-hub" style="margin-top: 8px;">
+        <div class="agent-node node-judge">
+          <div class="node-icon">⚖️</div>
+          <div class="node-title">Judge Agent</div>
+          <div class="node-desc">裁判 · 逻辑校验</div>
+        </div>
+        <span class="agent-arrow" style="opacity:0;"></span>
+        <div class="agent-node node-summary">
+          <div class="node-icon">📋</div>
+          <div class="node-title">Summary Agent</div>
+          <div class="node-desc">记录员 · 对话摘要</div>
+        </div>
+      </div>
+      <div class="feature-grid" style="margin-top: 24px;">
+        <div class="feature-item">
+          <div class="feature-icon">🎭</div>
+          <div class="feature-name">DM Agent</div>
+          <div class="feature-desc">掌控游戏节奏，推进各阶段，发放线索，渲染氛围，判定胜负</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🎪</div>
+          <div class="feature-name">Player Agent</div>
+          <div class="feature-desc">扮演具体角色，守住秘密，会撒谎、误导、反咬，基于 LangChain4j 构建</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">⚖️</div>
+          <div class="feature-name">Judge Agent</div>
+          <div class="feature-desc">实时校验逻辑一致性，检查证据链，防止玩家/AI 的自相矛盾</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">📋</div>
+          <div class="feature-name">Summary Agent</div>
+          <div class="feature-desc">追踪关键信息，生成讨论摘要，帮助玩家回顾进度</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 3 — Script Generation ═══ -->
+  <div class="slide" id="slide-3">
+    <div class="card">
+      <div class="slide-number">03 / WORKFLOW</div>
+      <h2 class="slide-title">动态剧本生成</h2>
+      <div class="divider"></div>
+      <div class="slide-body">
+        <p>
+          输入一句话，AI 在几分钟内生成完整的剧本杀——
+          <span class="highlight-blue">角色设定、时间线、作案手法、线索网络</span>，全由 LangGraph 工作流编排生成。
+        </p>
+      </div>
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="step-icon">📝</div>
+          <div class="step-title">大纲生成</div>
+          <div class="step-desc">核心诡计<br>角色列表</div>
+        </div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">
+          <div class="step-icon">👤</div>
+          <div class="step-title">角色生成</div>
+          <div class="step-desc">背景故事<br>秘密目标</div>
+        </div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">
+          <div class="step-icon">🔍</div>
+          <div class="step-title">场景&线索</div>
+          <div class="step-desc">场景设计<br>线索网络</div>
+        </div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">
+          <div class="step-icon">🖼️</div>
+          <div class="step-title">封面生成</div>
+          <div class="step-desc">AI 生成<br>剧本封面</div>
+        </div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">
+          <div class="step-icon">📖</div>
+          <div class="step-title">剧本组装</div>
+          <div class="step-desc">流式输出<br>实时预览</div>
+        </div>
+      </div>
+      <div class="feature-grid" style="margin-top: 22px;">
+        <div class="feature-item">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-name">流式输出</div>
+          <div class="feature-desc">剧本边生成边展示，无需等待完整生成即可开始阅读</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🔗</div>
+          <div class="feature-name">线索关联</div>
+          <div class="feature-desc">每条线索都有多层关联，支持迷惑线索设计，让推理更有挑战</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🎨</div>
+          <div class="feature-name">主题适配</div>
+          <div class="feature-desc">民国上海滩、科幻空间站、古风宫廷……任意主题均可生成</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 4 — Memory ═══ -->
+  <div class="slide" id="slide-4">
+    <div class="card">
+      <div class="slide-number">04 / MEMORY</div>
+      <h2 class="slide-title">三级记忆系统</h2>
+      <div class="divider"></div>
+      <div class="slide-body">
+        <p>
+          AI 玩家不再是<span class="highlight-red">「金鱼记忆」</span>。
+          三层记忆架构确保它们记得说过的话、发现的线索、相互之间的关系——
+          真正模拟人类的记忆方式。
+        </p>
+      </div>
+      <div class="memory-chain">
+        <div class="memory-item">
+          <span class="memory-icon">⚡</span>
+          <div class="memory-content">
+            <strong style="color:var(--blue)">短期记忆 Caffeine Cache</strong> —
+            最近 10-20 条对话，毫秒级检索，用于维持上下文连贯
+          </div>
+          <span class="memory-badge badge-short">~15min</span>
+        </div>
+        <div class="memory-item">
+          <span class="memory-icon">🧩</span>
+          <div class="memory-content">
+            <strong style="color:var(--mauve)">中期记忆 ConcurrentHashMap</strong> —
+            游戏会话期间的线索索引、时间线、玩家发言摘要
+          </div>
+          <span class="memory-badge badge-mid">会话内</span>
+        </div>
+        <div class="memory-item">
+          <span class="memory-icon">💾</span>
+          <div class="memory-content">
+            <strong style="color:var(--green)">长期记忆 Milvus 向量库</strong> —
+            角色背景、剧本设定、人物关系，支持语义检索和 RAG 增强生成
+          </div>
+          <span class="memory-badge badge-long">持久化</span>
+        </div>
+      </div>
+      <div class="tags" style="margin-top: 20px;">
+        <span class="tag blue">Caffeine Cache</span>
+        <span class="tag">ConcurrentHashMap</span>
+        <span class="tag green">Milvus</span>
+        <span class="tag yellow">RAG</span>
+        <span class="tag teal">向量检索</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 5 — Game Flow ═══ -->
+  <div class="slide" id="slide-5">
+    <div class="card">
+      <div class="slide-number">05 / GAME FLOW</div>
+      <h2 class="slide-title">完整游戏流程</h2>
+      <div class="divider"></div>
+      <div class="flow-row" style="margin-top: 8px;">
+        <div class="flow-step">
+          <div class="step-icon">🎬</div>
+          <div class="step-title">剧本生成</div>
+          <div class="step-desc">输入主题<br>AI 生成</div>
+        </div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">
+          <div class="step-icon">👥</div>
+          <div class="step-title">角色分配</div>
+          <div class="step-desc">玩家获得<br>专属身份</div>
+        </div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">
+          <div class="step-icon">📖</div>
+          <div class="step-title">剧本阅读</div>
+          <div class="step-desc">背景故事<br>时间线</div>
+        </div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">
+          <div class="step-icon">🏠</div>
+          <div class="step-title">搜证阶段</div>
+          <div class="step-desc">点击场景<br>发现线索</div>
+        </div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">
+          <div class="step-icon">💬</div>
+          <div class="step-title">讨论阶段</div>
+          <div class="step-desc">实时对话<br>质问推理</div>
+        </div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">
+          <div class="step-icon">🗳️</div>
+          <div class="step-title">投票结局</div>
+          <div class="step-desc">指认凶手<br>揭晓真相</div>
+        </div>
+      </div>
+      <div class="feature-grid" style="margin-top: 22px;">
+        <div class="feature-item">
+          <div class="feature-icon">🏠</div>
+          <div class="feature-name">可视化搜证</div>
+          <div class="feature-desc">场景地图 + 线索卡片，可选公开或隐藏（涉及 AI 秘密时它会撒谎哦）</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">💬</div>
+          <div class="feature-name">实时讨论</div>
+          <div class="feature-desc">WebSocket 双向通信，AI 玩家会主动发言、质疑、反驳，甚至串供</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">📊</div>
+          <div class="feature-name">状态机驱动</div>
+          <div class="feature-desc">Spring State Machine 管理所有阶段转换，确保流程严谨可控</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 6 — Tech Stack ═══ -->
+  <div class="slide" id="slide-6">
+    <div class="card">
+      <div class="slide-number">06 / TECH STACK</div>
+      <h2 class="slide-title">技术栈</h2>
+      <div class="divider"></div>
+      <div class="tech-grid">
+        <div class="tech-item">
+          <div class="tech-icon">☕</div>
+          <div class="tech-name">Spring Boot 3.2</div>
+          <div class="tech-desc">后端框架，依赖注入与核心调度</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🔗</div>
+          <div class="tech-name">LangChain4j 1.1</div>
+          <div class="tech-desc">AI 交互框架，构建 Agent 服务</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">📊</div>
+          <div class="tech-name">LangGraph4j 1.6</div>
+          <div class="tech-desc">多 Agent 工作流编排，状态机</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">⚛️</div>
+          <div class="tech-name">React 19 + Vite</div>
+          <div class="tech-desc">前端 UI，实时交互界面</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🗄️</div>
+          <div class="tech-name">MySQL + Redis</div>
+          <div class="tech-desc">业务数据存储 + 短期记忆缓存</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🔢</div>
+          <div class="tech-name">Milvus 2.3</div>
+          <div class="tech-desc">向量数据库，语义检索与 RAG</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🐇</div>
+          <div class="tech-name">RabbitMQ 3.12</div>
+          <div class="tech-desc">Agent 间消息队列，异步通信</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-icon">🧩</div>
+          <div class="tech-name">BGE Reranker</div>
+          <div class="tech-desc">向量检索重排序，提升相关性</div>
+        </div>
+      </div>
+      <div class="tags" style="margin-top: 20px;">
+        <span class="tag blue">Spring Boot</span>
+        <span class="tag yellow">LangChain4j</span>
+        <span class="tag">LangGraph4j</span>
+        <span class="tag teal">React 19</span>
+        <span class="tag green">Milvus</span>
+        <span class="tag red">RabbitMQ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 7 — Highlights ═══ -->
+  <div class="slide" id="slide-7">
+    <div class="card">
+      <div class="slide-number">07 / HIGHLIGHTS</div>
+      <h2 class="slide-title">技术亮点</h2>
+      <div class="divider"></div>
+      <div class="feature-grid" style="margin-top: 8px;">
+        <div class="feature-item">
+          <div class="feature-icon">🤖</div>
+          <div class="feature-name">多 Agent 协作</div>
+          <div class="feature-desc">LangGraph 实现条件路由、循环、并行等复杂协作模式，4 种 Agent 各司其职</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🔍</div>
+          <div class="feature-name">向量检索 + 重排序</div>
+          <div class="feature-desc">Milvus 语义检索 + BGE Reranker，为 AI 提供精准的上下文信息</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🧠</div>
+          <div class="feature-name">三级记忆架构</div>
+          <div class="feature-desc">短期 / 中期 / 长期分层管理，配合 RAG 增强，AI 不再「说完就忘」</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-name">状态机流程</div>
+          <div class="feature-desc">Spring State Machine 驱动完整游戏阶段，确保流程严谨、不可跳过</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🎬</div>
+          <div class="feature-name">流式剧本生成</div>
+          <div class="feature-desc">工作流编排实现分阶段生成，支持流式输出，游戏无需等待</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🛡️</div>
+          <div class="feature-name">工具权限系统</div>
+          <div class="feature-desc">策略模式区分 DM / Player Agent 的工具权限，防止越界操作</div>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-value">4</div>
+          <div class="stat-label">种 Agent 角色</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">3</div>
+          <div class="stat-label">层记忆架构</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">6</div>
+          <div class="stat-label">个游戏阶段</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">8</div>
+          <div class="stat-label">大技术组件</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 8 — End ═══ -->
+  <div class="slide" id="slide-8">
+    <div class="card" style="text-align:center;">
+      <div class="slide-number">08 / END</div>
+      <h2 class="slide-title" style="font-size: clamp(2rem, 4vw, 3rem);">Thanks!</h2>
+      <div class="divider"></div>
+      <div class="slide-body" style="text-align:center;">
+        <p style="margin-bottom: 18px; color: var(--subtext);">
+          Questions? Let's talk.
+        </p>
+        <p>
+          <span class="highlight">AI剧本杀</span> &middot; 当 AI 遇见沉浸式推理游戏<br>
+          <span style="color: var(--subtext); font-size: 0.92rem;">
+            Built with <span class="highlight-blue">LangChain4j</span> + <span class="highlight-yellow">LangGraph4j</span> + <span class="highlight-green">Milvus</span>
+          </span>
+        </p>
+      </div>
+      <div class="cover-links" style="margin-top: 30px; justify-content: center;">
+        <a class="cover-link primary" href="https://github.com/Zewang0217/ai-jubensha" target="_blank">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Star on GitHub
+        </a>
+        <a class="cover-link secondary" href="https://github.com/Zewang0217" target="_blank">
+          Follow @Zewang0217
+        </a>
+      </div>
+      <div class="tags" style="justify-content: center; margin-top: 22px;">
+        <span class="tag">AI剧本杀</span>
+        <span class="tag blue">Multi-Agent</span>
+        <span class="tag">LangChain4j</span>
+        <span class="tag yellow">LangGraph4j</span>
+        <span class="tag green">Milvus RAG</span>
+        <span class="tag teal">Spring Boot</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="nav-bar">
+  <button class="nav-btn" id="prevBtn" title="Previous (←)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <div class="nav-dots" id="navDots"></div>
+  <span class="nav-counter" id="navCounter">1 / 9</span>
+  <button class="nav-btn" id="nextBtn" title="Next (→)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+</div>
+
+<div class="scroll-hint">ARROW KEYS TO NAVIGATE</div>
+
+<script>
+  const TOTAL = 9;
+  let current = 0;
+
+  const slides = document.querySelectorAll('.slide');
+  const navDots = document.getElementById('navDots');
+  const navCounter = document.getElementById('navCounter');
+
+  for (let i = 0; i < TOTAL; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    dot.addEventListener('click', () => go(i));
+    navDots.appendChild(dot);
+  }
+
+  function update() {
+    slides.forEach((s, i) => {
+      s.classList.remove('active', 'prev');
+      if (i === current) s.classList.add('active');
+      else if (i < current) s.classList.add('prev');
+    });
+    document.querySelectorAll('.nav-dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+    navCounter.textContent = `${current + 1} / ${TOTAL}`;
+  }
+
+  function go(idx) {
+    current = Math.max(0, Math.min(TOTAL - 1, idx));
+    update();
+  }
+
+  function next() { if (current < TOTAL - 1) { current++; update(); } }
+  function prev() { if (current > 0) { current--; update(); } }
+
+  document.getElementById('prevBtn').addEventListener('click', prev);
+  document.getElementById('nextBtn').addEventListener('click', next);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prev(); }
+  });
+
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = tx - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 50) { dx > 0 ? next() : prev(); }
+  });
+</script>
+</body>
+</html>
