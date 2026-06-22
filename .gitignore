@@ -140,3 +140,4 @@ tmp/
 AGENTS.md
 
 reports/src/main/resources/application.yml
+ai-jubensha-backend/src/main/resources/application.yml
