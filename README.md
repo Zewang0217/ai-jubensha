@@ -1,3 +1,5 @@
+
+
 # 🎭 AI剧本杀 (AI-ScriptKill)
 
 > 当人工智能遇上沉浸式推理游戏，每一局都是独一无二的悬疑故事
@@ -250,6 +252,7 @@ docker-compose up -d
 # - 前端: http://localhost:5173
 # - 后端: http://localhost:8080
 # - API文档: http://localhost:8080/swagger-ui.html
+# - 向量数据库管理: http://localhost:8000 (Attu)
 ```
 
 ---
